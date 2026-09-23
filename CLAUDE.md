@@ -25,8 +25,10 @@ pnpm exec tsc --noEmit  # typecheck — run after every change
 pnpm build            # full production build — run before declaring a feature done
 ```
 
-**Never run `pnpm build` while a `pnpm dev` server is running** — both write to `.next/` and the dev server breaks
-with ENOENT vendor-chunk errors (fix: stop dev, `rm -rf .next`, restart). `.claude/launch.json` defines the `dev`
+**Only one Next.js process may use `.next/` at a time.** Never run `pnpm build` while a dev server is up, and never
+start a second `pnpm dev` (e.g. on port 3001) next to an existing one. Symptoms: ENOENT vendor-chunk errors, or the
+page rendering as unstyled HTML because the CSS URL 404s. Before starting a server, check `lsof -iTCP:3000-3010
+-sTCP:LISTEN` and reuse the user's running server. Fix: stop the extra process, `rm -rf .next`, restart one server. `.claude/launch.json` defines the `dev`
 preview server. The `verify` skill (`.claude/skills/verify`) has the full check sequence, including a curl smoke test
 of the chat route.
 
