@@ -17,6 +17,9 @@ importers:
       '@ai-sdk/openai':
         specifier: ^4.0.74
         version: 4.0.74(zod@3.25.76)
+      '@ai-sdk/openai-compatible':
+        specifier: ^3.0.55
+        version: 3.0.55(zod@3.25.76)
       '@ai-sdk/react':
         specifier: ^4.0.116
         version: 4.0.116(react@19.3.0)(zod@3.25.76)
@@ -104,6 +107,12 @@ packages:
 
   '@ai-sdk/mcp@2.0.57':
     resolution: {integrity: sha512-Ox7mjtaN7Yu4YHOjBFV6+ibeG8vKTwsu3EN6059Tj977uaxJwCLTzm/oSKnR99sQKYCzz86L7mgc9rt+7wtsNw==}
+    engines: {node: '>=22'}
+    peerDependencies:
+      zod: ^3.25.76 || ^4.1.8
+
+  '@ai-sdk/openai-compatible@3.0.55':
+    resolution: {integrity: sha512-mM/+YepFSgd1som+WYm8OAUYrl0X6T9ix327/2vszLGrrql8K7ZwL3MQ7AIs0tYS6QEy3mhvqz4w9pBFz7UhSg==}
     engines: {node: '>=22'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
@@ -2551,6 +2560,12 @@ snapshots:
       '@ai-sdk/provider-utils': 5.0.47(zod@3.25.76)
       cross-spawn: 7.0.6
       pkce-challenge: 5.0.1
+      zod: 3.25.76
+
+  '@ai-sdk/openai-compatible@3.0.55(zod@3.25.76)':
+    dependencies:
+      '@ai-sdk/provider': 4.0.18
+      '@ai-sdk/provider-utils': 5.0.47(zod@3.25.76)
       zod: 3.25.76
 
   '@ai-sdk/openai@4.0.74(zod@3.25.76)':

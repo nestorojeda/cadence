@@ -26,6 +26,9 @@ Run these in order and stop at the first failure — fix it before continuing.
      Fail: an `error` chunk (e.g. missing `thought_signature`, invalid schema) or a stream ending right after the tool call.
    - The request needs provider + Intervals keys in `.env.local`. If they're missing, say so rather than skipping silently.
    - If another provider changed, repeat with its `modelProvider`/`modelName`.
+   - **Ollama** (no keys besides Intervals): needs `ollama serve` running and `ollama pull qwen3:1.7b`
+     (check `curl -s localhost:11434/api/tags`). Use `"modelProvider": "ollama", "modelName": "qwen3:1.7b"`.
+     A 1.7B model calls tools less reliably, so retry once with a more direct prompt before treating a tool-less answer as a bug.
 4. **UI check** (only for component changes): open http://localhost:3000 in the browser pane, send a quick prompt,
    confirm tool-call pills and the markdown answer render, and check the console for errors.
 

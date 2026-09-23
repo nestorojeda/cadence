@@ -12,6 +12,7 @@
     "@ai-sdk/anthropic": "^4.0.62",
     "@ai-sdk/google": "^4.0.79",
     "@ai-sdk/openai": "^4.0.74",
+    "@ai-sdk/openai-compatible": "^3.0.55",
     "@ai-sdk/react": "^4.0.116",
     "@modelcontextprotocol/sdk": "^1.6.0",
     "ai": "^7.0.113",
