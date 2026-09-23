@@ -1,14 +1,21 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { X, Key, Cpu, ShieldCheck } from "lucide-react";
 import { DEFAULT_MODELS, DEFAULT_PROVIDER, type ModelProvider } from "@/lib/llm/models";
+import { GhostButton, Modal, ModalSection, PrimaryButton, SavedNote, inputClass } from "@/components/ui/Modal";
 
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSettingsChanged?: () => void;
 }
+
+const PROVIDERS: Array<{ id: ModelProvider; label: string; sub: string; envVar?: string }> = [
+  { id: "google", label: "Google", sub: "Gemini", envVar: "GEMINI_API_KEY" },
+  { id: "openai", label: "OpenAI", sub: "GPT", envVar: "OPENAI_API_KEY" },
+  { id: "anthropic", label: "Anthropic", sub: "Claude", envVar: "ANTHROPIC_API_KEY" },
+  { id: "ollama", label: "Ollama", sub: "Local" },
+];
 
 export function SettingsModal({ isOpen, onClose, onSettingsChanged }: SettingsModalProps) {
   const [provider, setProvider] = useState<ModelProvider>(DEFAULT_PROVIDER);
@@ -22,8 +29,9 @@ export function SettingsModal({ isOpen, onClose, onSettingsChanged }: SettingsMo
 
   useEffect(() => {
     if (typeof window !== "undefined") {
-      setProvider((localStorage.getItem("apex_model_provider") as any) || "google");
-      setModelName(localStorage.getItem("apex_model_name") || DEFAULT_MODELS[DEFAULT_PROVIDER]);
+      const storedProvider = (localStorage.getItem("apex_model_provider") as ModelProvider) || DEFAULT_PROVIDER;
+      setProvider(storedProvider);
+      setModelName(localStorage.getItem("apex_model_name") || DEFAULT_MODELS[storedProvider]);
       setGeminiKey(localStorage.getItem("apex_gemini_key") || "");
       setOpenAiKey(localStorage.getItem("apex_openai_key") || "");
       setAnthropicKey(localStorage.getItem("apex_anthropic_key") || "");
@@ -51,168 +59,135 @@ export function SettingsModal({ isOpen, onClose, onSettingsChanged }: SettingsMo
     }, 800);
   };
 
+  const keyField: Partial<Record<ModelProvider, { value: string; set: (v: string) => void }>> = {
+    google: { value: geminiKey, set: setGeminiKey },
+    openai: { value: openAiKey, set: setOpenAiKey },
+    anthropic: { value: anthropicKey, set: setAnthropicKey },
+  };
+  const activeProvider = PROVIDERS.find((p) => p.id === provider)!;
+  const activeKey = keyField[provider];
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-150">
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-lg flex flex-col shadow-2xl overflow-hidden">
-        {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/40">
-          <h2 className="text-lg font-bold text-slate-100 flex items-center gap-2">
-            <Cpu className="w-5 h-5 text-cyan-400" />
-            AI & Intervals.icu Settings
-          </h2>
-          <button
-            onClick={onClose}
-            className="text-slate-400 hover:text-slate-100 p-1.5 rounded-lg hover:bg-slate-800 transition"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* Form Body */}
-        <div className="px-6 py-5 space-y-5 text-sm text-slate-300">
-          {/* AI Provider */}
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
-              AI Provider
-            </label>
-            <div className="grid grid-cols-3 gap-2">
-              {[
-                { id: "google", label: "Google Gemini" },
-                { id: "openai", label: "OpenAI" },
-                { id: "anthropic", label: "Anthropic" },
-              ].map((p) => (
-                <button
-                  key={p.id}
-                  type="button"
-                  onClick={() => {
-                    setProvider(p.id as any);
-                    setModelName(DEFAULT_MODELS[p.id as ModelProvider]);
-                  }}
-                  className={`p-2.5 rounded-xl border text-xs text-center font-medium transition ${
-                    provider === p.id
-                      ? "border-cyan-500 bg-cyan-500/10 text-cyan-300 font-bold"
-                      : "border-slate-800 bg-slate-950/40 text-slate-400 hover:border-slate-700"
-                  }`}
-                >
+    <Modal
+      title="Settings"
+      description="Stored in this browser only and sent with each chat request."
+      onClose={onClose}
+      footer={
+        <>
+          <SavedNote show={savedSuccess}>Saved</SavedNote>
+          <div className="flex items-center gap-3">
+            <GhostButton onClick={onClose}>Cancel</GhostButton>
+            <PrimaryButton onClick={handleSave}>Save changes</PrimaryButton>
+          </div>
+        </>
+      }
+    >
+      <ModalSection label="Model provider">
+        <div role="radiogroup" aria-label="Model provider" className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          {PROVIDERS.map((p) => {
+            const selected = provider === p.id;
+            return (
+              <button
+                key={p.id}
+                type="button"
+                role="radio"
+                aria-checked={selected}
+                onClick={() => {
+                  setProvider(p.id);
+                  setModelName(DEFAULT_MODELS[p.id]);
+                }}
+                className={`flex flex-col items-start gap-0.5 px-3 py-2.5 rounded-[10px] border text-left transition ${
+                  selected ? "border-fg-muted bg-ink-raised" : "border-ink-line hover:border-ink-edge hover:bg-ink-surface"
+                }`}
+              >
+                <span className="flex items-center gap-1.5 text-[13px] font-medium">
+                  {selected && <span className="w-1.5 h-1.5 rounded-full bg-signal" />}
                   {p.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Model Name */}
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
-              Model Name
-            </label>
-            <input
-              type="text"
-              value={modelName}
-              onChange={(e) => setModelName(e.target.value)}
-              placeholder={`e.g. ${DEFAULT_MODELS[provider]}`}
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-cyan-500"
-            />
-          </div>
-
-          {/* API Key */}
-          {provider === "google" && (
-            <div>
-              <div className="flex items-center gap-1.5 mb-1.5">
-                <Key className="w-3.5 h-3.5 text-cyan-400" />
-                <label className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                  Google Gemini API Key
-                </label>
-              </div>
-              <input
-                type="password"
-                value={geminiKey}
-                onChange={(e) => setGeminiKey(e.target.value)}
-                placeholder="Leave blank to use GEMINI_API_KEY from .env.local"
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-cyan-500"
-              />
-            </div>
-          )}
-
-          {provider === "openai" && (
-            <div>
-              <div className="flex items-center gap-1.5 mb-1.5">
-                <Key className="w-3.5 h-3.5 text-cyan-400" />
-                <label className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                  OpenAI API Key
-                </label>
-              </div>
-              <input
-                type="password"
-                value={openAiKey}
-                onChange={(e) => setOpenAiKey(e.target.value)}
-                placeholder="Leave blank to use OPENAI_API_KEY from .env.local"
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-cyan-500"
-              />
-            </div>
-          )}
-
-          {provider === "anthropic" && (
-            <div>
-              <div className="flex items-center gap-1.5 mb-1.5">
-                <Key className="w-3.5 h-3.5 text-cyan-400" />
-                <label className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                  Anthropic API Key
-                </label>
-              </div>
-              <input
-                type="password"
-                value={anthropicKey}
-                onChange={(e) => setAnthropicKey(e.target.value)}
-                placeholder="Leave blank to use ANTHROPIC_API_KEY from .env.local"
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-cyan-500"
-              />
-            </div>
-          )}
-
-          {/* Intervals.icu Settings */}
-          <div className="border-t border-slate-800 pt-4">
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
-              Intervals.icu Athlete ID
-            </label>
-            <input
-              type="text"
-              value={athleteId}
-              onChange={(e) => setAthleteId(e.target.value)}
-              placeholder="e.g. i435091"
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-cyan-500"
-            />
-          </div>
+                </span>
+                <span className="text-[11px] text-fg-muted">{p.sub}</span>
+              </button>
+            );
+          })}
         </div>
+      </ModalSection>
 
-        {/* Footer */}
-        <div className="px-6 py-4 border-t border-slate-800 bg-slate-950/60 flex items-center justify-between">
-          {savedSuccess ? (
-            <span className="flex items-center gap-1 text-xs text-emerald-400 font-semibold">
-              <ShieldCheck className="w-4 h-4" />
-              Settings saved!
-            </span>
-          ) : (
-            <span />
-          )}
+      <ModalSection label="Model" htmlFor="model-name">
+        <input
+          id="model-name"
+          type="text"
+          value={modelName}
+          onChange={(e) => setModelName(e.target.value)}
+          placeholder={`e.g. ${DEFAULT_MODELS[provider]}`}
+          className={`${inputClass} font-mono`}
+        />
+      </ModalSection>
 
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-xs font-semibold text-slate-300 hover:text-slate-100 transition"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={handleSave}
-              className="px-5 py-2 rounded-xl text-xs font-bold bg-cyan-500 hover:bg-cyan-400 text-slate-950 transition shadow-lg shadow-cyan-500/20"
-            >
-              Save Changes
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
+      {activeKey && (
+        <ModalSection
+          label={`${activeProvider.label} API key`}
+          htmlFor="provider-key"
+          hint={
+            <>
+              Leave blank to use <code className="font-mono text-fg-subtle">{activeProvider.envVar}</code> from
+              .env.local.
+            </>
+          }
+        >
+          <input
+            id="provider-key"
+            type="password"
+            autoComplete="off"
+            value={activeKey.value}
+            onChange={(e) => activeKey.set(e.target.value)}
+            placeholder="Not set"
+            className={`${inputClass} font-mono`}
+          />
+        </ModalSection>
+      )}
+
+      {provider === "ollama" && (
+        <p className="text-xs leading-relaxed text-fg-subtle border border-ink-line rounded-[10px] px-3.5 py-3">
+          Runs against your local Ollama server (<code className="font-mono text-fg">OLLAMA_BASE_URL</code> in
+          .env.local, default <code className="font-mono text-fg">http://localhost:11434/v1</code>). No API key needed.
+          Pull the model first with{" "}
+          <code className="font-mono text-fg">ollama pull {modelName || DEFAULT_MODELS.ollama}</code>; the coach needs
+          a tool-capable model such as qwen3.
+        </p>
+      )}
+
+      <div className="border-t border-ink-hair" />
+
+      <ModalSection label="Intervals.icu athlete ID" htmlFor="athlete-id">
+        <input
+          id="athlete-id"
+          type="text"
+          value={athleteId}
+          onChange={(e) => setAthleteId(e.target.value)}
+          placeholder="e.g. i435091"
+          className={`${inputClass} font-mono`}
+        />
+      </ModalSection>
+
+      <ModalSection
+        label="Intervals.icu API key"
+        htmlFor="intervals-key"
+        hint={
+          <>
+            Find it in Intervals.icu under Settings → Developer Settings. Leave blank to use{" "}
+            <code className="font-mono text-fg-subtle">INTERVALS_ICU_API_KEY</code> from .env.local.
+          </>
+        }
+      >
+        <input
+          id="intervals-key"
+          type="password"
+          autoComplete="off"
+          value={intervalsApiKey}
+          onChange={(e) => setIntervalsApiKey(e.target.value)}
+          placeholder="Not set"
+          className={`${inputClass} font-mono`}
+        />
+      </ModalSection>
+    </Modal>
   );
 }

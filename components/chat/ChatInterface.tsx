@@ -2,17 +2,20 @@
 
 import React, { useRef, useEffect, useState } from "react";
 import { useChat } from "@ai-sdk/react";
-import { DefaultChatTransport } from "ai";
-import { Send, Square, Loader2, Sparkles } from "lucide-react";
-import { ChatMessage } from "./ChatMessage";
-import { QuickPrompts } from "./QuickPrompts";
+import { DefaultChatTransport, isTextUIPart } from "ai";
+import { ArrowUp, Square } from "lucide-react";
+import { ChatMessage, CoachLabel, LiveStatus } from "./ChatMessage";
+import { COMPOSER_CHIPS, QuickPrompts } from "./QuickPrompts";
 import { DEFAULT_MODELS, DEFAULT_PROVIDER, type ModelProvider } from "@/lib/llm/models";
+import { FORM_LABELS, formatDuration, formatSigned, toLocalDate, type MetricsResponse } from "@/lib/intervals/metrics";
 
 interface ChatInterfaceProps {
   athleteId: string;
+  metrics: MetricsResponse | null;
 }
 
-const API_KEY_STORAGE: Record<ModelProvider, string> = {
+// Providers without an entry (Ollama) need no key from the browser.
+const API_KEY_STORAGE: Partial<Record<ModelProvider, string>> = {
   google: "apex_gemini_key",
   openai: "apex_openai_key",
   anthropic: "apex_anthropic_key",
@@ -24,12 +27,12 @@ function getModelSettings() {
   return {
     modelProvider,
     modelName: localStorage.getItem("apex_model_name") || DEFAULT_MODELS[modelProvider],
-    apiKey: localStorage.getItem(API_KEY_STORAGE[modelProvider]) || undefined,
+    apiKey: (API_KEY_STORAGE[modelProvider] && localStorage.getItem(API_KEY_STORAGE[modelProvider])) || undefined,
     intervalsApiKey: localStorage.getItem("apex_intervals_key") || undefined,
   };
 }
 
-export function ChatInterface({ athleteId }: ChatInterfaceProps) {
+export function ChatInterface({ athleteId, metrics }: ChatInterfaceProps) {
   const [input, setInput] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -45,7 +48,7 @@ export function ChatInterface({ athleteId }: ChatInterfaceProps) {
       })
   );
 
-  const { messages, sendMessage, status, stop, error } = useChat({
+  const { messages, sendMessage, setMessages, status, stop, error } = useChat({
     transport,
     onError: (err) => {
       console.error("Chat stream error:", err);
@@ -53,117 +56,267 @@ export function ChatInterface({ athleteId }: ChatInterfaceProps) {
   });
 
   const isLoading = status === "submitted" || status === "streaming";
+  const lastMessage = messages[messages.length - 1];
+  // Between sending and the first streamed part there is no assistant message to show progress in.
+  const awaitingReply = isLoading && lastMessage?.role === "user";
 
-  const submitInput = () => {
-    const text = input.trim();
+  const submitText = (value: string) => {
+    const text = value.trim();
     if (!text || isLoading) return;
     sendMessage({ text });
     setInput("");
   };
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  const startNewChat = () => {
+    if (isLoading) stop();
+    setMessages([]);
+    setInput("");
   };
 
   useEffect(() => {
-    scrollToBottom();
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages, isLoading]);
 
-  const handleQuickPrompt = (promptText: string) => {
-    sendMessage({ text: promptText });
-  };
+  const firstUserText = messages
+    .find((m) => m.role === "user")
+    ?.parts.filter(isTextUIPart)
+    .map((p) => p.text)
+    .join(" ");
+
+  const composer = (
+    <Composer
+      value={input}
+      onChange={setInput}
+      onSubmit={() => submitText(input)}
+      onStop={stop}
+      isLoading={isLoading}
+      large={messages.length === 0}
+      chips={messages.length > 0 ? COMPOSER_CHIPS : undefined}
+      onChip={submitText}
+    />
+  );
+
+  if (messages.length === 0) {
+    return (
+      <div className="flex-1 flex justify-center items-center px-4 py-10 lg:py-16">
+        <div className="w-full max-w-[680px] flex flex-col gap-8">
+          <Briefing metrics={metrics} />
+          {composer}
+          <QuickPrompts onSelectPrompt={submitText} disabled={isLoading} />
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex flex-col flex-1 max-w-4xl w-full mx-auto px-4 py-4 min-h-[calc(100vh-68px)]">
-      {/* Messages Scroll Area */}
-      <div className="flex-1 space-y-4 pb-4 overflow-y-auto">
-        {messages.length === 0 ? (
-          <div className="my-auto py-12 flex flex-col items-center justify-center text-center max-w-xl mx-auto">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-emerald-500/20 to-cyan-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 mb-4 shadow-lg shadow-emerald-500/10">
-              <Sparkles className="w-6 h-6" />
-            </div>
-            <h1 className="text-xl md:text-2xl font-black text-slate-100 tracking-tight">
-              Ready to ride, Néstor.
-            </h1>
-            <p className="text-xs md:text-sm text-slate-400 mt-2 leading-relaxed">
-              I have live access to your Intervals.icu fitness metrics, power data, and training calendar. Ask me to assess your readiness or plan your week.
-            </p>
-
-            {/* Quick action chips */}
-            <div className="w-full mt-6">
-              <QuickPrompts onSelectPrompt={handleQuickPrompt} disabled={isLoading} />
-            </div>
-          </div>
-        ) : (
-          messages.map((message) => (
-            <ChatMessage key={message.id} message={message} />
-          ))
-        )}
-
-        {/* Loading / Typing Indicator */}
-        {isLoading && (
-          <div className="flex items-center gap-2 text-xs text-cyan-400 px-4 py-2 bg-cyan-950/20 border border-cyan-800/30 rounded-xl w-fit">
-            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            <span>Analyzing Intervals.icu data & formulating training advice...</span>
-          </div>
-        )}
-
-        {/* Error notification */}
-        {error && (
-          <div className="p-3 bg-red-950/40 border border-red-800/50 rounded-xl text-xs text-red-300">
-            <span className="font-bold">Error:</span> {error.message}
-          </div>
-        )}
-
-        <div ref={messagesEndRef} />
+    <div className="flex-1 flex flex-col min-h-0">
+      {/* Conversation bar */}
+      <div className="hidden lg:flex sticky top-0 z-20 h-14 shrink-0 items-center justify-between gap-4 px-8 border-b border-ink-hair bg-ink/95 backdrop-blur">
+        <span className="text-sm font-medium truncate">{firstUserText ?? "Conversation"}</span>
+        <button
+          onClick={startNewChat}
+          className="h-8 px-3 shrink-0 border border-ink-line rounded-lg text-xs hover:bg-ink-raised transition"
+        >
+          New chat
+        </button>
       </div>
 
-      {/* Input Form Bar */}
-      <div className="sticky bottom-4 z-20 pt-2 bg-gradient-to-t from-[#0b0f17] via-[#0b0f17]/95 to-transparent">
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            submitInput();
-          }}
-          className="relative flex items-center bg-slate-900 border border-slate-700/80 rounded-2xl p-1.5 shadow-2xl focus-within:border-emerald-500 transition"
-        >
-          <textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                submitInput();
-              }
-            }}
-            placeholder="Ask your cycling coach (e.g., 'Plan my workouts this week', 'How is my form?')..."
-            rows={1}
-            disabled={isLoading}
-            className="w-full resize-none bg-transparent px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none max-h-32"
-          />
+      {/* Messages */}
+      <div className="flex-1 flex justify-center px-4 lg:px-8 pt-5 lg:pt-8">
+        <div className="w-full max-w-[720px] flex flex-col gap-7 pb-6">
+          {messages.map((message, idx) => (
+            <ChatMessage
+              key={message.id}
+              message={message}
+              isStreaming={isLoading && idx === messages.length - 1 && message.role === "assistant"}
+            />
+          ))}
 
-          <div className="flex items-center gap-1.5 shrink-0 pr-1">
-            {isLoading ? (
-              <button
-                type="button"
-                onClick={() => stop()}
-                className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition"
-                title="Stop response"
-              >
-                <Square className="w-4 h-4 fill-current text-red-400" />
-              </button>
-            ) : (
-              <button
-                type="submit"
-                disabled={!input.trim()}
-                className="p-2.5 rounded-xl bg-gradient-to-tr from-emerald-500 to-cyan-500 text-slate-950 font-bold transition shadow-md shadow-emerald-500/20 disabled:opacity-30 disabled:pointer-events-none hover:opacity-90"
-              >
-                <Send className="w-4 h-4" />
-              </button>
-            )}
-          </div>
-        </form>
+          {awaitingReply && (
+            <div className="flex flex-col gap-3">
+              <CoachLabel />
+              <LiveStatus text="thinking…" />
+            </div>
+          )}
+
+          {error && (
+            <div role="alert" className="flex flex-col gap-1 px-4 py-3 border border-signal-warn/40 rounded-xl text-sm">
+              <span className="font-medium text-signal-warn">The coach couldn’t answer</span>
+              <span className="text-fg-subtle break-words">{error.message}</span>
+            </div>
+          )}
+
+          <div ref={messagesEndRef} />
+        </div>
+      </div>
+
+      {/* Composer */}
+      <div className="sticky bottom-0 z-20 flex justify-center px-3 lg:px-8 pt-3 pb-4 lg:pb-6 bg-gradient-to-t from-ink from-70% to-transparent">
+        <div className="w-full max-w-[720px] flex flex-col gap-2">
+          {composer}
+          <span className="hidden lg:block text-[11px] text-fg-muted text-center">
+            Enter to send · Shift + Enter for a new line · the coach reads your Intervals.icu data live
+          </span>
+          <button onClick={startNewChat} className="lg:hidden self-center text-xs text-fg-muted underline underline-offset-4">
+            New chat
+          </button>
+        </div>
       </div>
     </div>
+  );
+}
+
+function greeting(hour: number) {
+  if (hour < 12) return "Morning";
+  if (hour < 18) return "Afternoon";
+  return "Evening";
+}
+
+/** Date line, greeting and today's readiness, shown before the first message. */
+function Briefing({ metrics }: { metrics: MetricsResponse | null }) {
+  // Time-dependent copy is computed after mount so server and client render the same markup.
+  const [now, setNow] = useState<Date | null>(null);
+  useEffect(() => setNow(new Date()), []);
+
+  const fitness = metrics?.fitness;
+  const firstname = metrics?.athlete?.firstname;
+  const today = now ? toLocalDate(now) : null;
+  const todays = metrics?.week.filter((e) => e.date === today) ?? [];
+  const warn = fitness?.form_status === "fatigued" || fitness?.form_status === "very_fatigued";
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-2.5">
+        <span className="font-mono text-xs text-fg-muted uppercase min-h-4">
+          {now?.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}
+        </span>
+        <h1 className="text-3xl lg:text-[40px] font-medium tracking-tight leading-tight">
+          {now ? greeting(now.getHours()) : "Hello"}
+          {firstname ? `, ${firstname}` : ""}.
+        </h1>
+        {fitness?.tsb != null && (
+          <p className="text-base leading-relaxed text-fg-subtle">
+            Form is <span className="font-mono text-fg">{formatSigned(fitness.tsb)}</span>,{" "}
+            <span className={warn ? "text-signal-warn" : "text-signal"}>{FORM_LABELS[fitness.form_status].toLowerCase()}</span>.{" "}
+            {today &&
+              (todays.length > 0
+                ? `Today’s plan: ${todays.map((e) => e.name).join(" + ")}${
+                    todays[0].movingTime ? ` (${formatDuration(todays.reduce((s, e) => s + (e.movingTime ?? 0), 0))})` : ""
+                  }.`
+                : "Nothing planned today.")}
+          </p>
+        )}
+      </div>
+
+      {fitness && (
+        <div className="grid grid-cols-3 gap-px bg-ink-line border border-ink-line rounded-xl overflow-hidden">
+          <BriefStat label="Fitness · CTL" value={fitness.ctl != null ? Math.round(fitness.ctl).toString() : "—"} />
+          <BriefStat label="Fatigue · ATL" value={fitness.atl != null ? Math.round(fitness.atl).toString() : "—"} />
+          <BriefStat
+            label="Form · TSB"
+            value={fitness.tsb != null ? formatSigned(fitness.tsb) : "—"}
+            className={warn ? "text-signal-warn" : "text-signal"}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function BriefStat({ label, value, className = "" }: { label: string; value: string; className?: string }) {
+  return (
+    <div className="bg-ink-rail px-4 py-3.5 flex flex-col gap-1">
+      <span className="text-[11px] text-fg-muted">{label}</span>
+      <span className={`font-display font-semibold text-[32px] leading-none ${className}`}>{value}</span>
+    </div>
+  );
+}
+
+interface ComposerProps {
+  value: string;
+  onChange: (value: string) => void;
+  onSubmit: () => void;
+  onStop: () => void;
+  isLoading: boolean;
+  large: boolean;
+  chips?: Array<{ label: string; prompt: string }>;
+  onChip: (prompt: string) => void;
+}
+
+function Composer({ value, onChange, onSubmit, onStop, isLoading, large, chips, onChip }: ComposerProps) {
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        onSubmit();
+      }}
+      className="flex flex-col gap-2.5 border border-ink-edge rounded-2xl bg-ink-surface p-3 pl-4 focus-within:border-fg-muted transition"
+    >
+      <label htmlFor="coach-message" className="sr-only">
+        Message your coach
+      </label>
+      <div className="flex items-end gap-3">
+        <textarea
+          id="coach-message"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              onSubmit();
+            }
+          }}
+          placeholder="Ask about your form, a ride, or next week…"
+          rows={large ? 3 : 2}
+          className="flex-1 resize-none bg-transparent text-base lg:text-[15px] leading-normal text-fg placeholder:text-fg-muted focus:outline-none max-h-40 py-1"
+        />
+        {!chips && <SendButton isLoading={isLoading} canSend={!!value.trim()} onStop={onStop} />}
+      </div>
+      {chips && (
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex gap-1.5 overflow-x-auto">
+            {chips.map((chip) => (
+              <button
+                key={chip.label}
+                type="button"
+                disabled={isLoading}
+                onClick={() => onChip(chip.prompt)}
+                className="h-[30px] px-2.5 shrink-0 border border-ink-line rounded-full text-xs text-fg-subtle hover:text-fg hover:border-ink-edge transition disabled:opacity-40"
+              >
+                {chip.label}
+              </button>
+            ))}
+          </div>
+          <SendButton isLoading={isLoading} canSend={!!value.trim()} onStop={onStop} />
+        </div>
+      )}
+    </form>
+  );
+}
+
+function SendButton({ isLoading, canSend, onStop }: { isLoading: boolean; canSend: boolean; onStop: () => void }) {
+  if (isLoading) {
+    return (
+      <button
+        type="button"
+        onClick={onStop}
+        aria-label="Stop answering"
+        title="Stop answering"
+        className="w-11 h-11 shrink-0 flex items-center justify-center rounded-xl border border-ink-edge bg-ink-raised text-fg hover:bg-ink-line transition"
+      >
+        <Square className="w-3.5 h-3.5 fill-current" />
+      </button>
+    );
+  }
+  return (
+    <button
+      type="submit"
+      disabled={!canSend}
+      aria-label="Send"
+      title="Send"
+      className="w-11 h-11 shrink-0 flex items-center justify-center rounded-xl bg-signal text-ink transition hover:brightness-95 disabled:opacity-30"
+    >
+      <ArrowUp className="w-[18px] h-[18px]" strokeWidth={2.5} />
+    </button>
   );
 }

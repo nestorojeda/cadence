@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="320" viewBox="0 0 1280 320" fill="none" role="img" aria-labelledby="title desc">
+  <title id="title">Cadence</title>
+  <desc id="desc">A self-hosted AI cycling coach for Intervals.icu</desc>
+  <defs>
+    <clipPath id="frame">
+      <rect width="1280" height="320" rx="24" />
+    </clipPath>
+  </defs>
+
+  <g clip-path="url(#frame)">
+    <rect width="1280" height="320" fill="#0d0e0c" />
+
+    <!-- Oversized chainring, echoing the mark -->
+    <circle cx="1130" cy="170" r="170" stroke="#1f201d" stroke-width="3" />
+    <circle cx="1130" cy="170" r="128" stroke="#161714" stroke-width="2" stroke-dasharray="2 10" />
+    <line x1="1009.8" y1="290.2" x2="1250.2" y2="49.8" stroke="#1b1c19" stroke-width="3" />
+    <circle cx="1250.2" cy="49.8" r="16" fill="#d4ff3a" />
+    <circle cx="1009.8" cy="290.2" r="16" fill="#3a3c36" />
+
+    <!-- Mark: chainring with lit lead pedal (24px grid scaled ×6) -->
+    <g transform="translate(80 88) scale(6)">
+      <circle cx="12" cy="12" r="8" stroke="#5a5c54" stroke-width="2" />
+      <circle cx="17.66" cy="6.34" r="3" fill="#d4ff3a" />
+      <circle cx="6.34" cy="17.66" r="3" fill="#8c8e85" />
+    </g>
+
+    <text x="268" y="116" fill="#8c8e85" font-family="'JetBrains Mono', SFMono-Regular, Menlo, Consolas, monospace" font-size="15" letter-spacing="2.5">AI CYCLING COACH · INTERVALS.ICU</text>
+    <text x="264" y="196" fill="#ecede6" font-family="'IBM Plex Sans', 'Segoe UI', -apple-system, BlinkMacSystemFont, Helvetica, Arial, sans-serif" font-size="92" font-weight="600" letter-spacing="-2">Cadence</text>
+    <text x="268" y="240" fill="#a3a59b" font-family="'IBM Plex Sans', 'Segoe UI', -apple-system, BlinkMacSystemFont, Helvetica, Arial, sans-serif" font-size="24">A self-hosted coach that reads your training data live.</text>
+  </g>
+</svg>

@@ -31,7 +31,8 @@ export async function getPreferences(athleteId: string): Promise<CoachPreference
 
   try {
     const raw = await fs.readFile(filePath, "utf-8");
-    const parsed = JSON.parse(raw) as CoachPreferences;
+    // `sundayRoutine` was removed (redundant with the day lists); drop it from older files so the next save cleans it up.
+    const { sundayRoutine: _removed, ...parsed } = JSON.parse(raw) as CoachPreferences & { sundayRoutine?: unknown };
     memoryCache.set(cleanId, parsed);
     return parsed;
   } catch {

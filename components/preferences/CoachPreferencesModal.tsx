@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { X, Check, RotateCcw, Mountain, Dumbbell, Calendar, Heart, ShieldCheck } from "lucide-react";
+import { RotateCcw } from "lucide-react";
 import { CoachPreferences, createDefaultPreferences } from "@/lib/types/preferences";
+import { GhostButton, Modal, ModalSection, PrimaryButton, SavedNote, inputClass } from "@/components/ui/Modal";
 
 interface CoachPreferencesModalProps {
   isOpen: boolean;
@@ -12,6 +13,16 @@ interface CoachPreferencesModalProps {
 }
 
 const DAYS_OF_WEEK = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+
+type DayListKey = "longRideDays" | "intervalDays" | "gymDays" | "restDays";
+
+/** Rows of the week grid; colours follow the zone palette used for sessions in the sidebar. */
+const SESSION_ROWS: Array<{ key: DayListKey; label: string; color: string }> = [
+  { key: "intervalDays", label: "Intervals", color: "#fb923c" },
+  { key: "longRideDays", label: "Long ride", color: "#4ade80" },
+  { key: "gymDays", label: "Gym", color: "#c084fc" },
+  { key: "restDays", label: "Rest", color: "#94a3b8" },
+];
 
 export function CoachPreferencesModal({
   isOpen,
@@ -44,16 +55,12 @@ export function CoachPreferencesModal({
 
   if (!isOpen) return null;
 
-  const toggleDay = (
-    currentList: string[],
-    day: string,
-    setter: (newList: string[]) => void
-  ) => {
-    if (currentList.includes(day)) {
-      setter(currentList.filter((d) => d !== day));
-    } else {
-      setter([...currentList, day]);
-    }
+  const toggleDay = (key: DayListKey, day: string) => {
+    const list = preferences[key];
+    setPreferences({
+      ...preferences,
+      [key]: list.includes(day) ? list.filter((d) => d !== day) : [...list, day],
+    });
   };
 
   const handleSave = async () => {
@@ -85,314 +92,167 @@ export function CoachPreferencesModal({
     setPreferences(createDefaultPreferences(athleteId));
   };
 
+  // A rest day that also has a session planned is almost always a mistake worth pointing out.
+  const restConflicts = preferences.restDays.filter((day) =>
+    SESSION_ROWS.some((row) => row.key !== "restDays" && preferences[row.key].includes(day))
+  );
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-150">
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
-        {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/40">
-          <div>
-            <h2 className="text-lg font-bold text-slate-100 flex items-center gap-2">
-              <Calendar className="w-5 h-5 text-emerald-400" />
-              Coach Rules & Schedule Preferences
-            </h2>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Persisted server-side for athlete <code className="text-emerald-400 font-semibold">{athleteId}</code>
-            </p>
-          </div>
-          <button
-            onClick={onClose}
-            className="text-slate-400 hover:text-slate-100 p-1.5 rounded-lg hover:bg-slate-800 transition"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* Content Body */}
-        <div className="px-6 py-5 overflow-y-auto space-y-6 text-sm text-slate-300">
-          {loading ? (
-            <div className="py-12 text-center text-slate-400">Loading athlete preferences...</div>
-          ) : (
-            <>
-              {/* Target Volume */}
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
-                  Weekly Volume Target (Hours)
-                </label>
-                <div className="flex items-center gap-4 bg-slate-950/40 border border-slate-800 p-3 rounded-xl">
-                  <div className="flex-1">
-                    <span className="text-xs text-slate-500">Minimum Hours:</span>
-                    <input
-                      type="number"
-                      min={4}
-                      max={preferences.weeklyVolumeMaxHours}
-                      value={preferences.weeklyVolumeMinHours}
-                      onChange={(e) =>
-                        setPreferences({
-                          ...preferences,
-                          weeklyVolumeMinHours: Number(e.target.value),
-                        })
-                      }
-                      className="mt-1 w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-slate-100 focus:outline-none focus:border-emerald-500"
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <span className="text-xs text-slate-500">Maximum Hours:</span>
-                    <input
-                      type="number"
-                      min={preferences.weeklyVolumeMinHours}
-                      max={30}
-                      value={preferences.weeklyVolumeMaxHours}
-                      onChange={(e) =>
-                        setPreferences({
-                          ...preferences,
-                          weeklyVolumeMaxHours: Number(e.target.value),
-                        })
-                      }
-                      className="mt-1 w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-slate-100 focus:outline-none focus:border-emerald-500"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Long Ride Days */}
-              <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <Mountain className="w-4 h-4 text-emerald-400" />
-                  <label className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                    Preferred Long Endurance Ride Days
-                  </label>
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {DAYS_OF_WEEK.map((day) => {
-                    const active = preferences.longRideDays.includes(day);
-                    return (
-                      <button
-                        key={day}
-                        type="button"
-                        onClick={() =>
-                          toggleDay(preferences.longRideDays, day, (list) =>
-                            setPreferences({ ...preferences, longRideDays: list })
-                          )
-                        }
-                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${
-                          active
-                            ? "bg-emerald-500 text-slate-950 font-bold shadow-md shadow-emerald-500/20"
-                            : "bg-slate-800/80 hover:bg-slate-800 text-slate-400 border border-slate-700/60"
-                        }`}
-                      >
-                        {day}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Workday Interval Days */}
-              <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="w-2 h-2 rounded-full bg-cyan-400" />
-                  <label className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                    Preferred Quality Interval Days (VO2 / Threshold / OU)
-                  </label>
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {DAYS_OF_WEEK.map((day) => {
-                    const active = preferences.intervalDays.includes(day);
-                    return (
-                      <button
-                        key={day}
-                        type="button"
-                        onClick={() =>
-                          toggleDay(preferences.intervalDays, day, (list) =>
-                            setPreferences({ ...preferences, intervalDays: list })
-                          )
-                        }
-                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${
-                          active
-                            ? "bg-cyan-500 text-slate-950 font-bold shadow-md shadow-cyan-500/20"
-                            : "bg-slate-800/80 hover:bg-slate-800 text-slate-400 border border-slate-700/60"
-                        }`}
-                      >
-                        {day}
-                      </button>
-                    );
-                  })}
-                </div>
-                <p className="text-[11px] text-slate-500 mt-1.5">
-                  * Coach rule: strictly keeps a recovery or endurance day between hard interval sessions.
-                </p>
-              </div>
-
-              {/* Gym & Strength Days */}
-              <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <Dumbbell className="w-4 h-4 text-amber-400" />
-                  <label className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                    Preferred Gym & Strength Training Days
-                  </label>
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {DAYS_OF_WEEK.map((day) => {
-                    const active = preferences.gymDays.includes(day);
-                    return (
-                      <button
-                        key={day}
-                        type="button"
-                        onClick={() =>
-                          toggleDay(preferences.gymDays, day, (list) =>
-                            setPreferences({ ...preferences, gymDays: list })
-                          )
-                        }
-                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${
-                          active
-                            ? "bg-amber-500 text-slate-950 font-bold shadow-md shadow-amber-500/20"
-                            : "bg-slate-800/80 hover:bg-slate-800 text-slate-400 border border-slate-700/60"
-                        }`}
-                      >
-                        {day}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Rest Days */}
-              <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <Heart className="w-4 h-4 text-rose-400" />
-                  <label className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                    Preferred Rest Days
-                  </label>
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {DAYS_OF_WEEK.map((day) => {
-                    const active = preferences.restDays.includes(day);
-                    return (
-                      <button
-                        key={day}
-                        type="button"
-                        onClick={() =>
-                          toggleDay(preferences.restDays, day, (list) =>
-                            setPreferences({ ...preferences, restDays: list })
-                          )
-                        }
-                        className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${
-                          active
-                            ? "bg-rose-500 text-slate-950 font-bold shadow-md shadow-rose-500/20"
-                            : "bg-slate-800/80 hover:bg-slate-800 text-slate-400 border border-slate-700/60"
-                        }`}
-                      >
-                        {day}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Sunday Routine */}
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
-                  Sunday Routine
-                </label>
-                <div className="grid grid-cols-3 gap-2">
-                  {(
-                    [
-                      { id: "coffee_ride", label: "Coffee Ride (Z1/Z2)" },
-                      { id: "rest", label: "Full Rest Day" },
-                      { id: "flexible", label: "Flexible" },
-                    ] as const
-                  ).map((option) => (
-                    <button
-                      key={option.id}
-                      type="button"
-                      onClick={() =>
-                        setPreferences({ ...preferences, sundayRoutine: option.id })
-                      }
-                      className={`p-2.5 rounded-xl border text-xs text-center font-medium transition ${
-                        preferences.sundayRoutine === option.id
-                          ? "border-emerald-500 bg-emerald-500/10 text-emerald-300 font-bold"
-                          : "border-slate-800 bg-slate-950/40 text-slate-400 hover:border-slate-700"
-                      }`}
-                    >
-                      {option.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Terrain & Specific Notes */}
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
-                  Long Ride Terrain & Climbing Profile
-                </label>
-                <input
-                  type="text"
-                  value={preferences.mountainTerrainNotes}
-                  onChange={(e) =>
-                    setPreferences({ ...preferences, mountainTerrainNotes: e.target.value })
-                  }
-                  placeholder="e.g. +2,000m climbing, Gran Canaria mountain terrain"
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-emerald-500"
-                />
-              </div>
-
-              {/* Custom Athlete Constraints */}
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
-                  Special Notes / Temporary Constraints
-                </label>
-                <textarea
-                  rows={2}
-                  value={preferences.customNotes}
-                  onChange={(e) =>
-                    setPreferences({ ...preferences, customNotes: e.target.value })
-                  }
-                  placeholder="e.g., Rehabbing left knee, high work travel on Wednesdays, tapering for Gran Canaria race..."
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-slate-200 placeholder:text-slate-600 focus:outline-none focus:border-emerald-500"
-                />
-              </div>
-            </>
-          )}
-        </div>
-
-        {/* Footer Actions */}
-        <div className="px-6 py-4 border-t border-slate-800 bg-slate-950/60 flex items-center justify-between">
+    <Modal
+      title="Coach rules"
+      description={
+        <>
+          The coach follows these when planning your weeks. Saved on this server for{" "}
+          <span className="font-mono text-fg-subtle">{athleteId}</span>.
+        </>
+      }
+      onClose={onClose}
+      width="sm:max-w-xl"
+      footer={
+        <>
           <button
             type="button"
             onClick={handleResetDefaults}
-            className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-200 transition"
+            className="flex items-center gap-1.5 h-10 text-xs text-fg-muted hover:text-fg transition"
           >
             <RotateCcw className="w-3.5 h-3.5" />
-            Reset Defaults
+            Reset defaults
           </button>
-
           <div className="flex items-center gap-3">
-            {savedSuccess && (
-              <span className="flex items-center gap-1 text-xs text-emerald-400 font-semibold animate-in fade-in">
-                <ShieldCheck className="w-4 h-4" />
-                Saved to athlete file!
-              </span>
-            )}
-
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-xs font-semibold text-slate-300 hover:text-slate-100 transition"
-            >
-              Close
-            </button>
-
-            <button
-              type="button"
-              onClick={handleSave}
-              disabled={saving}
-              className="flex items-center gap-1.5 px-5 py-2 rounded-xl text-xs font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 transition shadow-lg shadow-emerald-500/20 disabled:opacity-50"
-            >
-              {saving ? "Saving..." : "Save Rules"}
-            </button>
+            <SavedNote show={savedSuccess}>Saved</SavedNote>
+            <GhostButton onClick={onClose}>Close</GhostButton>
+            <PrimaryButton onClick={handleSave} disabled={saving || loading}>
+              {saving ? "Saving…" : "Save rules"}
+            </PrimaryButton>
           </div>
-        </div>
-      </div>
+        </>
+      }
+    >
+      {loading ? (
+        <div className="py-12 text-center text-sm text-fg-muted">Loading rules…</div>
+      ) : (
+        <>
+          <ModalSection label="Weekly volume">
+            <div className="flex items-center gap-3">
+              <HoursInput
+                label="Minimum hours per week"
+                value={preferences.weeklyVolumeMinHours}
+                min={1}
+                max={preferences.weeklyVolumeMaxHours}
+                onChange={(v) => setPreferences({ ...preferences, weeklyVolumeMinHours: v })}
+              />
+              <span className="text-sm text-fg-muted">to</span>
+              <HoursInput
+                label="Maximum hours per week"
+                value={preferences.weeklyVolumeMaxHours}
+                min={preferences.weeklyVolumeMinHours}
+                max={40}
+                onChange={(v) => setPreferences({ ...preferences, weeklyVolumeMaxHours: v })}
+              />
+              <span className="text-sm text-fg-muted">per week</span>
+            </div>
+          </ModalSection>
+
+          <ModalSection
+            label="Preferred days"
+            hint={
+              restConflicts.length > 0 ? (
+                <span className="text-signal-warn">
+                  {restConflicts.join(", ")}{" "}
+                  {restConflicts.length > 1 ? "are marked as rest but also have sessions" : "is marked as rest but also has a session"}.
+                </span>
+              ) : (
+                "The coach always keeps an easy or rest day between interval sessions."
+              )
+            }
+          >
+            <div className="grid grid-cols-[minmax(0,1fr)_repeat(7,32px)] sm:grid-cols-[minmax(0,1fr)_repeat(7,40px)] gap-x-1 gap-y-1.5 items-center">
+              <span />
+              {DAYS_OF_WEEK.map((day) => (
+                <span key={day} className="text-center font-mono text-[11px] text-fg-muted">
+                  {day.slice(0, 2).toUpperCase()}
+                </span>
+              ))}
+              {SESSION_ROWS.map((row) => (
+                <React.Fragment key={row.key}>
+                  <span className="flex items-center gap-2 text-[13px] text-fg-soft pr-2">
+                    <span className="w-2 h-2 rounded-[2px] shrink-0" style={{ background: row.color }} />
+                    <span className="truncate">{row.label}</span>
+                  </span>
+                  {DAYS_OF_WEEK.map((day) => {
+                    const active = preferences[row.key].includes(day);
+                    return (
+                      <button
+                        key={day}
+                        type="button"
+                        aria-pressed={active}
+                        aria-label={`${row.label} on ${day}`}
+                        title={`${row.label} on ${day}`}
+                        onClick={() => toggleDay(row.key, day)}
+                        className={`h-8 sm:h-10 rounded-md border transition ${
+                          active ? "border-transparent" : "border-ink-line hover:border-ink-edge hover:bg-ink-surface"
+                        }`}
+                        style={active ? { background: row.color } : undefined}
+                      />
+                    );
+                  })}
+                </React.Fragment>
+              ))}
+            </div>
+          </ModalSection>
+
+          <ModalSection label="Long-ride terrain" htmlFor="terrain">
+            <input
+              id="terrain"
+              type="text"
+              value={preferences.mountainTerrainNotes}
+              onChange={(e) => setPreferences({ ...preferences, mountainTerrainNotes: e.target.value })}
+              placeholder="e.g. +2,000 m climbing, Gran Canaria mountain roads"
+              className={inputClass}
+            />
+          </ModalSection>
+
+          <ModalSection label="Notes & temporary constraints" htmlFor="notes">
+            <textarea
+              id="notes"
+              rows={3}
+              value={preferences.customNotes}
+              onChange={(e) => setPreferences({ ...preferences, customNotes: e.target.value })}
+              placeholder="e.g. Rehabbing left knee, travelling for work on Wednesdays, tapering for a race…"
+              className={`${inputClass} h-auto py-2.5 leading-relaxed resize-none`}
+            />
+          </ModalSection>
+        </>
+      )}
+    </Modal>
+  );
+}
+
+function HoursInput({
+  label,
+  value,
+  min,
+  max,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  onChange: (value: number) => void;
+}) {
+  return (
+    <div className="relative w-24">
+      <input
+        type="number"
+        aria-label={label}
+        min={min}
+        max={max}
+        value={value}
+        onChange={(e) => onChange(Number(e.target.value))}
+        className={`${inputClass} font-mono pr-8`}
+      />
+      <span className="absolute right-3.5 top-1/2 -translate-y-1/2 font-mono text-xs text-fg-muted pointer-events-none">h</span>
     </div>
   );
 }

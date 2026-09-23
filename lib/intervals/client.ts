@@ -92,7 +92,7 @@ export class IntervalsClient {
     const auth = Buffer.from(`API_KEY:${this.apiKey}`).toString("base64");
     return {
       Authorization: `Basic ${auth}`,
-      "User-Agent": "ApexCyclingCoach/1.0",
+      "User-Agent": "CadenceCoach/1.0",
       "Content-Type": "application/json",
       Accept: "application/json",
     };

@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none">
+  <style>
+    .ring { stroke: #9a9c92; }
+    .lead { fill: #5b7a00; }
+    .trail { fill: #6b6d64; }
+    @media (prefers-color-scheme: dark) {
+      .ring { stroke: #5a5c54; }
+      .lead { fill: #d4ff3a; }
+      .trail { fill: #8c8e85; }
+    }
+  </style>
+  <circle class="ring" cx="12" cy="12" r="8" stroke-width="2" />
+  <circle class="lead" cx="17.66" cy="6.34" r="3" />
+  <circle class="trail" cx="6.34" cy="17.66" r="3" />
+</svg>

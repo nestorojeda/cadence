@@ -3,140 +3,178 @@
 import React, { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { User, Zap, ChevronDown, ChevronRight, CheckCircle2, Loader2, Wrench, XCircle } from "lucide-react";
+import { AlertTriangle, Check, ChevronDown } from "lucide-react";
 import { getToolName, isTextUIPart, isToolUIPart, type UIMessage } from "ai";
+import { WorkoutCard, type WorkoutEventInput } from "./WorkoutCard";
+import { CadenceMark } from "@/components/CadenceMark";
 
 interface ChatMessageProps {
   message: UIMessage;
+  /** True while this (last, assistant) message is still being streamed. */
+  isStreaming?: boolean;
 }
 
-export function ChatMessage({ message }: ChatMessageProps) {
-  const isUser = message.role === "user";
-  const [toolsExpanded, setToolsExpanded] = useState(false);
+type ToolPart = Extract<UIMessage["parts"][number], { toolCallId: string }>;
 
-  const toolParts = message.parts.filter(isToolUIPart);
-  const text = message.parts
-    .filter(isTextUIPart)
-    .map((part) => part.text)
-    .join("\n\n");
+/** Tool that writes to the calendar — rendered as a workout card instead of in the trace. */
+const CREATE_EVENT_TOOL = "icu_create_calendar_event";
+
+const TOOL_LABELS: Record<string, string> = {
+  icu_get_fitness_summary: "fitness",
+  icu_get_wellness_data: "wellness",
+  icu_get_recent_activities: "recent rides",
+  icu_get_activity_details: "ride details",
+  icu_get_calendar_events: "calendar",
+};
+
+function toolLabel(name: string) {
+  return TOOL_LABELS[name] ?? name.replace(/^icu_(get_)?/, "").replace(/_/g, " ");
+}
+
+function isRunning(part: ToolPart) {
+  return part.state === "input-streaming" || part.state === "input-available";
+}
+
+function hasFailed(part: ToolPart) {
+  if (part.state === "output-error") return true;
+  // Our tools report failures as `{ error }` outputs so the model can recover.
+  return part.state === "output-available" && typeof part.output === "object" && part.output !== null && "error" in part.output;
+}
+
+export function CoachLabel({ children }: { children?: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-2.5 flex-wrap min-h-7">
+      <span className="text-[13px] font-semibold text-fg">Coach</span>
+      {children}
+    </div>
+  );
+}
+
+export function LiveStatus({ text }: { text: string }) {
+  return (
+    <div className="flex items-center gap-2 font-mono text-xs text-fg" role="status">
+      <CadenceMark size={14} spinning />
+      <span>{text}</span>
+    </div>
+  );
+}
+
+export function ChatMessage({ message, isStreaming = false }: ChatMessageProps) {
+  if (message.role === "user") {
+    const text = message.parts
+      .filter(isTextUIPart)
+      .map((part) => part.text)
+      .join("\n\n");
+    return (
+      <div className="flex justify-end">
+        <div className="max-w-[85%] lg:max-w-[520px] px-4 py-3 bg-ink-raised rounded-[14px] rounded-br-[4px] text-[15px] leading-normal whitespace-pre-wrap break-words">
+          {text}
+        </div>
+      </div>
+    );
+  }
+
+  const toolParts = message.parts.filter(isToolUIPart) as ToolPart[];
+  const readParts = toolParts.filter((p) => getToolName(p) !== CREATE_EVENT_TOOL);
+  const running = toolParts.find(isRunning);
+  const hasText = message.parts.some((p) => isTextUIPart(p) && p.text.trim());
+
+  let liveText: string | null = null;
+  if (isStreaming && running) {
+    const name = getToolName(running);
+    liveText = name === CREATE_EVENT_TOOL ? "adding to your calendar…" : `reading ${toolLabel(name)}…`;
+  } else if (isStreaming && !hasText) {
+    liveText = "thinking…";
+  }
 
   return (
-    <div
-      className={`py-4 px-4 md:px-6 rounded-2xl flex gap-3.5 transition ${
-        isUser
-          ? "bg-slate-900/60 border border-slate-800/80 ml-8 md:ml-16"
-          : "bg-slate-900/30 border border-slate-800/40 mr-4 md:mr-12"
-      }`}
-    >
-      {/* Avatar */}
-      <div className="shrink-0 mt-0.5">
-        {isUser ? (
-          <div className="w-8 h-8 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-300">
-            <User className="w-4 h-4" />
-          </div>
-        ) : (
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-emerald-500 to-cyan-500 flex items-center justify-center text-slate-950 font-bold shadow-md shadow-emerald-500/20">
-            <Zap className="w-4 h-4 fill-current" />
-          </div>
-        )}
-      </div>
+    <div className="flex flex-col gap-4">
+      <CoachLabel>{readParts.some((p) => !isRunning(p)) && <ToolTrace parts={readParts} />}</CoachLabel>
 
-      {/* Message Content */}
-      <div className="flex-1 min-w-0 space-y-3">
-        {/* Name and Timestamp */}
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-bold text-slate-300">
-            {isUser ? "You" : "Coach"}
-          </span>
-        </div>
+      {liveText && <LiveStatus text={liveText} />}
 
-        {/* Tool Invocations Accordion */}
-        {toolParts.length > 0 && (
-          <div className="bg-slate-950/60 border border-slate-800/90 rounded-xl overflow-hidden text-xs">
-            <button
-              onClick={() => setToolsExpanded(!toolsExpanded)}
-              className="w-full px-3 py-2 flex items-center justify-between text-slate-400 hover:text-slate-200 transition bg-slate-950/40"
-            >
-              <div className="flex items-center gap-2">
-                <Wrench className="w-3.5 h-3.5 text-cyan-400" />
-                <span className="font-semibold text-slate-300">
-                  {toolParts.length} Intervals.icu Tool Call
-                  {toolParts.length > 1 ? "s" : ""}
-                </span>
-              </div>
-              <div className="flex items-center gap-1.5 text-[11px] text-slate-500">
-                <span>{toolsExpanded ? "Hide" : "Show"} Details</span>
-                {toolsExpanded ? (
-                  <ChevronDown className="w-3.5 h-3.5" />
-                ) : (
-                  <ChevronRight className="w-3.5 h-3.5" />
-                )}
-              </div>
-            </button>
-
-            {toolsExpanded && (
-              <div className="p-3 border-t border-slate-800/80 space-y-2 bg-slate-950/80 font-mono text-[11px]">
-                {toolParts.map((part) => {
-                  const isDone = part.state === "output-available";
-                  const isFailed = part.state === "output-error";
-                  return (
-                    <div
-                      key={part.toolCallId}
-                      className="p-2 rounded-lg bg-slate-900 border border-slate-800 space-y-1"
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="text-emerald-400 font-bold">
-                          {getToolName(part)}
-                        </span>
-                        <div className="flex items-center gap-1">
-                          {isFailed ? (
-                            <span className="flex items-center gap-1 text-red-400 text-[10px]">
-                              <XCircle className="w-3 h-3" /> Failed
-                            </span>
-                          ) : isDone ? (
-                            <span className="flex items-center gap-1 text-emerald-400 text-[10px]">
-                              <CheckCircle2 className="w-3 h-3" /> Done
-                            </span>
-                          ) : (
-                            <span className="flex items-center gap-1 text-cyan-400 text-[10px]">
-                              <Loader2 className="w-3 h-3 animate-spin" /> Querying...
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      {part.input != null && (
-                        <div className="text-slate-400 text-[10px]">
-                          Args: {JSON.stringify(part.input)}
-                        </div>
-                      )}
-
-                      {isDone && part.output != null && (
-                        <div className="text-slate-400 text-[10px] max-h-32 overflow-y-auto mt-1 p-1.5 rounded bg-black/40">
-                          Result: {JSON.stringify(part.output, null, 2)}
-                        </div>
-                      )}
-
-                      {isFailed && (
-                        <div className="text-red-300 text-[10px] mt-1">Error: {part.errorText}</div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Text Body */}
-        {text && (
-          <div className="prose prose-invert max-w-none text-sm leading-relaxed text-slate-200">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
-              {text}
-            </ReactMarkdown>
-          </div>
-        )}
-      </div>
+      {message.parts.map((part, idx) => {
+        if (isTextUIPart(part)) {
+          if (!part.text.trim()) return null;
+          return (
+            <div key={idx} className="coach-md break-words">
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{part.text}</ReactMarkdown>
+            </div>
+          );
+        }
+        if (isToolUIPart(part) && getToolName(part) === CREATE_EVENT_TOOL) {
+          const toolPart = part as ToolPart;
+          const output = toolPart.state === "output-available" ? toolPart.output : undefined;
+          const errorText =
+            toolPart.state === "output-error"
+              ? toolPart.errorText
+              : output && typeof output === "object" && "error" in output
+                ? String((output as { error: unknown }).error)
+                : undefined;
+          return (
+            <WorkoutCard
+              key={toolPart.toolCallId}
+              input={(toolPart.input ?? {}) as Partial<WorkoutEventInput>}
+              status={errorText ? "failed" : toolPart.state === "output-available" ? "added" : "adding"}
+              errorText={errorText}
+            />
+          );
+        }
+        return null;
+      })}
     </div>
+  );
+}
+
+/** One-line summary of the data the coach read, expandable into the individual calls. */
+function ToolTrace({ parts }: { parts: ToolPart[] }) {
+  const [open, setOpen] = useState(false);
+  const finished = parts.filter((p) => !isRunning(p));
+  const failed = finished.filter(hasFailed);
+  const labels = Array.from(new Set(finished.filter((p) => !hasFailed(p)).map((p) => toolLabel(getToolName(p)))));
+
+  return (
+    <>
+      <button
+        onClick={() => setOpen(!open)}
+        aria-expanded={open}
+        className="flex items-center gap-2 h-7 px-2.5 border border-ink-line rounded-full font-mono text-[11px] text-fg-subtle hover:text-fg hover:border-ink-edge transition max-w-full"
+      >
+        {failed.length > 0 ? (
+          <AlertTriangle className="w-3 h-3 shrink-0 text-signal-warn" />
+        ) : (
+          <Check className="w-3 h-3 shrink-0 text-signal" strokeWidth={2.5} />
+        )}
+        <span className="truncate">
+          {labels.length > 0 && `read ${labels.join(" · ")}`}
+          {labels.length > 0 && failed.length > 0 && " · "}
+          {failed.length > 0 && `${failed.length} failed`}
+        </span>
+        <ChevronDown className={`w-3 h-3 shrink-0 transition ${open ? "rotate-180" : ""}`} />
+      </button>
+
+      {open && (
+        <div className="basis-full border border-ink-line rounded-[10px] overflow-hidden font-mono text-xs">
+          {parts.map((part, i) => (
+            <details key={part.toolCallId} className={`group ${i > 0 ? "border-t border-ink-hair" : ""}`}>
+              <summary className="grid grid-cols-[minmax(0,200px)_minmax(0,1fr)_56px] gap-3 items-center px-3.5 py-2 cursor-pointer list-none hover:bg-ink-rail">
+                <span className="truncate text-fg">{getToolName(part)}</span>
+                <span className="truncate text-fg-muted">{part.input != null ? JSON.stringify(part.input) : ""}</span>
+                <span className={`text-right ${hasFailed(part) ? "text-signal-warn" : "text-fg-muted"}`}>
+                  {isRunning(part) ? "…" : hasFailed(part) ? "failed" : "ok"}
+                </span>
+              </summary>
+              <pre className="px-3.5 pb-3 pt-1 max-h-48 overflow-auto text-[11px] leading-relaxed text-fg-muted whitespace-pre-wrap break-all">
+                {part.state === "output-error"
+                  ? part.errorText
+                  : part.state === "output-available"
+                    ? JSON.stringify(part.output, null, 2)
+                    : "Waiting for result…"}
+              </pre>
+            </details>
+          ))}
+        </div>
+      )}
+    </>
   );
 }

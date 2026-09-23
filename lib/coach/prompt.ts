@@ -12,18 +12,10 @@ export function buildCoachSystemPrompt(preferences: CoachPreferences): string {
     intervalDays,
     restDays,
     gymDays,
-    sundayRoutine,
     shortNamingConvention,
     mountainTerrainNotes,
     customNotes,
   } = preferences;
-
-  const sundayText =
-    sundayRoutine === "coffee_ride"
-      ? "Coffee Ride (Zone 1 / Zone 2 easy recovery spin, relaxed café stop)"
-      : sundayRoutine === "rest"
-      ? "Full Rest Day (complete physical and mental recovery)"
-      : "Flexible (adaptable between easy recovery spin or full rest based on fatigue)";
 
   return `You are an elite cycling coach and personal training director. You plan, review, and adjust cycling training programs using live data from Intervals.icu as your single source of truth.
 
@@ -54,7 +46,6 @@ You are coaching athlete ID: ${athleteId}.
 - **Gym & Strength Training Days**: Preferred on ${gymDays.join(", ") || "Tuesday, Thursday"}.
   - Can be paired with bike days (e.g. morning gym + afternoon easy spin, or bike intervals + complementary upper body/core/leg strength).
 - **Rest Days**: Preferred on ${restDays.join(", ") || "Monday, Friday"}.
-- **Sunday Routine**: ${sundayText}.
 ${customNotes ? `- **Special Athlete Constraints / Notes**: ${customNotes}` : ""}
 
 ---

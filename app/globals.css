@@ -24,9 +24,8 @@
 }
 
 body {
-  background-color: #0b0f17;
-  color: #f1f5f9;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background-color: #0d0e0c;
+  color: #ecede6;
   min-height: 100vh;
 }
 
@@ -36,35 +35,95 @@ body {
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #0f172a;
+  background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #334155;
+  background: #2e302a;
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #475569;
+  background: #3d3f38;
 }
 
-/* Markdown table styling */
-.prose table {
-  width: 100%;
-  border-collapse: collapse;
-  margin: 1rem 0;
-  font-size: 0.875rem;
+/* Coach reply markdown (no typography plugin; Tailwind preflight strips list and heading styles). */
+.coach-md {
+  font-size: 15px;
+  line-height: 1.65;
+  color: #dcddd5;
 }
-.prose th {
-  background-color: #1e293b;
-  color: #94a3b8;
-  text-align: left;
-  padding: 0.5rem 0.75rem;
-  border-bottom: 1px solid #334155;
+.coach-md > * + * {
+  margin-top: 0.75rem;
+}
+.coach-md strong {
+  color: #ecede6;
   font-weight: 600;
 }
-.prose td {
-  padding: 0.5rem 0.75rem;
-  border-bottom: 1px solid #1e293b;
+.coach-md h1,
+.coach-md h2,
+.coach-md h3,
+.coach-md h4 {
+  color: #ecede6;
+  font-weight: 600;
+  line-height: 1.3;
+  margin-top: 1.25rem;
 }
-.prose tr:hover td {
-  background-color: #1e293b/40;
+.coach-md h1 { font-size: 1.25rem; }
+.coach-md h2 { font-size: 1.125rem; }
+.coach-md h3,
+.coach-md h4 { font-size: 1rem; }
+.coach-md ul,
+.coach-md ol {
+  padding-left: 1.25rem;
+}
+.coach-md ul { list-style: disc; }
+.coach-md ol { list-style: decimal; }
+.coach-md li + li { margin-top: 0.25rem; }
+.coach-md li::marker { color: #8c8e85; }
+.coach-md a {
+  color: #ecede6;
+  text-decoration: underline;
+  text-decoration-color: #8c8e85;
+  text-underline-offset: 3px;
+}
+.coach-md a:hover { text-decoration-color: #d4ff3a; }
+.coach-md code {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.85em;
+  background: #1b1c19;
+  border-radius: 4px;
+  padding: 0.1em 0.35em;
+}
+.coach-md pre {
+  background: #121310;
+  border: 1px solid #262823;
+  border-radius: 10px;
+  padding: 0.75rem 1rem;
+  overflow-x: auto;
+}
+.coach-md pre code { background: none; padding: 0; }
+.coach-md blockquote {
+  color: #a3a59b;
+  padding-left: 1rem;
+  border-left: 2px solid #2e302a;
+}
+.coach-md hr { border-color: #262823; }
+.coach-md table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+  display: block;
+  overflow-x: auto;
+}
+.coach-md th {
+  color: #8c8e85;
+  font-size: 12px;
+  font-weight: 500;
+  text-align: left;
+  padding: 0.5rem 0.75rem 0.5rem 0;
+  border-bottom: 1px solid #262823;
+}
+.coach-md td {
+  padding: 0.5rem 0.75rem 0.5rem 0;
+  border-bottom: 1px solid #1f201d;
+  vertical-align: top;
 }

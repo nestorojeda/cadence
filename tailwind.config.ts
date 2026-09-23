@@ -39,6 +39,28 @@ const config: Config = {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
+        // Cockpit palette (warm near-black ground, one signal accent) — used by the chat UI.
+        ink: {
+          DEFAULT: "#0d0e0c",
+          rail: "#10110f",
+          card: "#121310",
+          surface: "#151613",
+          raised: "#1b1c19",
+          hair: "#1f201d",
+          line: "#262823",
+          edge: "#2e302a",
+        },
+        fg: {
+          DEFAULT: "#ecede6",
+          body: "#dcddd5",
+          soft: "#c3c5bb",
+          subtle: "#a3a59b",
+          muted: "#8c8e85",
+        },
+        signal: {
+          DEFAULT: "#d4ff3a",
+          warn: "#ff8a3d",
+        },
         cycling: {
           zone1: "#94a3b8", // Active Recovery (Slate)
           zone2: "#38bdf8", // Endurance (Light Blue)
@@ -48,6 +70,15 @@ const config: Config = {
           zone6: "#f87171", // Anaerobic (Red)
           zone7: "#c084fc", // Neuromuscular (Purple)
         },
+      },
+      fontFamily: {
+        sans: ["var(--font-sans)", "system-ui", "sans-serif"],
+        mono: ["var(--font-mono)", "ui-monospace", "monospace"],
+        display: ["var(--font-display)", "var(--font-sans)", "sans-serif"],
+      },
+      animation: {
+        // Cadence mark while the coach works: one crank revolution per pedal stroke at 90 rpm.
+        pedal: "spin 0.667s linear infinite",
       },
       borderRadius: {
         lg: "var(--radius)",
