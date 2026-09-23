@@ -1,0 +1,29 @@
+---
+name: verify
+description: Verify a change in the Apex Cycling Coach app — typecheck, production build, and a live smoke test of the chat endpoint with tool calling. Use after modifying anything under app/, lib/ or components/, and before declaring a feature or fix done.
+---
+
+# Verify a change
+
+Run these in order and stop at the first failure — fix it before continuing.
+
+1. **Typecheck**: `pnpm exec tsc --noEmit`
+2. **Build**: `pnpm build` (catches App Router / server-client boundary errors tsc misses).
+3. **Smoke test the chat route** (only if the change touches the chat, tools, prompt, or provider code):
+   - Start the dev server with the preview tool (or `pnpm dev`) on port 3000.
+   - POST a UI-message payload that forces a tool call, so multi-step tool loops are exercised:
+
+     ```bash
+     curl -sN localhost:3000/api/chat -H 'content-type: application/json' -d '{
+       "modelProvider": "google", "modelName": "gemini-3.6-flash",
+       "messages": [{"id":"1","role":"user","parts":[{"type":"text","text":"What is my current form (TSB)? Use your tools."}]}]
+     }' | tail -20
+     ```
+   - Pass: the stream contains a `tool-input-available` / `tool-output-available` pair **and** later `text-delta` chunks.
+     Fail: an `error` chunk (e.g. missing `thought_signature`, invalid schema) or a stream ending right after the tool call.
+   - The request needs provider + Intervals keys in `.env.local`. If they're missing, say so rather than skipping silently.
+   - If another provider changed, repeat with its `modelProvider`/`modelName`.
+4. **UI check** (only for component changes): open http://localhost:3000 in the browser pane, send a quick prompt,
+   confirm tool-call pills and the markdown answer render, and check the console for errors.
+
+Report what was run and what passed — don't claim a step passed if it was skipped.
