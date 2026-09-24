@@ -22,7 +22,7 @@ export function CadenceMark({ size = 20, spinning = false, className = "" }: Cad
       aria-hidden="true"
       className={`shrink-0 ${spinning ? "motion-safe:animate-pedal" : ""} ${className}`}
     >
-      <circle cx="12" cy="12" r="8" stroke="#5a5c54" strokeWidth="2" />
+      <circle cx="12" cy="12" r="8" strokeWidth="2" className="stroke-fg-faint" />
       <circle cx="17.66" cy="6.34" r="3" className="fill-signal" />
       <circle cx="6.34" cy="17.66" r="3" className="fill-fg-muted" />
     </svg>

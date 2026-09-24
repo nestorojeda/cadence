@@ -1,6 +1,19 @@
 import { tool } from "ai";
 import { z } from "zod";
 import { IntervalsClient } from "./client";
+import {
+  MAX_WELLNESS_DAYS,
+  compactActivities,
+  compactActivityDetails,
+  compactEvents,
+  compactWellness,
+  daysFromToday,
+  wellnessRange,
+} from "./compact";
+
+// Read tools return trimmed records (see ./compact) with bounded default date ranges: raw Intervals.icu responses are
+// large and every result is re-sent to the model on each later step of the turn.
+type Row = Record<string, unknown>;
 
 /**
  * Creates Vercel AI SDK tools bound to an IntervalsClient instance.
@@ -24,7 +37,8 @@ export function getIntervalsTools(client: IntervalsClient) {
 
     icu_get_wellness_data: tool({
       description:
-        "Get daily wellness records (HRV, resting heart rate, sleep quality, soreness, fatigue) for a date range.",
+        "Get daily wellness records (fitness/fatigue/form, HRV, resting HR, sleep, readiness, soreness, eFTP) for a date " +
+        `range of at most ${MAX_WELLNESS_DAYS} days. For current form alone, prefer icu_get_fitness_summary.`,
       inputSchema: z.object({
         athlete_id: z.string().optional().describe("Athlete ID"),
         oldest: z.string().optional().describe("Oldest date in YYYY-MM-DD format (defaults to 14 days ago)"),
@@ -32,7 +46,9 @@ export function getIntervalsTools(client: IntervalsClient) {
       }),
       execute: async ({ athlete_id, oldest, newest }) => {
         try {
-          return await client.getWellness(athlete_id, oldest, newest);
+          const range = wellnessRange(oldest, newest);
+          const records = await client.getWellness(athlete_id, range.oldest, range.newest);
+          return compactWellness(records as unknown as Row[]);
         } catch (error) {
           return { error: (error as Error).message };
         }
@@ -44,13 +60,14 @@ export function getIntervalsTools(client: IntervalsClient) {
         "List recent training activities, rides, distances, normalized power, TSS, and elevation gain.",
       inputSchema: z.object({
         athlete_id: z.string().optional().describe("Athlete ID"),
-        limit: z.number().optional().default(10).describe("Max activities to return (default 10)"),
+        limit: z.number().int().min(1).max(30).optional().default(10).describe("Max activities to return (default 10, max 30)"),
         oldest: z.string().optional().describe("Oldest date in YYYY-MM-DD format (defaults to 30 days ago)"),
         newest: z.string().optional().describe("Newest date in YYYY-MM-DD format"),
       }),
       execute: async ({ athlete_id, limit, oldest, newest }) => {
         try {
-          return await client.getActivities(athlete_id, limit, oldest, newest);
+          const activities = await client.getActivities(athlete_id, limit, oldest, newest);
+          return compactActivities(activities as unknown as Row[]);
         } catch (error) {
           return { error: (error as Error).message };
         }
@@ -65,7 +82,7 @@ export function getIntervalsTools(client: IntervalsClient) {
       }),
       execute: async ({ activity_id }) => {
         try {
-          return await client.getActivity(activity_id);
+          return compactActivityDetails(await client.getActivity(activity_id));
         } catch (error) {
           return { error: (error as Error).message };
         }
@@ -82,7 +99,8 @@ export function getIntervalsTools(client: IntervalsClient) {
       }),
       execute: async ({ athlete_id, oldest, newest }) => {
         try {
-          return await client.getEvents(athlete_id, oldest, newest);
+          const events = await client.getEvents(athlete_id, oldest || daysFromToday(-7), newest || daysFromToday(14));
+          return compactEvents(events as unknown as Row[]);
         } catch (error) {
           return { error: (error as Error).message };
         }
@@ -98,7 +116,15 @@ export function getIntervalsTools(client: IntervalsClient) {
         start_date_local: z.string().describe("Date/time in ISO-8601 format (e.g. '2026-09-25T09:00:00')"),
         type: z.string().default("Ride").describe("Activity type (Ride, VirtualRide, Workout, Note)"),
         category: z.enum(["WORKOUT", "NOTE"]).default("WORKOUT").describe("Event category"),
-        description: z.string().optional().describe("Workout interval instructions or notes"),
+        description: z
+          .string()
+          .optional()
+          .describe(
+            "For workouts: the steps in Intervals.icu workout syntax, one step per line starting with '- ' " +
+              "(duration like 10m / 30s / 1m30s, target like 75% or 50-65% of FTP, 'ramp 50-75%', or Z2). " +
+              "Repeats: a header line ending in 'Nx' (e.g. 'Main set 5x') followed by its steps, closed by a blank line. " +
+              "Separate sections with blank lines. For notes: free text."
+          ),
         moving_time: z.number().optional().describe("Target duration in seconds"),
         icu_training_load: z.number().optional().describe("Target TSS"),
       }),

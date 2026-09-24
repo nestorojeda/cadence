@@ -1,17 +1,21 @@
 "use client";
 
 import React from "react";
-import { PanelLeftClose, PanelLeftOpen, RefreshCw, Settings, SlidersHorizontal } from "lucide-react";
+import { History, PanelLeftClose, PanelLeftOpen, RefreshCw, Settings, SlidersHorizontal, SquarePen } from "lucide-react";
 import { APP_NAME } from "@/lib/brand";
 import { CadenceMark } from "@/components/CadenceMark";
+import { ThemeCycleButton, ThemeToggle } from "@/components/ThemeToggle";
 import {
   FORM_LABELS,
+  ZONE_LEGEND,
+  activityZoneColor,
   eventZoneColor,
   formatDuration,
   formatSigned,
   toLocalDate,
   type MetricsResponse,
 } from "@/lib/intervals/metrics";
+import { formatChatDate, type ChatMeta } from "@/lib/chat/types";
 
 interface SidebarProps {
   athleteId: string;
@@ -24,7 +28,15 @@ interface SidebarProps {
   onRefresh: () => void;
   onOpenRules: () => void;
   onOpenSettings: () => void;
+  chats: ChatMeta[];
+  activeChatId?: string;
+  onOpenChat: (id: string) => void;
+  onNewChat: () => void;
+  onOpenHistory: () => void;
 }
+
+/** Recent chats listed in the full sidebar; the rest are in the history modal. */
+const RECENT_CHATS = 5;
 
 const DAY_LABELS = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
 
@@ -53,6 +65,11 @@ export function Sidebar({
   onRefresh,
   onOpenRules,
   onOpenSettings,
+  chats,
+  activeChatId,
+  onOpenChat,
+  onNewChat,
+  onOpenHistory,
 }: SidebarProps) {
   const fitness = metrics?.fitness;
   const athleteName = metrics?.athlete?.name || athleteId;
@@ -78,6 +95,12 @@ export function Sidebar({
           <IconButton label="Expand sidebar" onClick={onToggleCompact}>
             <PanelLeftOpen className="w-4 h-4" />
           </IconButton>
+          <IconButton label="New chat" onClick={onNewChat}>
+            <SquarePen className="w-4 h-4" />
+          </IconButton>
+          <IconButton label="Chats" onClick={onOpenHistory}>
+            <History className="w-4 h-4" />
+          </IconButton>
         </div>
 
         {/* Form */}
@@ -99,15 +122,16 @@ export function Sidebar({
             {weekDays(metrics).map((day) => (
               <div
                 key={day.label}
-                title={`${day.label}: ${day.first ? `${day.events.map((e) => e.name).join(" + ")} (${formatDuration(day.duration)})` : "Rest"}`}
+                title={`${day.label}: ${
+                  day.sessions.length
+                    ? day.sessions.map((x) => `${x.name} — ${x.status}`).join(" + ")
+                    : "Rest"
+                }`}
                 aria-current={day.isToday ? "date" : undefined}
                 className={`flex items-center gap-2 h-7 px-2 rounded-md ${day.isToday ? "bg-ink-raised" : ""}`}
               >
                 <span className="w-2.5 font-mono text-[10px] text-fg-muted">{day.label[0]}</span>
-                <span
-                  className={`w-2 h-2 rounded-[2px] ${day.first ? "" : "border border-ink-edge"}`}
-                  style={day.first ? { background: eventZoneColor(day.first) } : undefined}
-                />
+                {day.first ? <SessionMark session={day.first} /> : <span className="w-[9px] h-[9px]" />}
               </div>
             ))}
           </div>
@@ -132,6 +156,7 @@ export function Sidebar({
           <IconButton label={`Settings (${modelLabel})`} onClick={onOpenSettings}>
             <Settings className="w-4 h-4" />
           </IconButton>
+          <ThemeCycleButton />
           <div
             title={`${athleteName} · ${athleteId}`}
             className="mt-2 w-7 h-7 rounded-full bg-ink-line flex items-center justify-center text-[11px] font-semibold"
@@ -200,8 +225,27 @@ export function Sidebar({
 
       {/* Week */}
       <section className="flex flex-col gap-2.5">
-        <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-fg-muted">This week</span>
+        <div className="flex items-center justify-between">
+          <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-fg-muted">This week</span>
+          {metrics && <WeekTotals metrics={metrics} />}
+        </div>
         <WeekList metrics={metrics} />
+      </section>
+
+      {/* Chats */}
+      <section className="flex flex-col gap-2.5">
+        <div className="flex items-center justify-between">
+          <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-fg-muted">Chats</span>
+          <button
+            onClick={onNewChat}
+            title="New chat"
+            className="flex items-center gap-1.5 -mr-1 px-1 font-mono text-[11px] text-fg-muted hover:text-fg transition"
+          >
+            <SquarePen className="w-3 h-3" />
+            new
+          </button>
+        </div>
+        <RecentChats chats={chats} activeChatId={activeChatId} onOpenChat={onOpenChat} onOpenHistory={onOpenHistory} />
       </section>
 
       <div className="flex-1" />
@@ -209,6 +253,9 @@ export function Sidebar({
       <section className="flex flex-col gap-1.5">
         <RailButton icon={SlidersHorizontal} label="Coach rules" onClick={onOpenRules} />
         <RailButton icon={Settings} label="Settings" detail={modelLabel} onClick={onOpenSettings} />
+        <div className="mt-1">
+          <ThemeToggle />
+        </div>
         <div className="flex items-center gap-2.5 px-2.5 pt-3 mt-1.5 border-t border-ink-line">
           <div className="w-7 h-7 rounded-full bg-ink-line flex items-center justify-center text-[11px] font-semibold">
             {initials}
@@ -228,7 +275,8 @@ export function MobileBar({
   metrics,
   onOpenRules,
   onOpenSettings,
-}: Pick<SidebarProps, "metrics" | "onOpenRules" | "onOpenSettings">) {
+  onOpenHistory,
+}: Pick<SidebarProps, "metrics" | "onOpenRules" | "onOpenSettings" | "onOpenHistory">) {
   const tsb = metrics?.fitness?.tsb;
   return (
     <header className="lg:hidden sticky top-0 z-30 h-[60px] flex items-center justify-between px-4 border-b border-ink-hair bg-ink/95 backdrop-blur">
@@ -241,6 +289,13 @@ export function MobileBar({
             <span className={`w-1.5 h-1.5 rounded-full ${isFormWarning(metrics) ? "bg-signal-warn" : "bg-signal"}`} />
           </span>
         )}
+        <button
+          onClick={onOpenHistory}
+          aria-label="Chats"
+          className="w-11 h-11 flex items-center justify-center rounded-lg text-fg-muted hover:text-fg"
+        >
+          <History className="w-4 h-4" />
+        </button>
         <button
           onClick={onOpenRules}
           aria-label="Coach rules"
@@ -348,14 +403,25 @@ function FormSparkline({ points }: { points: Array<{ tsb: number }> }) {
 
   return (
     <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} fill="none" role="img" aria-label="Form, last 6 weeks" className="overflow-visible">
-      <line x1="0" y1={y(0)} x2={width} y2={y(0)} stroke="#2e302a" strokeDasharray="2 4" />
-      <polyline points={line} stroke="#8c8e85" strokeWidth="1.5" strokeLinejoin="round" />
+      <line x1="0" y1={y(0)} x2={width} y2={y(0)} className="stroke-ink-edge" strokeDasharray="2 4" />
+      <polyline points={line} className="stroke-fg-muted" strokeWidth="1.5" strokeLinejoin="round" />
       <circle cx={width} cy={y(last)} r="3.5" className="fill-signal" />
     </svg>
   );
 }
 
-/** The current Monday–Sunday week, one entry per day with its planned sessions. */
+type SessionStatus = "planned" | "done" | "missed" | "unplanned";
+
+interface Session {
+  name: string;
+  status: SessionStatus;
+  color: string;
+  /** Ridden time when done, otherwise planned time; seconds. */
+  duration?: number;
+  planned?: number;
+}
+
+/** The current Monday–Sunday week, one entry per day with its planned and ridden sessions. */
 function weekDays(metrics: MetricsResponse) {
   const today = toLocalDate(new Date());
   const start = new Date(`${metrics.weekStart}T00:00:00`);
@@ -363,15 +429,65 @@ function weekDays(metrics: MetricsResponse) {
     const d = new Date(start);
     d.setDate(start.getDate() + i);
     const date = toLocalDate(d);
-    const events = metrics.week.filter((e) => e.date === date);
-    return {
-      label,
-      events,
-      first: events[0],
-      isToday: date === today,
-      duration: events.reduce((sum, e) => sum + (e.movingTime ?? 0), 0),
-    };
+    const sessions: Session[] = [
+      ...metrics.week
+        .filter((e) => e.date === date)
+        .map((e): Session =>
+          e.completed
+            ? {
+                name: e.name,
+                status: "done",
+                color: activityZoneColor(e.completed),
+                duration: e.completed.movingTime,
+                planned: e.movingTime,
+              }
+            : {
+                name: e.name,
+                status: date < today ? "missed" : "planned",
+                color: eventZoneColor(e),
+                duration: e.movingTime,
+                planned: e.movingTime,
+              }
+        ),
+      ...(metrics.unplanned ?? [])
+        .filter((a) => a.date === date)
+        .map((a): Session => ({ name: a.name, status: "unplanned", color: activityZoneColor(a), duration: a.movingTime })),
+    ];
+    return { label, sessions, first: sessions[0], isToday: date === today };
   });
+}
+
+/** Planned: a ring in the planned zone. Done: filled with the ridden zone. Missed: an empty grey ring. */
+function SessionMark({ session }: { session: Pick<Session, "status" | "color"> }) {
+  const { status, color } = session;
+  const filled = status === "done" || status === "unplanned";
+  return (
+    <span
+      className={`w-[9px] h-[9px] rounded-full shrink-0 box-border ${status === "missed" ? "border-[1.5px] border-ink-edge" : ""} ${
+        status === "unplanned" ? "outline-dashed outline-1 outline-offset-2 outline-fg-muted" : ""
+      }`}
+      style={filled ? { background: color } : status === "planned" ? { border: `1.5px solid ${color}` } : undefined}
+    />
+  );
+}
+
+function sessionDuration(session: Session): string {
+  if (session.status === "missed") return `— / ${formatDuration(session.planned)}`;
+  return formatDuration(session.duration);
+}
+
+/** Ridden / planned hours for the week. */
+function WeekTotals({ metrics }: { metrics: MetricsResponse }) {
+  const done =
+    metrics.week.reduce((sum, e) => sum + (e.completed?.movingTime ?? 0), 0) +
+    (metrics.unplanned ?? []).reduce((sum, a) => sum + (a.movingTime ?? 0), 0);
+  const planned = metrics.week.reduce((sum, e) => sum + (e.movingTime ?? 0), 0);
+  if (!done && !planned) return null;
+  return (
+    <span className="font-mono text-[11px] text-fg-muted" title="Ridden / planned this week">
+      {formatDuration(done)} / {formatDuration(planned)}
+    </span>
+  );
 }
 
 function WeekList({ metrics }: { metrics: MetricsResponse | null }) {
@@ -381,24 +497,103 @@ function WeekList({ metrics }: { metrics: MetricsResponse | null }) {
 
   return (
     <div className="flex flex-col">
-      {weekDays(metrics).map(({ label, events, first, isToday, duration }) => (
+      {weekDays(metrics).map(({ label, sessions, first, isToday }) => (
         <div
           key={label}
           className={`flex items-center gap-3 h-[34px] px-2 rounded-lg ${isToday ? "bg-ink-raised" : ""}`}
           aria-current={isToday ? "date" : undefined}
         >
           <span className="w-7 font-mono text-[11px] text-fg-muted">{label}</span>
+          {first ? <SessionMark session={first} /> : <span className="w-[9px] shrink-0" />}
           <span
-            className="w-2 h-2 rounded-[2px] shrink-0"
-            style={{ background: first ? eventZoneColor(first) : "transparent" }}
-          />
-          <span className={`flex-1 min-w-0 truncate text-[13px] ${first ? (isToday ? "text-fg" : "text-fg-soft") : "text-fg-muted"}`}>
-            {first ? first.name : "Rest"}
-            {events.length > 1 && <span className="text-fg-muted"> +{events.length - 1}</span>}
+            className={`flex-1 min-w-0 truncate text-[13px] ${
+              !first || first.status === "missed"
+                ? "text-fg-muted"
+                : isToday
+                  ? "text-fg"
+                  : "text-fg-soft"
+            }`}
+            title={first ? `${first.name} — ${first.status}` : undefined}
+          >
+            <span className={first?.status === "missed" ? "line-through" : ""}>{first ? first.name : "Rest"}</span>
+            {sessions.length > 1 && <span className="text-fg-muted"> +{sessions.length - 1}</span>}
           </span>
-          <span className="font-mono text-[11px] text-fg-muted">{first ? formatDuration(duration) : ""}</span>
+          <span className="font-mono text-[11px] text-fg-muted shrink-0">{first ? sessionDuration(first) : ""}</span>
         </div>
       ))}
+      <WeekLegend />
+    </div>
+  );
+}
+
+function WeekLegend() {
+  return (
+    <div className="flex flex-col gap-1.5 mt-2 pt-2.5 px-2 border-t border-ink-line text-[11px] text-fg-muted">
+      <div className="flex flex-wrap gap-x-2.5 gap-y-1">
+        {ZONE_LEGEND.map(({ label, color }) => (
+          <span key={label} className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full" style={{ background: color }} />
+            {label}
+          </span>
+        ))}
+      </div>
+      <div className="flex flex-wrap gap-x-2.5 gap-y-1">
+        <span className="flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full border-[1.5px] border-fg-muted box-border" />
+          planned
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full bg-fg-muted" />
+          done
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-2 h-2 rounded-full border-[1.5px] border-ink-edge box-border" />
+          missed
+        </span>
+        <span className="flex items-center gap-1.5">
+          <SessionMark session={{ status: "unplanned", color: "rgb(var(--fg-muted))" }} />
+          unplanned
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function RecentChats({
+  chats,
+  activeChatId,
+  onOpenChat,
+  onOpenHistory,
+}: Pick<SidebarProps, "chats" | "activeChatId" | "onOpenChat" | "onOpenHistory">) {
+  if (chats.length === 0) {
+    return <div className="text-xs text-fg-muted px-2">Past conversations will appear here.</div>;
+  }
+
+  return (
+    <div className="flex flex-col">
+      {chats.slice(0, RECENT_CHATS).map((chat) => {
+        const isActive = chat.id === activeChatId;
+        return (
+          <button
+            key={chat.id}
+            onClick={() => onOpenChat(chat.id)}
+            aria-current={isActive ? "true" : undefined}
+            title={chat.title}
+            className={`flex items-center gap-3 h-[34px] px-2 rounded-lg text-left transition ${
+              isActive ? "bg-ink-raised" : "hover:bg-ink-raised"
+            }`}
+          >
+            <span className={`flex-1 min-w-0 truncate text-[13px] ${isActive ? "text-fg" : "text-fg-soft"}`}>{chat.title}</span>
+            <span className="font-mono text-[11px] text-fg-muted shrink-0">{formatChatDate(chat.updatedAt)}</span>
+          </button>
+        );
+      })}
+      <button
+        onClick={onOpenHistory}
+        className="flex items-center gap-2 h-[30px] px-2 font-mono text-[11px] text-fg-muted hover:text-fg transition"
+      >
+        {chats.length > RECENT_CHATS ? `All ${chats.length} chats →` : "Manage chats →"}
+      </button>
     </div>
   );
 }

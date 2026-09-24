@@ -5,19 +5,19 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { AlertTriangle, Check, ChevronDown } from "lucide-react";
 import { getToolName, isTextUIPart, isToolUIPart, type UIMessage } from "ai";
-import { WorkoutCard, type WorkoutEventInput } from "./WorkoutCard";
+import { WorkoutCard, type WorkoutCardStatus, type WorkoutEventInput } from "./WorkoutCard";
 import { CadenceMark } from "@/components/CadenceMark";
+import { CREATE_EVENT_TOOL } from "@/lib/intervals/tool-names";
 
 interface ChatMessageProps {
   message: UIMessage;
   /** True while this (last, assistant) message is still being streamed. */
   isStreaming?: boolean;
+  /** Answers a pending calendar change; only given while the athlete can still decide (last message, idle). */
+  onApproval?: (response: { id: string; approved: boolean; reason?: string }) => void;
 }
 
 type ToolPart = Extract<UIMessage["parts"][number], { toolCallId: string }>;
-
-/** Tool that writes to the calendar — rendered as a workout card instead of in the trace. */
-const CREATE_EVENT_TOOL = "icu_create_calendar_event";
 
 const TOOL_LABELS: Record<string, string> = {
   icu_get_fitness_summary: "fitness",
@@ -36,9 +36,31 @@ function isRunning(part: ToolPart) {
 }
 
 function hasFailed(part: ToolPart) {
-  if (part.state === "output-error") return true;
   // Our tools report failures as `{ error }` outputs so the model can recover.
-  return part.state === "output-available" && typeof part.output === "object" && part.output !== null && "error" in part.output;
+  return toolErrorText(part) !== undefined;
+}
+
+/** Error reported by a finished tool call, either thrown or returned as `{ error }`. */
+function toolErrorText(part: ToolPart) {
+  if (part.state === "output-error") return part.errorText;
+  const output = part.state === "output-available" ? part.output : undefined;
+  return output && typeof output === "object" && "error" in output ? String((output as { error: unknown }).error) : undefined;
+}
+
+function workoutStatus(part: ToolPart): WorkoutCardStatus {
+  if (toolErrorText(part) !== undefined) return "failed";
+  switch (part.state) {
+    case "approval-requested":
+      return "pending";
+    case "approval-responded":
+      return part.approval.approved ? "adding" : "declined";
+    case "output-denied":
+      return "declined";
+    case "output-available":
+      return "added";
+    default:
+      return "adding";
+  }
 }
 
 export function CoachLabel({ children }: { children?: React.ReactNode }) {
@@ -59,7 +81,7 @@ export function LiveStatus({ text }: { text: string }) {
   );
 }
 
-export function ChatMessage({ message, isStreaming = false }: ChatMessageProps) {
+export function ChatMessage({ message, isStreaming = false, onApproval }: ChatMessageProps) {
   if (message.role === "user") {
     const text = message.parts
       .filter(isTextUIPart)
@@ -77,6 +99,11 @@ export function ChatMessage({ message, isStreaming = false }: ChatMessageProps) 
   const toolParts = message.parts.filter(isToolUIPart) as ToolPart[];
   const readParts = toolParts.filter((p) => getToolName(p) !== CREATE_EVENT_TOOL);
   const running = toolParts.find(isRunning);
+  const pending = toolParts.filter((p) => p.state === "approval-requested");
+  const lastPendingId = pending[pending.length - 1]?.toolCallId;
+  const answerAll = (approved: boolean) => {
+    for (const part of pending) if (part.approval) onApproval?.({ id: part.approval.id, approved });
+  };
   const hasText = message.parts.some((p) => isTextUIPart(p) && p.text.trim());
 
   let liveText: string | null = null;
@@ -104,20 +131,41 @@ export function ChatMessage({ message, isStreaming = false }: ChatMessageProps) 
         }
         if (isToolUIPart(part) && getToolName(part) === CREATE_EVENT_TOOL) {
           const toolPart = part as ToolPart;
-          const output = toolPart.state === "output-available" ? toolPart.output : undefined;
-          const errorText =
-            toolPart.state === "output-error"
-              ? toolPart.errorText
-              : output && typeof output === "object" && "error" in output
-                ? String((output as { error: unknown }).error)
-                : undefined;
+          const approvalId = toolPart.state === "approval-requested" ? toolPart.approval.id : undefined;
           return (
-            <WorkoutCard
-              key={toolPart.toolCallId}
-              input={(toolPart.input ?? {}) as Partial<WorkoutEventInput>}
-              status={errorText ? "failed" : toolPart.state === "output-available" ? "added" : "adding"}
-              errorText={errorText}
-            />
+            <React.Fragment key={toolPart.toolCallId}>
+              <WorkoutCard
+                input={(toolPart.input ?? {}) as Partial<WorkoutEventInput>}
+                status={workoutStatus(toolPart)}
+                errorText={toolErrorText(toolPart)}
+                onDecide={
+                  approvalId && onApproval ? (approved) => onApproval({ id: approvalId, approved }) : undefined
+                }
+              />
+              {pending.length > 1 && toolPart.toolCallId === lastPendingId && (
+                <div className="flex flex-wrap items-center justify-between gap-3 px-1">
+                  <span className="font-mono text-xs text-fg-muted">{pending.length} sessions to review</span>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      disabled={!onApproval}
+                      onClick={() => answerAll(false)}
+                      className="h-8 px-3 rounded-lg border border-ink-edge text-xs text-fg hover:bg-ink-raised transition disabled:opacity-40"
+                    >
+                      Skip all
+                    </button>
+                    <button
+                      type="button"
+                      disabled={!onApproval}
+                      onClick={() => answerAll(true)}
+                      className="h-8 px-3 rounded-lg bg-signal text-on-signal text-xs font-semibold hover:brightness-95 transition disabled:opacity-40"
+                    >
+                      Add all {pending.length}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </React.Fragment>
           );
         }
         return null;

@@ -1,8 +1,9 @@
 import { NextRequest } from "next/server";
 import {
-  convertToModelMessages,
   createUIMessageStreamResponse,
+  generateId,
   isStepCount,
+  safeValidateUIMessages,
   streamText,
   toUIMessageStream,
   type LanguageModel,
@@ -17,6 +18,11 @@ import { getIntervalsTools } from "@/lib/intervals/tools";
 import { getPreferences } from "@/lib/storage/preferences-store";
 import { buildCoachSystemPrompt } from "@/lib/coach/prompt";
 import { DEFAULT_MODELS, DEFAULT_OLLAMA_BASE_URL, DEFAULT_PROVIDER } from "@/lib/llm/models";
+import { isValidChatId, loadChat, updateChat } from "@/lib/storage/chat-store";
+import { buildModelMessages, foldSummary, historyInstructions, messagesAfterSummary } from "@/lib/chat/context";
+import { applyApprovalResponses, expirePendingApprovals } from "@/lib/chat/approvals";
+import type { CoachMessageMetadata, StoredChat } from "@/lib/chat/types";
+import { WRITE_TOOL_NAMES } from "@/lib/intervals/tool-names";
 
 export const maxDuration = 60;
 
@@ -33,21 +39,29 @@ function errorMessage(error: unknown) {
 
 export async function POST(req: NextRequest) {
   try {
+    // The client sends only the new message (or, to answer tool approvals, the paused assistant message); history is
+    // loaded from disk so it isn't re-uploaded every turn.
     const {
-      messages,
+      id: chatId,
+      message,
       athleteId = process.env.INTERVALS_ICU_ATHLETE_ID || "i435091",
       modelProvider = DEFAULT_PROVIDER,
       modelName,
       apiKey: clientApiKey,
       intervalsApiKey: clientIntervalsKey,
     }: {
-      messages: UIMessage[];
+      id: string;
+      message: UIMessage;
       athleteId?: string;
       modelProvider?: string;
       modelName?: string;
       apiKey?: string;
       intervalsApiKey?: string;
     } = await req.json();
+
+    if (!isValidChatId(chatId) || !message || (message.role !== "user" && message.role !== "assistant")) {
+      return jsonError("Expected a chat `id` and a user or assistant `message`.", 400);
+    }
 
     // Load persistent preferences for this athlete
     const preferences = await getPreferences(athleteId);
@@ -102,6 +116,8 @@ export async function POST(req: NextRequest) {
         baseURL,
         // Optional: only needed behind an authenticating proxy or for ollama.com.
         apiKey: clientApiKey || process.env.OLLAMA_API_KEY,
+        // OpenAI-compatible streams omit token counts unless asked; the chat history shows usage per chat.
+        includeUsage: true,
       });
       model = ollama(ollamaModel);
       describeError = (error) => {
@@ -119,13 +135,50 @@ export async function POST(req: NextRequest) {
       return jsonError(`Unknown model provider: ${modelProvider}`, 400);
     }
 
-    // convertToModelMessages keeps each part's provider metadata (e.g. Gemini's
-    // thoughtSignature on function calls), which thinking models require on follow-up turns.
+    const stored = await loadChat(athleteId, chatId);
+    const history = stored?.messages ?? [];
+    let messages: UIMessage[];
+    if (message.role === "assistant") {
+      // Approval continuation: merge the athlete's decisions into the stored message and resume that turn.
+      const last = history[history.length - 1];
+      const answered = last?.id === message.id ? applyApprovalResponses(last, message) : null;
+      if (!answered) {
+        return jsonError("Nothing to confirm: this message has no pending calendar changes.", 400);
+      }
+      messages = [...history.slice(0, -1), answered];
+    } else {
+      // Replace rather than append when the client resends a message it already sent (e.g. a retry). Approvals left
+      // unanswered are declined: the athlete moved on without adding those sessions.
+      messages = [...history.filter((m) => m.id !== message.id), message].map((m) =>
+        m.role === "assistant" ? expirePendingApprovals(m) : m
+      );
+    }
+
+    // Saved history may predate a tool schema change; if it no longer validates, answer from the new message alone
+    // (the full history is still persisted below).
+    const pending = messagesAfterSummary(messages, stored?.summary);
+    const validated = await safeValidateUIMessages({ messages: pending, tools });
+    if (!validated.success) {
+      console.warn(`[POST /api/chat] Stored history for chat ${chatId} failed validation:`, validated.error.message);
+    }
+    const modelMessages = await buildModelMessages(
+      validated.success ? validated.data : messages.slice(message.role === "user" ? -1 : -2),
+      tools
+    );
+    if (process.env.NODE_ENV !== "production") {
+      console.log(
+        `[POST /api/chat] chat ${chatId}: ${messages.length} stored, ${modelMessages.length} sent to model ` +
+          `(~${JSON.stringify(modelMessages).length} chars)${stored?.summary ? ", with summary" : ""}`
+      );
+    }
+
     const result = streamText({
       model,
-      instructions: systemPrompt,
-      messages: await convertToModelMessages(messages),
+      instructions: systemPrompt + historyInstructions(stored),
+      messages: modelMessages,
       tools,
+      // Calendar writes wait for the athlete: the stream ends with a preview card to approve or skip.
+      toolApproval: Object.fromEntries(WRITE_TOOL_NAMES.map((name) => [name, "user-approval" as const])),
       stopWhen: isStepCount(6), // Allows multi-turn tool calling (e.g. check wellness -> check activities -> answer)
     });
 
@@ -133,6 +186,29 @@ export async function POST(req: NextRequest) {
       stream: toUIMessageStream({
         stream: result.stream,
         originalMessages: messages,
+        // Stored messages need stable IDs: the summary cutoff and client-side retries refer to them.
+        generateMessageId: generateId,
+        messageMetadata: ({ part }): CoachMessageMetadata | undefined =>
+          part.type === "finish"
+            ? {
+                usage: {
+                  inputTokens: part.totalUsage.inputTokens ?? 0,
+                  outputTokens: part.totalUsage.outputTokens ?? 0,
+                },
+              }
+            : undefined,
+        onEnd: async ({ messages: finished }) => {
+          try {
+            const chat = await updateChat(athleteId, chatId, (current) => ({
+              messages: finished,
+              summary: current?.summary,
+            }));
+            // Fold older turns into the summary in the background so the reply isn't held open.
+            void summarize(athleteId, model, chat);
+          } catch (error) {
+            console.error(`[POST /api/chat] Could not save chat ${chatId}:`, error);
+          }
+        },
         onError: (error) => {
           console.error("[POST /api/chat] Stream error:", error);
           return describeError(error);
@@ -142,5 +218,25 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error("[POST /api/chat] Error:", error);
     return jsonError((error as Error).message, 500);
+  }
+}
+
+// One summary at a time per chat; a later turn retries if this one is skipped or fails.
+const summarizing = new Set<string>();
+
+async function summarize(athleteId: string, model: LanguageModel, chat: StoredChat) {
+  const key = `${athleteId}/${chat.meta.id}`;
+  if (summarizing.has(key)) return;
+  summarizing.add(key);
+  try {
+    const summary = await foldSummary(model, chat);
+    if (!summary) return;
+    await updateChat(athleteId, chat.meta.id, (current) => ({ messages: current?.messages ?? chat.messages, summary }), {
+      touch: false,
+    });
+  } catch (error) {
+    console.error(`[POST /api/chat] Could not summarize chat ${chat.meta.id}:`, errorMessage(error));
+  } finally {
+    summarizing.delete(key);
   }
 }

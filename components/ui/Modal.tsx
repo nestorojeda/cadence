@@ -27,7 +27,7 @@ export function Modal({ title, description, onClose, footer, children, width = "
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/70"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/40 dark:bg-black/70"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -94,7 +94,7 @@ export function PrimaryButton(props: React.ButtonHTMLAttributes<HTMLButtonElemen
     <button
       type="button"
       {...props}
-      className="h-10 px-4 rounded-lg bg-signal text-ink text-[13px] font-semibold transition hover:brightness-95 disabled:opacity-40"
+      className="h-10 px-4 rounded-lg bg-signal text-on-signal text-[13px] font-semibold transition hover:brightness-95 disabled:opacity-40"
     />
   );
 }

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { IntervalsClient } from "@/lib/intervals/client";
-import { toLocalDate, type MetricsResponse } from "@/lib/intervals/metrics";
+import { IntervalsClient, type ActivitySummary } from "@/lib/intervals/client";
+import { toLocalDate, type MetricsResponse, type WeekActivity } from "@/lib/intervals/metrics";
 
 export async function GET(req: NextRequest) {
   try {
@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
     sunday.setDate(monday.getDate() + 6);
     const weekStart = toLocalDate(monday);
 
-    const [athlete, fitness, wellness, events] = await Promise.all([
+    const [athlete, fitness, wellness, events, activities] = await Promise.all([
       client.getAthlete(athleteId).catch((e) => {
         console.warn("Could not load athlete profile:", e);
         return null;
@@ -38,6 +38,10 @@ export async function GET(req: NextRequest) {
         console.warn("Could not load this week's calendar:", e);
         return [];
       }),
+      client.getActivities(athleteId, 50, weekStart, toLocalDate(sunday)).catch((e) => {
+        console.warn("Could not load this week's activities:", e);
+        return [];
+      }),
     ]);
 
     const formHistory = wellness.flatMap((r) => {
@@ -45,23 +49,42 @@ export async function GET(req: NextRequest) {
       return tsb == null ? [] : [{ date: r.id, tsb: Math.round(tsb * 10) / 10 }];
     });
 
-    const week = events
+    // Pair each planned session with the activity that fulfilled it: Intervals.icu's own match first, then the
+    // first unused activity of the same sport on the same day.
+    const unused = new Set(activities);
+    const take = (match: (a: ActivitySummary) => boolean) => {
+      const found = [...unused].find(match);
+      if (found) unused.delete(found);
+      return found;
+    };
+    const planned = events
       .filter((e) => e.category !== "NOTE")
-      .map((e) => ({
-        date: e.start_date_local.slice(0, 10),
+      .sort((a, b) => a.start_date_local.localeCompare(b.start_date_local));
+    const paired = new Map(planned.map((e) => [e.id, take((a) => a.paired_event_id === e.id)]));
+    const week = planned.map((e) => {
+      const date = e.start_date_local.slice(0, 10);
+      const activity =
+        paired.get(e.id) ??
+        take((a) => !a.paired_event_id && a.start_date_local.slice(0, 10) === date && (!e.type || a.type === e.type));
+      return {
+        id: e.id,
+        date,
         name: e.name,
         type: e.type,
         category: e.category,
         movingTime: e.moving_time,
         load: e.icu_training_load,
-      }))
-      .sort((a, b) => a.date.localeCompare(b.date));
+        completed: activity ? weekActivity(activity) : undefined,
+      };
+    });
+    const unplanned = [...unused].map(weekActivity).sort((a, b) => a.date.localeCompare(b.date));
 
     const body: MetricsResponse = {
       athlete: athlete ? { id: athlete.id, name: athlete.name, firstname: athlete.firstname } : null,
       fitness,
       formHistory,
       week,
+      unplanned,
       weekStart,
     };
     return NextResponse.json(body);
@@ -69,4 +92,15 @@ export async function GET(req: NextRequest) {
     console.error("[GET /api/metrics] Error:", error);
     return NextResponse.json({ error: (error as Error).message }, { status: 500 });
   }
+}
+
+function weekActivity(a: ActivitySummary): WeekActivity {
+  return {
+    date: a.start_date_local.slice(0, 10),
+    name: a.name,
+    type: a.type,
+    movingTime: a.moving_time,
+    load: a.icu_training_load,
+    intensity: a.icu_intensity ? a.icu_intensity / 100 : undefined,
+  };
 }

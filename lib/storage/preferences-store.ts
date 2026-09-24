@@ -31,8 +31,22 @@ export async function getPreferences(athleteId: string): Promise<CoachPreference
 
   try {
     const raw = await fs.readFile(filePath, "utf-8");
-    // `sundayRoutine` was removed (redundant with the day lists); drop it from older files so the next save cleans it up.
-    const { sundayRoutine: _removed, ...parsed } = JSON.parse(raw) as CoachPreferences & { sundayRoutine?: unknown };
+    // Older files: `sundayRoutine` was removed (redundant with the day lists) and free-text terrain notes were
+    // replaced by `terrain`. Drop them and fill new fields with defaults so the next save writes the current shape.
+    const {
+      sundayRoutine: _removed,
+      mountainTerrainNotes: _removedNotes,
+      terrainNotes: _removedDetails,
+      ...stored
+    } = JSON.parse(raw) as Partial<CoachPreferences> & {
+      sundayRoutine?: unknown;
+      mountainTerrainNotes?: unknown;
+      terrainNotes?: unknown;
+    };
+    const parsed: CoachPreferences = {
+      ...createDefaultPreferences(cleanId),
+      ...stored,
+    };
     memoryCache.set(cleanId, parsed);
     return parsed;
   } catch {

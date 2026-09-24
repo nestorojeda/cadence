@@ -25,9 +25,9 @@ const PROMPTS = [
     prompt: "Review my recent rides and activities this past week. How did my actual power and TSS compare to targets?",
   },
   {
-    title: "Prepare Saturday’s mountain ride",
-    sub: "Pacing and fueling for +2,000 m",
-    prompt: "What workout structure and fueling strategy should I target for my Saturday Gran Canaria mountain ride (+2,000m climbing)?",
+    title: "Prepare my long ride",
+    sub: "Pacing and fueling for your terrain",
+    prompt: "What structure, pacing and fueling strategy should I target for my next long ride, given my local terrain?",
   },
 ];
 

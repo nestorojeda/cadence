@@ -52,6 +52,8 @@ export interface ActivitySummary {
   max_heartrate?: number;
   icu_intensity?: number;
   icu_training_load?: number; // TSS
+  /** Planned event this activity was matched to by Intervals.icu. */
+  paired_event_id?: number;
 }
 
 export interface CalendarEvent {

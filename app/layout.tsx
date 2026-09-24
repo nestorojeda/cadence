@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Barlow_Condensed, IBM_Plex_Sans, JetBrains_Mono } from "next/font/google";
 import { APP_NAME } from "@/lib/brand";
+import { THEME_INIT_SCRIPT } from "@/lib/theme";
 import "./globals.css";
 
 // next/font downloads these at build time and serves them from the app itself (no runtime CDN).
@@ -19,7 +20,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`dark ${sans.variable} ${mono.variable} ${display.variable}`}>
+    // The init script sets the `dark` class before paint, so the server markup can't match it.
+    <html lang="en" className={`${sans.variable} ${mono.variable} ${display.variable}`} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+      </head>
       <body className="antialiased bg-ink text-fg font-sans min-h-screen flex flex-col">
         {children}
       </body>

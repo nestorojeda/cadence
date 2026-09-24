@@ -1,3 +1,5 @@
+import type { Terrain } from "@/lib/intervals/terrain";
+
 export interface CoachPreferences {
   athleteId: string;
   weeklyVolumeMinHours: number; // e.g. 8
@@ -7,7 +9,7 @@ export interface CoachPreferences {
   restDays: string[];           // e.g. ["Monday", "Friday"]
   gymDays: string[];            // e.g. ["Tuesday", "Thursday"]
   shortNamingConvention: boolean; // short names like VO2, OU, etc.
-  mountainTerrainNotes: string; // e.g. "+2,000m climbing, Gran Canaria mountain terrain"
+  terrain: Terrain;             // what the athlete's local roads are like; shapes long-ride planning
   customNotes: string;          // freeform user notes
   updatedAt: string;
 }
@@ -21,7 +23,7 @@ export const createDefaultPreferences = (athleteId: string): CoachPreferences =>
   restDays: ["Monday", "Friday"],
   gymDays: ["Tuesday", "Thursday"],
   shortNamingConvention: true,
-  mountainTerrainNotes: "Long Saturday rides with high elevation gain (+2,000m, +100km, Gran Canaria altitude)",
+  terrain: "rolling",
   customNotes: "",
   updatedAt: new Date().toISOString(),
 });

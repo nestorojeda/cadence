@@ -14,12 +14,15 @@ Run these in order and stop at the first failure — fix it before continuing.
 3. **Smoke test the chat route** (only if the change touches the chat, tools, prompt, or provider code):
    - Reuse the user's dev server if one is already running (check ports 3000–3010); otherwise start the `dev`
      preview server. Never run two at once.
-   - POST a UI-message payload that forces a tool call, so multi-step tool loops are exercised:
+   - POST a new message that forces a tool call, so multi-step tool loops are exercised. The route takes a chat `id`
+     plus only the new `message` and persists the chat, so delete the test chat afterwards
+     (`curl -X DELETE 'localhost:3000/api/chats/smoketest?athleteId=<id>'`):
 
      ```bash
      curl -sN localhost:3000/api/chat -H 'content-type: application/json' -d '{
        "modelProvider": "google", "modelName": "gemini-3.6-flash",
-       "messages": [{"id":"1","role":"user","parts":[{"type":"text","text":"What is my current form (TSB)? Use your tools."}]}]
+       "id": "smoketest",
+       "message": {"id":"1","role":"user","parts":[{"type":"text","text":"What is my current form (TSB)? Use your tools."}]}
      }' | tail -20
      ```
    - Pass: the stream contains a `tool-input-available` / `tool-output-available` pair **and** later `text-delta` chunks.

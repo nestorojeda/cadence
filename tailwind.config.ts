@@ -10,57 +10,32 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        background: "hsl(var(--background))",
-        foreground: "hsl(var(--foreground))",
-        card: {
-          DEFAULT: "hsl(var(--card))",
-          foreground: "hsl(var(--card-foreground))",
-        },
-        popover: {
-          DEFAULT: "hsl(var(--popover))",
-          foreground: "hsl(var(--popover-foreground))",
-        },
-        primary: {
-          DEFAULT: "hsl(var(--primary))",
-          foreground: "hsl(var(--primary-foreground))",
-        },
-        secondary: {
-          DEFAULT: "hsl(var(--secondary))",
-          foreground: "hsl(var(--secondary-foreground))",
-        },
-        muted: {
-          DEFAULT: "hsl(var(--muted))",
-          foreground: "hsl(var(--muted-foreground))",
-        },
-        accent: {
-          DEFAULT: "hsl(var(--accent))",
-          foreground: "hsl(var(--accent-foreground))",
-        },
-        border: "hsl(var(--border))",
-        input: "hsl(var(--input))",
-        ring: "hsl(var(--ring))",
-        // Cockpit palette (warm near-black ground, one signal accent) — used by the chat UI.
+        // Cockpit palette (warm ground, one signal accent). Values live in app/globals.css with a light
+        // and a dark set; the `dark` class on <html> picks one.
         ink: {
-          DEFAULT: "#0d0e0c",
-          rail: "#10110f",
-          card: "#121310",
-          surface: "#151613",
-          raised: "#1b1c19",
-          hair: "#1f201d",
-          line: "#262823",
-          edge: "#2e302a",
+          DEFAULT: "rgb(var(--ink) / <alpha-value>)",
+          rail: "rgb(var(--ink-rail) / <alpha-value>)",
+          card: "rgb(var(--ink-card) / <alpha-value>)",
+          surface: "rgb(var(--ink-surface) / <alpha-value>)",
+          raised: "rgb(var(--ink-raised) / <alpha-value>)",
+          hair: "rgb(var(--ink-hair) / <alpha-value>)",
+          line: "rgb(var(--ink-line) / <alpha-value>)",
+          edge: "rgb(var(--ink-edge) / <alpha-value>)",
         },
         fg: {
-          DEFAULT: "#ecede6",
-          body: "#dcddd5",
-          soft: "#c3c5bb",
-          subtle: "#a3a59b",
-          muted: "#8c8e85",
+          DEFAULT: "rgb(var(--fg) / <alpha-value>)",
+          body: "rgb(var(--fg-body) / <alpha-value>)",
+          soft: "rgb(var(--fg-soft) / <alpha-value>)",
+          subtle: "rgb(var(--fg-subtle) / <alpha-value>)",
+          muted: "rgb(var(--fg-muted) / <alpha-value>)",
+          faint: "rgb(var(--fg-faint) / <alpha-value>)",
         },
         signal: {
-          DEFAULT: "#d4ff3a",
-          warn: "#ff8a3d",
+          DEFAULT: "rgb(var(--signal) / <alpha-value>)",
+          warn: "rgb(var(--signal-warn) / <alpha-value>)",
         },
+        // Text on a signal fill: dark on lime at night, white on olive by day.
+        "on-signal": "rgb(var(--on-signal) / <alpha-value>)",
         cycling: {
           zone1: "#94a3b8", // Active Recovery (Slate)
           zone2: "#38bdf8", // Endurance (Light Blue)

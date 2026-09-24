@@ -2,16 +2,30 @@
 
 import React, { useRef, useEffect, useState } from "react";
 import { useChat } from "@ai-sdk/react";
-import { DefaultChatTransport, isTextUIPart } from "ai";
+import {
+  DefaultChatTransport,
+  isTextUIPart,
+  lastAssistantMessageIsCompleteWithApprovalResponses,
+  type UIMessage,
+} from "ai";
 import { ArrowUp, Square } from "lucide-react";
 import { ChatMessage, CoachLabel, LiveStatus } from "./ChatMessage";
 import { COMPOSER_CHIPS, QuickPrompts } from "./QuickPrompts";
 import { DEFAULT_MODELS, DEFAULT_PROVIDER, type ModelProvider } from "@/lib/llm/models";
 import { FORM_LABELS, formatDuration, formatSigned, toLocalDate, type MetricsResponse } from "@/lib/intervals/metrics";
+import { EMPTY_USAGE, addUsage, formatTokens, messageUsage } from "@/lib/chat/types";
 
 interface ChatInterfaceProps {
   athleteId: string;
   metrics: MetricsResponse | null;
+  /** Stable ID of this conversation; the parent remounts the component (via `key`) to switch chats. */
+  chatId: string;
+  initialMessages: UIMessage[];
+  /** Saved title, when the chat has one (it may have been renamed). */
+  title?: string;
+  onNewChat: () => void;
+  /** Called after each reply has finished streaming (and been saved server-side). */
+  onTurnEnd: () => void;
 }
 
 // Providers without an entry (Ollama) need no key from the browser.
@@ -32,7 +46,7 @@ function getModelSettings() {
   };
 }
 
-export function ChatInterface({ athleteId, metrics }: ChatInterfaceProps) {
+export function ChatInterface({ athleteId, metrics, chatId, initialMessages, title, onNewChat, onTurnEnd }: ChatInterfaceProps) {
   const [input, setInput] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -44,12 +58,24 @@ export function ChatInterface({ athleteId, metrics }: ChatInterfaceProps) {
     () =>
       new DefaultChatTransport({
         api: "/api/chat",
-        body: () => ({ athleteId: athleteIdRef.current, ...getModelSettings() }),
+        // History lives on the server: send only the new message, not the whole transcript. After calendar approvals
+        // the last message is the paused assistant reply, which carries the athlete's decisions.
+        prepareSendMessagesRequest: ({ id, messages }) => ({
+          body: { id, message: messages[messages.length - 1], athleteId: athleteIdRef.current, ...getModelSettings() },
+        }),
       })
   );
 
-  const { messages, sendMessage, setMessages, status, stop, error } = useChat({
+  const onTurnEndRef = useRef(onTurnEnd);
+  onTurnEndRef.current = onTurnEnd;
+
+  const { messages, sendMessage, status, stop, error, addToolApprovalResponse } = useChat({
+    id: chatId,
+    messages: initialMessages,
     transport,
+    // Resume the turn once every proposed calendar change has been added or skipped.
+    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
+    onFinish: () => onTurnEndRef.current(),
     onError: (err) => {
       console.error("Chat stream error:", err);
     },
@@ -69,13 +95,14 @@ export function ChatInterface({ athleteId, metrics }: ChatInterfaceProps) {
 
   const startNewChat = () => {
     if (isLoading) stop();
-    setMessages([]);
-    setInput("");
+    onNewChat();
   };
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages, isLoading]);
+
+  const usage = messages.reduce((sum, m) => addUsage(sum, messageUsage(m)), EMPTY_USAGE);
 
   const firstUserText = messages
     .find((m) => m.role === "user")
@@ -112,7 +139,17 @@ export function ChatInterface({ athleteId, metrics }: ChatInterfaceProps) {
     <div className="flex-1 flex flex-col min-h-0">
       {/* Conversation bar */}
       <div className="hidden lg:flex sticky top-0 z-20 h-14 shrink-0 items-center justify-between gap-4 px-8 border-b border-ink-hair bg-ink/95 backdrop-blur">
-        <span className="text-sm font-medium truncate">{firstUserText ?? "Conversation"}</span>
+        <div className="flex items-baseline gap-3 min-w-0">
+          <span className="text-sm font-medium truncate">{title || firstUserText || "Conversation"}</span>
+          {usage.inputTokens + usage.outputTokens > 0 && (
+            <span
+              className="font-mono text-[11px] text-fg-muted shrink-0"
+              title={`${usage.inputTokens.toLocaleString()} input · ${usage.outputTokens.toLocaleString()} output tokens`}
+            >
+              {formatTokens(usage)} tok
+            </span>
+          )}
+        </div>
         <button
           onClick={startNewChat}
           className="h-8 px-3 shrink-0 border border-ink-line rounded-lg text-xs hover:bg-ink-raised transition"
@@ -129,6 +166,7 @@ export function ChatInterface({ athleteId, metrics }: ChatInterfaceProps) {
               key={message.id}
               message={message}
               isStreaming={isLoading && idx === messages.length - 1 && message.role === "assistant"}
+              onApproval={!isLoading && idx === messages.length - 1 ? addToolApprovalResponse : undefined}
             />
           ))}
 
@@ -314,7 +352,7 @@ function SendButton({ isLoading, canSend, onStop }: { isLoading: boolean; canSen
       disabled={!canSend}
       aria-label="Send"
       title="Send"
-      className="w-11 h-11 shrink-0 flex items-center justify-center rounded-xl bg-signal text-ink transition hover:brightness-95 disabled:opacity-30"
+      className="w-11 h-11 shrink-0 flex items-center justify-center rounded-xl bg-signal text-on-signal transition hover:brightness-95 disabled:opacity-30"
     >
       <ArrowUp className="w-[18px] h-[18px]" strokeWidth={2.5} />
     </button>

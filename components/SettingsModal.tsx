@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { DEFAULT_MODELS, DEFAULT_PROVIDER, type ModelProvider } from "@/lib/llm/models";
 import { GhostButton, Modal, ModalSection, PrimaryButton, SavedNote, inputClass } from "@/components/ui/Modal";
+import { ThemeToggle } from "@/components/ThemeToggle";
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -187,6 +188,12 @@ export function SettingsModal({ isOpen, onClose, onSettingsChanged }: SettingsMo
           placeholder="Not set"
           className={`${inputClass} font-mono`}
         />
+      </ModalSection>
+
+      <div className="border-t border-ink-hair" />
+
+      <ModalSection label="Appearance" hint="Applies immediately. System follows your device.">
+        <ThemeToggle size="md" />
       </ModalSection>
     </Modal>
   );

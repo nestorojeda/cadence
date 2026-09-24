@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { RotateCcw } from "lucide-react";
+import { Minus, Mountain, MountainSnow, RotateCcw, ScanSearch, Waves, type LucideIcon } from "lucide-react";
 import { CoachPreferences, createDefaultPreferences } from "@/lib/types/preferences";
+import { TERRAINS, type Terrain, type TerrainSummary } from "@/lib/intervals/terrain";
 import { GhostButton, Modal, ModalSection, PrimaryButton, SavedNote, inputClass } from "@/components/ui/Modal";
 
 interface CoachPreferencesModalProps {
@@ -17,6 +18,13 @@ const DAYS_OF_WEEK = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "S
 type DayListKey = "longRideDays" | "intervalDays" | "gymDays" | "restDays";
 
 /** Rows of the week grid; colours follow the zone palette used for sessions in the sidebar. */
+const TERRAIN_ICONS: Record<Terrain, LucideIcon> = {
+  flat: Minus,
+  rolling: Waves,
+  hilly: Mountain,
+  mountainous: MountainSnow,
+};
+
 const SESSION_ROWS: Array<{ key: DayListKey; label: string; color: string }> = [
   { key: "intervalDays", label: "Intervals", color: "#fb923c" },
   { key: "longRideDays", label: "Long ride", color: "#4ade80" },
@@ -36,11 +44,14 @@ export function CoachPreferencesModal({
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [detecting, setDetecting] = useState(false);
+  const [detectNote, setDetectNote] = useState<{ text: string; error?: boolean } | null>(null);
 
   useEffect(() => {
     if (isOpen) {
       setLoading(true);
       setSavedSuccess(false);
+      setDetectNote(null);
       fetch(`/api/preferences?athleteId=${encodeURIComponent(athleteId)}`)
         .then((res) => res.json())
         .then((data) => {
@@ -85,6 +96,35 @@ export function CoachPreferencesModal({
       console.error("Failed to save preferences:", e);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDetectTerrain = async () => {
+    setDetecting(true);
+    setDetectNote(null);
+    try {
+      const intervalsKey = localStorage.getItem("apex_intervals_key");
+      const res = await fetch(`/api/terrain?athleteId=${encodeURIComponent(athleteId)}`, {
+        headers: intervalsKey ? { "x-intervals-api-key": intervalsKey } : undefined,
+      });
+      const data = (await res.json()) as (TerrainSummary & { days: number }) | { error: string };
+      if ("error" in data) {
+        setDetectNote({ text: data.error, error: true });
+        return;
+      }
+      setPreferences((prev) => ({ ...prev, terrain: data.terrain }));
+      setDetectNote({
+        text:
+          `From ${data.rides} outdoor rides in the last ${data.days} days · ${data.metersPerKm} m/km climbing on average` +
+          (data.longRide
+            ? ` · typical long ride ≈ ${data.longRide.distanceKm} km, +${data.longRide.elevationM.toLocaleString("en-US")} m.`
+            : "."),
+      });
+    } catch (e) {
+      console.warn("Could not detect terrain:", e);
+      setDetectNote({ text: "Could not reach Intervals.icu.", error: true });
+    } finally {
+      setDetecting(false);
     }
   };
 
@@ -201,15 +241,50 @@ export function CoachPreferencesModal({
             </div>
           </ModalSection>
 
-          <ModalSection label="Long-ride terrain" htmlFor="terrain">
-            <input
-              id="terrain"
-              type="text"
-              value={preferences.mountainTerrainNotes}
-              onChange={(e) => setPreferences({ ...preferences, mountainTerrainNotes: e.target.value })}
-              placeholder="e.g. +2,000 m climbing, Gran Canaria mountain roads"
-              className={inputClass}
-            />
+          <ModalSection
+            label="Terrain settings"
+            hint={
+              detectNote ? (
+                <span className={detectNote.error ? "text-signal-warn" : undefined}>{detectNote.text}</span>
+              ) : (
+                "What your local roads are like. The coach shapes long rides, pacing and fueling around it."
+              )
+            }
+          >
+            <div role="radiogroup" aria-label="Terrain settings" className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {TERRAINS.map((t) => {
+                const selected = preferences.terrain === t.id;
+                const Icon = TERRAIN_ICONS[t.id];
+                return (
+                  <button
+                    key={t.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={selected}
+                    onClick={() => setPreferences({ ...preferences, terrain: t.id })}
+                    className={`flex flex-col items-start gap-0.5 px-3 py-2.5 rounded-[10px] border text-left transition ${
+                      selected ? "border-fg-muted bg-ink-raised" : "border-ink-line hover:border-ink-edge hover:bg-ink-surface"
+                    }`}
+                  >
+                    <span className="flex items-center gap-1.5 text-[13px] font-medium">
+                      <Icon className={`w-4 h-4 ${selected ? "text-signal" : "text-fg-muted"}`} aria-hidden />
+                      {t.label}
+                    </span>
+                    <span className="font-mono text-[11px] text-fg-muted">{t.sub}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <button
+              type="button"
+              onClick={handleDetectTerrain}
+              disabled={detecting}
+              title="Suggest a terrain type from your recent outdoor rides"
+              className="self-start flex items-center gap-1.5 h-9 px-3 rounded-[10px] border border-ink-line text-xs text-fg-soft hover:border-ink-edge hover:bg-ink-surface hover:text-fg transition disabled:opacity-50"
+            >
+              <ScanSearch className="w-3.5 h-3.5" />
+              {detecting ? "Detecting…" : "Detect from my rides"}
+            </button>
           </ModalSection>
 
           <ModalSection label="Notes & temporary constraints" htmlFor="notes">
