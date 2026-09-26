@@ -1,0 +1,128 @@
+<!doctype html>
+<!--
+  Source for docs/social-preview.png (GitHub repo social preview, 1280×640).
+  Regenerate: "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --headless --hide-scrollbars \
+    --window-size=1280,640 --virtual-time-budget=5000 --screenshot=docs/social-preview.png docs/social-preview.html
+  The figures are illustrative, not real athlete data.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Cadence social preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=block" rel="stylesheet">
+<style>
+  :root {
+    --ink: #0d0e0c;
+    --ink-card: #121310;
+    --ink-raised: #1b1c19;
+    --ink-hair: #1f201d;
+    --ink-line: #262823;
+    --ink-edge: #2e302a;
+    --fg: #ecede6;
+    --fg-soft: #c3c5bb;
+    --fg-subtle: #a3a59b;
+    --fg-muted: #8c8e85;
+    --fg-faint: #5a5c54;
+    --signal: #d4ff3a;
+    --warn: #ff8a3d;
+    --mono: "JetBrains Mono", SFMono-Regular, Menlo, monospace;
+    --sans: "IBM Plex Sans", -apple-system, Helvetica, Arial, sans-serif;
+    --display: "Barlow Condensed", "IBM Plex Sans", sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { width: 1280px; height: 640px; overflow: hidden; background: var(--ink); }
+  body { position: relative; font-family: var(--sans); color: var(--fg); }
+
+  .ring { position: absolute; inset: 0; }
+
+  .left { position: absolute; left: 88px; top: 96px; width: 620px; }
+  .mark { display: block; width: 96px; height: 96px; margin-left: -8px; }
+  .eyebrow { margin-top: 30px; font: 500 16px var(--mono); letter-spacing: 3px; color: var(--fg-muted); }
+  h1 { margin-top: 14px; font: 600 112px/1 var(--sans); letter-spacing: -3px; }
+  .tag { margin-top: 24px; font: 400 26px/1.4 var(--sans); color: var(--fg-subtle); }
+  .tag b { color: var(--fg); font-weight: 500; }
+  .chips { display: flex; gap: 10px; margin-top: 30px; }
+  .chip { font: 400 14px var(--mono); color: var(--fg-soft); padding: 7px 12px; border: 1px solid var(--ink-edge); border-radius: 999px; }
+
+  .card { position: absolute; left: 736px; width: 456px; background: var(--ink-card); border: 1px solid var(--ink-line); border-radius: 18px; padding: 24px 26px; }
+  .label { font: 500 13px var(--mono); letter-spacing: 2px; color: var(--fg-muted); }
+  .form { top: 96px; }
+  .row { display: flex; align-items: flex-end; justify-content: space-between; margin-top: 8px; }
+  .big { font: 600 96px/0.9 var(--display); color: var(--signal); }
+  .state { font: 500 15px var(--mono); color: var(--signal); margin-bottom: 8px; text-align: right; }
+  .state span { display: block; margin-top: 6px; color: var(--fg-muted); font-weight: 400; }
+  .stats { display: flex; gap: 28px; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--ink-hair); font: 400 14px var(--mono); color: var(--fg-muted); }
+  .stats b { font: 600 30px var(--display); color: var(--fg); margin-left: 8px; }
+
+  .workout { top: 368px; }
+  .wk-head { display: flex; justify-content: space-between; align-items: baseline; }
+  .wk-title { font: 500 20px var(--sans); }
+  .wk-meta { font: 400 14px var(--mono); color: var(--fg-muted); margin-top: 4px; }
+  .add { font: 600 14px var(--sans); background: var(--signal); color: var(--ink); padding: 8px 16px; border-radius: 9px; }
+  .profile { display: block; margin-top: 16px; }
+</style>
+</head>
+<body>
+  <!-- Faint oversized chainring behind the cards, echoing the mark -->
+  <svg class="ring" width="1280" height="640" viewBox="0 0 1280 640" fill="none" aria-hidden="true">
+    <circle cx="964" cy="320" r="300" stroke="#171815" stroke-width="3"/>
+    <circle cx="964" cy="320" r="236" stroke="#141512" stroke-width="2" stroke-dasharray="2 12"/>
+  </svg>
+
+  <div class="left">
+    <svg class="mark" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="12" cy="12" r="8" stroke="#5a5c54" stroke-width="2"/>
+      <circle cx="17.66" cy="6.34" r="3" fill="#d4ff3a"/>
+      <circle cx="6.34" cy="17.66" r="3" fill="#8c8e85"/>
+    </svg>
+    <div class="eyebrow">AI CYCLING COACH · INTERVALS.ICU</div>
+    <h1>Cadence</h1>
+    <p class="tag">A coach that reads your <b>training data live</b>, follows <b>your rules</b>, and runs on <b>your computer</b>.</p>
+    <div class="chips">
+      <span class="chip">self-hosted</span>
+      <span class="chip">any LLM</span>
+      <span class="chip">local via Ollama</span>
+    </div>
+  </div>
+
+  <div class="card form">
+    <div class="label">FORM · TSB</div>
+    <div class="row">
+      <div class="big">+8</div>
+      <svg width="190" height="64" viewBox="0 0 190 64" fill="none" aria-hidden="true">
+        <line x1="0" y1="40" x2="190" y2="40" stroke="#262823" stroke-dasharray="3 5"/>
+        <polyline points="0,30 16,36 32,44 48,50 64,46 80,54 96,48 112,42 128,46 144,34 160,28 176,20 190,14" stroke="#8c8e85" stroke-width="2" stroke-linejoin="round"/>
+        <circle cx="190" cy="14" r="4" fill="#d4ff3a"/>
+      </svg>
+      <div class="state">FRESH<span>6-week trend</span></div>
+    </div>
+    <div class="stats">
+      <div>CTL<b>71</b></div>
+      <div>ATL<b>63</b></div>
+      <div>HRV<b>58</b></div>
+    </div>
+  </div>
+
+  <div class="card workout">
+    <div class="wk-head">
+      <div>
+        <div class="wk-title">Sweet spot 3×12</div>
+        <div class="wk-meta">1:15 · 78 TSS · IF 0.82</div>
+      </div>
+      <div class="add">Add</div>
+    </div>
+    <!-- Power profile: warm-up, 3×12 at 92% (Z4), recoveries, cool-down (zone colours) -->
+    <svg class="profile" width="404" height="70" viewBox="0 0 404 70" fill="none" aria-hidden="true">
+      <rect x="0"   y="42" width="44" height="28" rx="2" fill="#38bdf8"/>
+      <rect x="46"  y="10" width="80" height="60" rx="2" fill="#facc15"/>
+      <rect x="128" y="50" width="22" height="20" rx="2" fill="#94a3b8"/>
+      <rect x="152" y="10" width="80" height="60" rx="2" fill="#facc15"/>
+      <rect x="234" y="50" width="22" height="20" rx="2" fill="#94a3b8"/>
+      <rect x="258" y="10" width="80" height="60" rx="2" fill="#facc15"/>
+      <rect x="340" y="42" width="64" height="28" rx="2" fill="#38bdf8"/>
+    </svg>
+  </div>
+</body>
+</html>
