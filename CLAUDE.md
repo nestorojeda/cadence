@@ -17,8 +17,6 @@ persistent, per-athlete schedule rules.
   Ollama is supported through `@ai-sdk/openai-compatible` (its `/v1` endpoint, base URL from `OLLAMA_BASE_URL`, never
   from the request). Other OpenAI-compatible endpoints (LM Studio, OpenRouter) should follow the same pattern.
   Use `qwen3:1.7b` on Ollama for local dev testing.
-- The original Gemini-authored plan is in `cycling_coach_web_app_plan.md`. Treat it as historical context,
-  not a spec — its Vercel/cloud-storage parts are superseded by the direction above.
 
 ## Commands
 
