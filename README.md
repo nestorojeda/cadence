@@ -214,7 +214,6 @@ if you care about your history. It's never committed to Git.
 | `ANTHROPIC_API_KEY` | one AI key* | Anthropic key. |
 | `OLLAMA_BASE_URL` | no | Ollama's OpenAI-compatible endpoint (default `http://localhost:11434/v1`). |
 | `OLLAMA_API_KEY` | no | Only for an authenticating proxy in front of Ollama. |
-| `USE_LOCAL_MCP`, `MCP_SERVER_PATH` | no | Experimental bridge to the Python `intervals-icu-mcp` server (not yet used by the chat). |
 
 \* Or enter it in the app's Settings dialog instead. Not needed for Ollama.
 

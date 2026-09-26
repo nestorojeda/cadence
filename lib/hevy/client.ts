@@ -3,6 +3,8 @@
  * sessions into Hevy as routines and to read what the athlete has lifted.
  */
 
+import { upstreamError } from "@/lib/api/upstream";
+
 export interface HevyExerciseTemplate {
   id: string;
   title: string;
@@ -107,9 +109,8 @@ export class HevyClient {
       },
     });
     if (!res.ok) {
-      const body = await res.text();
       const hint = res.status === 401 ? " — check the Hevy API key (Hevy Pro is required)" : "";
-      throw new Error(`Failed to ${what} (${res.status})${hint}: ${body}`);
+      throw await upstreamError(res, what, hint);
     }
     return res.json() as Promise<T>;
   }

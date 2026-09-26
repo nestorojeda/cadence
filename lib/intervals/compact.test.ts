@@ -1,5 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { compactActivities, compactActivityDetails, compactEvents, compactWellness, wellnessRange } from "./compact";
+import {
+  compactActivities,
+  compactActivityDetails,
+  compactEvents,
+  compactWellness,
+  eventsRange,
+  wellnessRange,
+} from "./compact";
 
 describe("compactWellness", () => {
   it("keeps coach fields, derives form, sleep and eFTP, drops empties", () => {
@@ -85,5 +92,36 @@ describe("wellnessRange", () => {
   it("clamps to 90 days before the end date", () => {
     expect(wellnessRange("2025-01-01", "2026-09-26")).toEqual({ oldest: "2026-06-29", newest: "2026-09-26" });
     expect(wellnessRange("2026-09-01", "2026-09-10")).toEqual({ oldest: "2026-09-01", newest: "2026-09-10" });
+  });
+});
+
+describe("eventsRange", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 8, 26, 12));
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("defaults to a week back and two weeks ahead", () => {
+    expect(eventsRange()).toEqual({ oldest: "2026-09-19", newest: "2026-10-10" });
+  });
+
+  it("cuts long ranges at 62 days from the start", () => {
+    expect(eventsRange("2026-09-26", "2027-03-31")).toEqual({ oldest: "2026-09-26", newest: "2026-11-26" });
+    expect(eventsRange(undefined, "2027-03-31")).toEqual({ oldest: "2026-09-19", newest: "2026-11-19" });
+    expect(eventsRange("2026-10-01", "2026-10-20")).toEqual({ oldest: "2026-10-01", newest: "2026-10-20" });
+  });
+});
+
+describe("compactEvents descriptions", () => {
+  it("truncates long descriptions and keeps short ones", () => {
+    const [long, short] = compactEvents([
+      { id: 1, category: "NOTE", description: "x".repeat(2000) },
+      { id: 2, category: "WORKOUT", description: "- 10m 60%" },
+    ]);
+    expect(long.description).toBe(`${"x".repeat(600)}…`);
+    expect(short.description).toBe("- 10m 60%");
   });
 });
