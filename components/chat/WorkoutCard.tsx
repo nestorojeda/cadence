@@ -4,7 +4,14 @@ import React from "react";
 import { eventZoneColor, formatDuration } from "@/lib/intervals/metrics";
 import { parseWorkout } from "@/lib/intervals/workout";
 import { WorkoutChart } from "./WorkoutChart";
-import { CardStat, SessionCardShell, SessionCardStatus, formatDay, type WorkoutCardStatus } from "./SessionCardParts";
+import {
+  CardStat,
+  SessionCardShell,
+  SessionCardStatus,
+  formatDay,
+  type SessionCardKind,
+  type WorkoutCardStatus,
+} from "./SessionCardParts";
 
 export type { WorkoutCardStatus };
 
@@ -20,15 +27,40 @@ export interface WorkoutEventInput {
 }
 
 interface WorkoutCardProps {
+  /** The session to create, or for a change, the fields that change. */
   input: Partial<WorkoutEventInput>;
+  /** For a change: the event as the coach last read it. The card shows the result and what it was. */
+  previous?: Partial<WorkoutEventInput>;
+  /** Intervals.icu event id, for a change to an event the coach's reads don't include. */
+  eventId?: string;
+  /** `update` for a change to an existing event. */
+  kind?: Extract<SessionCardKind, "create" | "update">;
   status: WorkoutCardStatus;
   errorText?: string;
   /** Adds (true) or skips (false) a pending session; omitted when the athlete can't decide right now. */
   onDecide?: (approved: boolean) => void;
 }
 
-/** A session the coach proposed for, or put on, the Intervals.icu calendar. */
-export function WorkoutCard({ input, status, errorText, onDecide }: WorkoutCardProps) {
+/** "was" summary of the fields a change replaces, e.g. "TUE 29 SEP · 1h00". Empty when nothing listed changed. */
+function previousSummary(previous: Partial<WorkoutEventInput>, changes: Partial<WorkoutEventInput>): string {
+  const was: string[] = [];
+  if (changes.start_date_local && formatDay(changes.start_date_local) !== formatDay(previous.start_date_local)) {
+    was.push(formatDay(previous.start_date_local));
+  }
+  if (changes.name && changes.name !== previous.name && previous.name) was.push(previous.name);
+  if (changes.type && changes.type !== previous.type && previous.type) was.push(previous.type.toUpperCase());
+  if (changes.moving_time && changes.moving_time !== previous.moving_time) was.push(formatDuration(previous.moving_time));
+  if (changes.icu_training_load != null && changes.icu_training_load !== previous.icu_training_load) {
+    was.push(`${previous.icu_training_load != null ? Math.round(previous.icu_training_load) : "—"} TSS`);
+  }
+  if (changes.description && changes.description !== previous.description) was.push("other steps");
+  return was.filter(Boolean).join(" · ");
+}
+
+/** A session the coach proposed for, put on, or changed on the Intervals.icu calendar. */
+export function WorkoutCard({ input: changes, previous, eventId, kind = "create", status, errorText, onDecide }: WorkoutCardProps) {
+  const input: Partial<WorkoutEventInput> = { ...previous, ...changes };
+  const was = previous ? previousSummary(previous, changes) : "";
   const steps = parseWorkout(input.description);
   const movingTime = input.moving_time || steps.reduce((sum, s) => sum + s.duration, 0) || undefined;
   const hours = movingTime ? movingTime / 3600 : 0;
@@ -48,9 +80,12 @@ export function WorkoutCard({ input, status, errorText, onDecide }: WorkoutCardP
         <div className="flex flex-col gap-1 min-w-0">
           <span className="flex items-center gap-2 font-mono text-[11px] text-fg-muted">
             <span className="w-2 h-2 rounded-[2px]" style={{ background: zoneColor }} />
-            {[formatDay(input.start_date_local), input.type?.toUpperCase()].filter(Boolean).join(" · ")}
+            {[formatDay(input.start_date_local), (input.type ?? input.category)?.toUpperCase()].filter(Boolean).join(" · ")}
           </span>
-          <span className="font-display font-bold text-[26px] leading-none break-words">{input.name ?? "Workout"}</span>
+          <span className="font-display font-bold text-[26px] leading-none break-words">
+            {input.name ?? (eventId ? `Event #${eventId}` : "Workout")}
+          </span>
+          {was && <span className="font-mono text-[11px] text-fg-muted">was {was}</span>}
         </div>
         {input.category !== "NOTE" && (
           <div className="flex gap-5 font-mono">
@@ -69,7 +104,37 @@ export function WorkoutCard({ input, status, errorText, onDecide }: WorkoutCardP
         </p>
       )}
 
-      <SessionCardStatus status={status} errorText={errorText} onDecide={onDecide} />
+      <SessionCardStatus status={status} kind={kind} errorText={errorText} onDecide={onDecide} />
+    </SessionCardShell>
+  );
+}
+
+/** A planned session the coach proposed to take off, or took off, the Intervals.icu calendar. */
+export function RemovedEventCard({
+  event,
+  eventId,
+  status,
+  errorText,
+  onDecide,
+}: {
+  /** The event as the coach last read it; unknown when its reads are not in this chat. */
+  event?: Partial<WorkoutEventInput>;
+  eventId?: string;
+  status: WorkoutCardStatus;
+  errorText?: string;
+  onDecide?: (approved: boolean) => void;
+}) {
+  const header = [formatDay(event?.start_date_local), (event?.type ?? event?.category)?.toUpperCase()].filter(Boolean).join(" · ");
+  const removed = status === "added";
+  return (
+    <SessionCardShell status={status}>
+      <div className="flex flex-col gap-1 min-w-0">
+        {header && <span className="font-mono text-[11px] text-fg-muted">{header}</span>}
+        <span className={`font-display font-bold text-[26px] leading-none break-words ${removed ? "line-through text-fg-muted" : ""}`}>
+          {event?.name ?? `Event #${eventId ?? "?"}`}
+        </span>
+      </div>
+      <SessionCardStatus status={status} kind="delete" errorText={errorText} onDecide={onDecide} />
     </SessionCardShell>
   );
 }

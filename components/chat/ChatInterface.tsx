@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useEffect, useState } from "react";
+import React, { useRef, useEffect, useMemo, useState } from "react";
 import { useChat } from "@ai-sdk/react";
 import {
   DefaultChatTransport,
@@ -21,6 +21,7 @@ import {
   type MetricsResponse,
 } from "@/lib/intervals/metrics";
 import { EMPTY_USAGE, addUsage, formatTokens, messageUsage } from "@/lib/chat/types";
+import { eventsBeforeWrites, wroteToCalendar } from "@/lib/chat/known-events";
 
 interface ChatInterfaceProps {
   athleteId: string;
@@ -32,7 +33,8 @@ interface ChatInterfaceProps {
   title?: string;
   onNewChat: () => void;
   /** Called after each reply has finished streaming (and been saved server-side). */
-  onTurnEnd: () => void;
+  /** Called after each reply; `changedCalendar` when it added, changed or removed calendar events. */
+  onTurnEnd: (changedCalendar: boolean) => void;
 }
 
 // Providers without an entry (Ollama) need no key from the browser.
@@ -84,7 +86,7 @@ export function ChatInterface({ athleteId, metrics, chatId, initialMessages, tit
     transport,
     // Resume the turn once every proposed calendar change has been added or skipped.
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
-    onFinish: () => onTurnEndRef.current(),
+    onFinish: ({ message }) => onTurnEndRef.current(wroteToCalendar(message)),
     onError: (err) => {
       console.error("Chat stream error:", err);
     },
@@ -110,6 +112,8 @@ export function ChatInterface({ athleteId, metrics, chatId, initialMessages, tit
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages, isLoading]);
+
+  const eventsBefore = useMemo(() => eventsBeforeWrites(messages), [messages]);
 
   const usage = messages.reduce((sum, m) => addUsage(sum, messageUsage(m)), EMPTY_USAGE);
 
@@ -176,6 +180,7 @@ export function ChatInterface({ athleteId, metrics, chatId, initialMessages, tit
               message={message}
               isStreaming={isLoading && idx === messages.length - 1 && message.role === "assistant"}
               onApproval={!isLoading && idx === messages.length - 1 ? addToolApprovalResponse : undefined}
+              eventsBefore={eventsBefore}
             />
           ))}
 

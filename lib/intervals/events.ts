@@ -10,6 +10,25 @@ import { toLocalDate, type KeyEvent } from "./metrics";
 export const RACE_CATEGORIES = ["RACE_A", "RACE_B", "RACE_C"];
 export const BLOCK_CATEGORIES = ["HOLIDAY", "SICK", "INJURED"];
 
+/** Categories the coach may change or remove (with the athlete's approval). Races and time off stay the athlete's. */
+export const EDITABLE_CATEGORIES = ["WORKOUT", "NOTE"];
+
+/**
+ * Why the coach may not change or delete `event`, or null when it may. `today` is YYYY-MM-DD. Past and completed
+ * sessions are the training record, so only upcoming planned workouts and notes can be edited.
+ */
+export function editBlockReason(
+  event: Pick<CalendarEvent, "category" | "start_date_local" | "paired_activity_id">,
+  today: string
+): string | null {
+  if (!EDITABLE_CATEGORIES.includes(event.category)) {
+    return `This is a ${event.category} event; races and time off can only be changed by the athlete in Intervals.icu.`;
+  }
+  if (event.paired_activity_id) return "This session has already been done; completed sessions can't be changed.";
+  if (event.start_date_local.slice(0, 10) < today) return "This event is in the past; past sessions can't be changed.";
+  return null;
+}
+
 /** How far ahead key events are read: about half a season. */
 const HORIZON_DAYS = 182;
 /** Blocks that started up to this long ago may still be under way. */

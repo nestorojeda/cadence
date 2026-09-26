@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CalendarEvent, IntervalsClient } from "./client";
-import { getKeyEvents } from "./events";
+import { editBlockReason, getKeyEvents } from "./events";
 
 let athlete = 0;
 const nextAthlete = () => `i${++athlete}`;
@@ -68,5 +68,26 @@ describe("getKeyEvents", () => {
     vi.advanceTimersByTime(5 * 60 * 1000 + 1);
     await getKeyEvents(client, id);
     expect(getEvents).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("editBlockReason", () => {
+  const today = "2026-09-26";
+
+  it("allows upcoming workouts and notes, including today's", () => {
+    expect(editBlockReason({ category: "WORKOUT", start_date_local: "2026-09-26T09:00:00" }, today)).toBeNull();
+    expect(editBlockReason({ category: "NOTE", start_date_local: "2026-10-03T00:00:00" }, today)).toBeNull();
+  });
+
+  it("refuses races and time off", () => {
+    expect(editBlockReason({ category: "RACE_A", start_date_local: "2026-10-10T00:00:00" }, today)).toMatch(/RACE_A/);
+    expect(editBlockReason({ category: "HOLIDAY", start_date_local: "2026-10-10T00:00:00" }, today)).toMatch(/athlete/);
+  });
+
+  it("refuses past and completed sessions", () => {
+    expect(editBlockReason({ category: "WORKOUT", start_date_local: "2026-09-25T09:00:00" }, today)).toMatch(/past/);
+    expect(
+      editBlockReason({ category: "WORKOUT", start_date_local: "2026-09-26T09:00:00", paired_activity_id: "i123" }, today)
+    ).toMatch(/already been done/);
   });
 });
