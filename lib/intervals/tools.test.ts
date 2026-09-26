@@ -14,7 +14,7 @@ const workout: CalendarEvent = {
 function fakeClient(event: CalendarEvent) {
   const client = {
     getEvent: vi.fn(async () => event),
-    updateEvent: vi.fn(async (_athlete: string, _id: string, changes: Record<string, unknown>) => ({ ...event, ...changes })),
+    updateEvent: vi.fn(async (_id: string, changes: Record<string, unknown>) => ({ ...event, ...changes })),
     deleteEvent: vi.fn(async () => undefined),
   };
   return { client, tools: getIntervalsTools(client as unknown as IntervalsClient) };
@@ -37,12 +37,11 @@ describe("icu_update_calendar_event", () => {
   it("sends only the fields that change and returns the compacted event", async () => {
     const { client, tools } = fakeClient(workout);
     const result = await run(tools.icu_update_calendar_event, {
-      athlete_id: "i1",
       event_id: "7",
       start_date_local: "2026-09-30T09:00:00",
       name: undefined,
     });
-    expect(client.updateEvent).toHaveBeenCalledWith("i1", "7", { start_date_local: "2026-09-30T09:00:00" });
+    expect(client.updateEvent).toHaveBeenCalledWith("7", { start_date_local: "2026-09-30T09:00:00" });
     expect(result).toMatchObject({ id: 7, name: "VO2", start_date_local: "2026-09-30T09:00:00" });
   });
 
@@ -52,7 +51,7 @@ describe("icu_update_calendar_event", () => {
       { ...workout, start_date_local: "2026-09-20T09:00:00" },
     ]) {
       const { client, tools } = fakeClient(event);
-      const result = await run(tools.icu_update_calendar_event, { athlete_id: "i1", event_id: "7", name: "Endurance" });
+      const result = await run(tools.icu_update_calendar_event, { event_id: "7", name: "Endurance" });
       expect(result).toHaveProperty("error");
       expect(client.updateEvent).not.toHaveBeenCalled();
     }
@@ -61,7 +60,6 @@ describe("icu_update_calendar_event", () => {
   it("refuses moving a session into the past", async () => {
     const { client, tools } = fakeClient(workout);
     const result = await run(tools.icu_update_calendar_event, {
-      athlete_id: "i1",
       event_id: "7",
       start_date_local: "2026-09-25T09:00:00",
     });
@@ -71,14 +69,14 @@ describe("icu_update_calendar_event", () => {
 
   it("refuses an empty change", async () => {
     const { client, tools } = fakeClient(workout);
-    expect(await run(tools.icu_update_calendar_event, { athlete_id: "i1", event_id: "7" })).toHaveProperty("error");
+    expect(await run(tools.icu_update_calendar_event, { event_id: "7" })).toHaveProperty("error");
     expect(client.updateEvent).not.toHaveBeenCalled();
   });
 
   it("returns client failures as { error }", async () => {
     const { client, tools } = fakeClient(workout);
     client.updateEvent.mockRejectedValueOnce(new Error("Failed to update calendar event 7 (500)"));
-    expect(await run(tools.icu_update_calendar_event, { athlete_id: "i1", event_id: "7", name: "Z2" })).toEqual({
+    expect(await run(tools.icu_update_calendar_event, { event_id: "7", name: "Z2" })).toEqual({
       error: "Failed to update calendar event 7 (500)",
     });
   });
@@ -87,8 +85,8 @@ describe("icu_update_calendar_event", () => {
 describe("icu_delete_calendar_event", () => {
   it("deletes an upcoming workout and reports what was removed", async () => {
     const { client, tools } = fakeClient(workout);
-    const result = await run(tools.icu_delete_calendar_event, { athlete_id: "i1", event_id: "7" });
-    expect(client.deleteEvent).toHaveBeenCalledWith("i1", "7");
+    const result = await run(tools.icu_delete_calendar_event, { event_id: "7" });
+    expect(client.deleteEvent).toHaveBeenCalledWith("7");
     expect(result).toEqual({
       deleted: { id: 7, name: "VO2", start_date_local: "2026-09-29T09:00:00", category: "WORKOUT" },
     });
@@ -101,7 +99,7 @@ describe("icu_delete_calendar_event", () => {
       { ...workout, category: "SICK" },
     ]) {
       const { client, tools } = fakeClient(event);
-      expect(await run(tools.icu_delete_calendar_event, { athlete_id: "i1", event_id: "7" })).toHaveProperty("error");
+      expect(await run(tools.icu_delete_calendar_event, { event_id: "7" })).toHaveProperty("error");
       expect(client.deleteEvent).not.toHaveBeenCalled();
     }
   });
@@ -109,7 +107,7 @@ describe("icu_delete_calendar_event", () => {
   it("returns a missing event as { error }", async () => {
     const { client, tools } = fakeClient(workout);
     client.getEvent.mockRejectedValueOnce(new Error("Failed to fetch calendar event 7 (404)"));
-    expect(await run(tools.icu_delete_calendar_event, { athlete_id: "i1", event_id: "7" })).toEqual({
+    expect(await run(tools.icu_delete_calendar_event, { event_id: "7" })).toEqual({
       error: "Failed to fetch calendar event 7 (404)",
     });
   });

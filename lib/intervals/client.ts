@@ -1,7 +1,8 @@
 /**
  * Direct TypeScript client for Intervals.icu REST API.
- * Portable across local environments and Vercel serverless.
  */
+
+import { upstreamError } from "@/lib/api/upstream";
 
 export interface AthleteProfile {
   id: string;
@@ -112,33 +113,32 @@ export class IntervalsClient {
     };
   }
 
-  async getAthlete(athleteId?: string): Promise<AthleteProfile> {
-    const id = athleteId || this.defaultAthleteId;
-    const res = await fetch(`${this.baseUrl}/athlete/${id}`, {
+  /** `/athlete/{id}` for the given athlete, else the client's own; the ID is encoded so it can't change the path. */
+  private athletePath(athleteId?: string): string {
+    return `/athlete/${encodeURIComponent(athleteId || this.defaultAthleteId)}`;
+  }
+
+  private async request<T>(path: string, what: string, init?: RequestInit): Promise<T> {
+    const res = await fetch(`${this.baseUrl}${path}`, {
+      ...init,
       headers: this.getHeaders(),
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
-    if (!res.ok) {
-      throw new Error(`Failed to fetch athlete profile (${res.status}): ${await res.text()}`);
-    }
-    return res.json();
+    if (!res.ok) throw await upstreamError(res, what);
+    return res.json() as Promise<T>;
+  }
+
+  async getAthlete(athleteId?: string): Promise<AthleteProfile> {
+    return this.request(this.athletePath(athleteId), "fetch athlete profile");
   }
 
   async getWellness(athleteId?: string, oldest?: string, newest?: string): Promise<WellnessRecord[]> {
-    const id = athleteId || this.defaultAthleteId;
     const params = new URLSearchParams();
     if (oldest) params.set("oldest", oldest);
     if (newest) params.set("newest", newest);
 
     const qs = params.toString() ? `?${params.toString()}` : "";
-    const res = await fetch(`${this.baseUrl}/athlete/${id}/wellness${qs}`, {
-      headers: this.getHeaders(),
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-    });
-    if (!res.ok) {
-      throw new Error(`Failed to fetch wellness data (${res.status}): ${await res.text()}`);
-    }
-    return res.json();
+    return this.request(`${this.athletePath(athleteId)}/wellness${qs}`, "fetch wellness data");
   }
 
   async getFitnessSummary(athleteId?: string): Promise<FitnessSummary> {
@@ -202,7 +202,6 @@ export class IntervalsClient {
     oldest?: string,
     newest?: string
   ): Promise<ActivitySummary[]> {
-    const id = athleteId || this.defaultAthleteId;
     const params = new URLSearchParams();
     params.set("limit", limit.toString());
 
@@ -215,29 +214,14 @@ export class IntervalsClient {
     params.set("oldest", oldest);
     if (newest) params.set("newest", newest);
 
-    const res = await fetch(`${this.baseUrl}/athlete/${id}/activities?${params.toString()}`, {
-      headers: this.getHeaders(),
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-    });
-    if (!res.ok) {
-      throw new Error(`Failed to fetch activities (${res.status}): ${await res.text()}`);
-    }
-    return res.json();
+    return this.request(`${this.athletePath(athleteId)}/activities?${params.toString()}`, "fetch activities");
   }
 
   async getActivity(activityId: string): Promise<Record<string, unknown>> {
-    const res = await fetch(`${this.baseUrl}/activity/${activityId}`, {
-      headers: this.getHeaders(),
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-    });
-    if (!res.ok) {
-      throw new Error(`Failed to fetch activity ${activityId} (${res.status}): ${await res.text()}`);
-    }
-    return res.json();
+    return this.request(`/activity/${encodeURIComponent(activityId)}`, `fetch activity ${activityId}`);
   }
 
   async getEvents(athleteId?: string, oldest?: string, newest?: string): Promise<CalendarEvent[]> {
-    const id = athleteId || this.defaultAthleteId;
     const params = new URLSearchParams();
     if (!oldest) {
       const d = new Date();
@@ -247,70 +231,35 @@ export class IntervalsClient {
     params.set("oldest", oldest);
     if (newest) params.set("newest", newest);
 
-    const res = await fetch(`${this.baseUrl}/athlete/${id}/events?${params.toString()}`, {
-      headers: this.getHeaders(),
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-    });
-    if (!res.ok) {
-      throw new Error(`Failed to fetch calendar events (${res.status}): ${await res.text()}`);
-    }
-    return res.json();
+    return this.request(`${this.athletePath(athleteId)}/events?${params.toString()}`, "fetch calendar events");
   }
 
-  async createEvent(
-    athleteId: string,
-    eventData: Record<string, unknown>
-  ): Promise<CalendarEvent> {
-    const id = athleteId || this.defaultAthleteId;
-    const res = await fetch(`${this.baseUrl}/athlete/${id}/events`, {
+  async createEvent(eventData: Record<string, unknown>): Promise<CalendarEvent> {
+    return this.request(`${this.athletePath()}/events`, "create calendar event", {
       method: "POST",
-      headers: this.getHeaders(),
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       body: JSON.stringify(eventData),
     });
-    if (!res.ok) {
-      throw new Error(`Failed to create calendar event (${res.status}): ${await res.text()}`);
-    }
-    return res.json();
   }
 
-  async getEvent(athleteId: string, eventId: string): Promise<CalendarEvent> {
-    const id = athleteId || this.defaultAthleteId;
-    const res = await fetch(`${this.baseUrl}/athlete/${id}/events/${encodeURIComponent(eventId)}`, {
-      headers: this.getHeaders(),
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-    });
-    if (!res.ok) {
-      throw new Error(`Failed to fetch calendar event ${eventId} (${res.status}): ${await res.text()}`);
-    }
-    return res.json();
+  async getEvent(eventId: string): Promise<CalendarEvent> {
+    return this.request(`${this.athletePath()}/events/${encodeURIComponent(eventId)}`, `fetch calendar event ${eventId}`);
   }
 
   /** Partial update: fields left out of `changes` keep their current values. */
-  async updateEvent(athleteId: string, eventId: string, changes: Record<string, unknown>): Promise<CalendarEvent> {
-    const id = athleteId || this.defaultAthleteId;
-    const res = await fetch(`${this.baseUrl}/athlete/${id}/events/${encodeURIComponent(eventId)}`, {
+  async updateEvent(eventId: string, changes: Record<string, unknown>): Promise<CalendarEvent> {
+    return this.request(`${this.athletePath()}/events/${encodeURIComponent(eventId)}`, `update calendar event ${eventId}`, {
       method: "PUT",
-      headers: this.getHeaders(),
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       body: JSON.stringify(changes),
     });
-    if (!res.ok) {
-      throw new Error(`Failed to update calendar event ${eventId} (${res.status}): ${await res.text()}`);
-    }
-    return res.json();
   }
 
-  /** Deletes this one event only (not other events of the same plan). */
-  async deleteEvent(athleteId: string, eventId: string): Promise<void> {
-    const id = athleteId || this.defaultAthleteId;
-    const res = await fetch(`${this.baseUrl}/athlete/${id}/events/${encodeURIComponent(eventId)}`, {
+  /** Deletes this one event only (not other events of the same plan). The response body isn't used. */
+  async deleteEvent(eventId: string): Promise<void> {
+    const res = await fetch(`${this.baseUrl}${this.athletePath()}/events/${encodeURIComponent(eventId)}`, {
       method: "DELETE",
       headers: this.getHeaders(),
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
-    if (!res.ok) {
-      throw new Error(`Failed to delete calendar event ${eventId} (${res.status}): ${await res.text()}`);
-    }
+    if (!res.ok) throw await upstreamError(res, `delete calendar event ${eventId}`);
   }
 }

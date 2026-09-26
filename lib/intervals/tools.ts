@@ -6,18 +6,23 @@ import { routineTitle, toHevyRoutine } from "@/lib/hevy/routine";
 import { formatGymDescription, type GymSessionInput, type GymSessionResult } from "@/lib/coach/gym";
 import { editBlockReason } from "./events";
 import {
+  MAX_EVENT_DAYS,
   MAX_WELLNESS_DAYS,
   compactActivities,
   compactActivityDetails,
   compactEvents,
   compactWellness,
   daysFromToday,
+  eventsRange,
   wellnessRange,
 } from "./compact";
 
 // Read tools return trimmed records (see ./compact) with bounded default date ranges: raw Intervals.icu responses are
 // large and every result is re-sent to the model on each later step of the turn.
+// Tools take no athlete ID: the client is bound to the athlete the route resolved, so the model can't act on another.
 type Row = Record<string, unknown>;
+
+const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD");
 
 const EVENT_DESCRIPTION_HINT =
   "For workouts: the steps in Intervals.icu workout syntax, one step per line starting with '- ' " +
@@ -51,12 +56,10 @@ export function getIntervalsTools(client: IntervalsClient, hevy: HevyClient | nu
     icu_get_fitness_summary: tool({
       description:
         "Get current fitness, fatigue, and form snapshot (CTL, ATL, TSB, ramp rate, form status) from Intervals.icu.",
-      inputSchema: z.object({
-        athlete_id: z.string().optional().describe("Athlete ID (optional, defaults to primary athlete)"),
-      }),
-      execute: async ({ athlete_id }) => {
+      inputSchema: z.object({}),
+      execute: async () => {
         try {
-          return await client.getFitnessSummary(athlete_id);
+          return await client.getFitnessSummary();
         } catch (error) {
           return { error: (error as Error).message };
         }
@@ -68,14 +71,13 @@ export function getIntervalsTools(client: IntervalsClient, hevy: HevyClient | nu
         "Get daily wellness records (fitness/fatigue/form, HRV, resting HR, sleep, readiness, soreness, eFTP) for a date " +
         `range of at most ${MAX_WELLNESS_DAYS} days. For current form alone, prefer icu_get_fitness_summary.`,
       inputSchema: z.object({
-        athlete_id: z.string().optional().describe("Athlete ID"),
-        oldest: z.string().optional().describe("Oldest date in YYYY-MM-DD format (defaults to 14 days ago)"),
-        newest: z.string().optional().describe("Newest date in YYYY-MM-DD format (defaults to today)"),
+        oldest: date.optional().describe("Oldest date in YYYY-MM-DD format (defaults to 14 days ago)"),
+        newest: date.optional().describe("Newest date in YYYY-MM-DD format (defaults to today)"),
       }),
-      execute: async ({ athlete_id, oldest, newest }) => {
+      execute: async ({ oldest, newest }) => {
         try {
           const range = wellnessRange(oldest, newest);
-          const records = await client.getWellness(athlete_id, range.oldest, range.newest);
+          const records = await client.getWellness(undefined, range.oldest, range.newest);
           return compactWellness(records as unknown as Row[]);
         } catch (error) {
           return { error: (error as Error).message };
@@ -87,14 +89,13 @@ export function getIntervalsTools(client: IntervalsClient, hevy: HevyClient | nu
       description:
         "List recent training activities, rides, distances, normalized power, TSS, and elevation gain.",
       inputSchema: z.object({
-        athlete_id: z.string().optional().describe("Athlete ID"),
         limit: z.number().int().min(1).max(30).optional().default(10).describe("Max activities to return (default 10, max 30)"),
-        oldest: z.string().optional().describe("Oldest date in YYYY-MM-DD format (defaults to 30 days ago)"),
-        newest: z.string().optional().describe("Newest date in YYYY-MM-DD format"),
+        oldest: date.optional().describe("Oldest date in YYYY-MM-DD format (defaults to 30 days ago)"),
+        newest: date.optional().describe("Newest date in YYYY-MM-DD format"),
       }),
-      execute: async ({ athlete_id, limit, oldest, newest }) => {
+      execute: async ({ limit, oldest, newest }) => {
         try {
-          const activities = await client.getActivities(athlete_id, limit, oldest, newest);
+          const activities = await client.getActivities(undefined, limit, oldest, newest);
           return compactActivities(activities as unknown as Row[]);
         } catch (error) {
           return { error: (error as Error).message };
@@ -121,15 +122,16 @@ export function getIntervalsTools(client: IntervalsClient, hevy: HevyClient | nu
       description:
         "Get calendar events on Intervals.icu. `category` is WORKOUT (planned session), NOTE, RACE_A / RACE_B / RACE_C " +
         "(race by priority), or HOLIDAY / SICK / INJURED (time off; `end_date_local` is exclusive). Upcoming races and " +
-        "time off are already listed in your instructions; pass a later `newest` to look beyond the default window.",
+        "time off are already listed in your instructions. One call covers at most " +
+        `${MAX_EVENT_DAYS} days from \`oldest\` (a longer range is cut short); for later dates, call again with a later \`oldest\`.`,
       inputSchema: z.object({
-        athlete_id: z.string().optional().describe("Athlete ID"),
-        oldest: z.string().optional().describe("Oldest date in YYYY-MM-DD format (defaults to 7 days ago)"),
-        newest: z.string().optional().describe("Newest date in YYYY-MM-DD format (defaults to 14 days ahead)"),
+        oldest: date.optional().describe("Oldest date in YYYY-MM-DD format (defaults to 7 days ago)"),
+        newest: date.optional().describe("Newest date in YYYY-MM-DD format (defaults to 14 days ahead)"),
       }),
-      execute: async ({ athlete_id, oldest, newest }) => {
+      execute: async ({ oldest, newest }) => {
         try {
-          const events = await client.getEvents(athlete_id, oldest || daysFromToday(-7), newest || daysFromToday(14));
+          const range = eventsRange(oldest, newest);
+          const events = await client.getEvents(undefined, range.oldest, range.newest);
           return compactEvents(events as unknown as Row[]);
         } catch (error) {
           return { error: (error as Error).message };
@@ -141,7 +143,6 @@ export function getIntervalsTools(client: IntervalsClient, hevy: HevyClient | nu
       description:
         "Create a scheduled workout or note event directly on the Intervals.icu calendar.",
       inputSchema: z.object({
-        athlete_id: z.string().describe("Athlete ID"),
         name: z.string().describe("Short workout name (e.g. 'VO2', 'OU', 'Endurance')"),
         start_date_local: z.string().describe("Date/time in ISO-8601 format (e.g. '2026-09-25T09:00:00')"),
         type: z.string().default("Ride").describe("Activity type (Ride, VirtualRide, Workout, Note)"),
@@ -153,9 +154,9 @@ export function getIntervalsTools(client: IntervalsClient, hevy: HevyClient | nu
         moving_time: z.number().optional().describe("Target duration in seconds"),
         icu_training_load: z.number().optional().describe("Target TSS"),
       }),
-      execute: async ({ athlete_id, ...eventData }) => {
+      execute: async (eventData) => {
         try {
-          return await client.createEvent(athlete_id, eventData);
+          return await client.createEvent(eventData);
         } catch (error) {
           return { error: (error as Error).message };
         }
@@ -168,7 +169,6 @@ export function getIntervalsTools(client: IntervalsClient, hevy: HevyClient | nu
         "or replace its steps, duration or load. Pass only the fields that change. Take `event_id` from " +
         "icu_get_calendar_events. Races, time off, and past or completed sessions can't be changed.",
       inputSchema: z.object({
-        athlete_id: z.string().describe("Athlete ID"),
         event_id: z.string().describe("Intervals.icu event ID, from icu_get_calendar_events"),
         name: z.string().optional().describe("New short name"),
         start_date_local: z.string().optional().describe("New date/time in ISO-8601 format (e.g. '2026-09-25T09:00:00')"),
@@ -177,17 +177,17 @@ export function getIntervalsTools(client: IntervalsClient, hevy: HevyClient | nu
         moving_time: z.number().optional().describe("New target duration in seconds"),
         icu_training_load: z.number().optional().describe("New target TSS"),
       }),
-      execute: async ({ athlete_id, event_id, ...changes }) => {
+      execute: async ({ event_id, ...changes }) => {
         try {
           const today = daysFromToday(0);
-          const blocked = editBlockReason(await client.getEvent(athlete_id, event_id), today);
+          const blocked = editBlockReason(await client.getEvent(event_id), today);
           if (blocked) return { error: blocked };
           if (changes.start_date_local && changes.start_date_local.slice(0, 10) < today) {
             return { error: "Sessions can't be moved into the past." };
           }
           const defined = Object.fromEntries(Object.entries(changes).filter(([, value]) => value !== undefined));
           if (Object.keys(defined).length === 0) return { error: "Nothing to change: pass at least one field." };
-          const updated = await client.updateEvent(athlete_id, event_id, defined);
+          const updated = await client.updateEvent(event_id, defined);
           return compactEvents([updated as unknown as Row])[0];
         } catch (error) {
           return { error: (error as Error).message };
@@ -200,15 +200,14 @@ export function getIntervalsTools(client: IntervalsClient, hevy: HevyClient | nu
         "Remove a planned workout or note from the Intervals.icu calendar. Take `event_id` from " +
         "icu_get_calendar_events. Races, time off, and past or completed sessions can't be removed.",
       inputSchema: z.object({
-        athlete_id: z.string().describe("Athlete ID"),
         event_id: z.string().describe("Intervals.icu event ID, from icu_get_calendar_events"),
       }),
-      execute: async ({ athlete_id, event_id }) => {
+      execute: async ({ event_id }) => {
         try {
-          const event = await client.getEvent(athlete_id, event_id);
+          const event = await client.getEvent(event_id);
           const blocked = editBlockReason(event, daysFromToday(0));
           if (blocked) return { error: blocked };
-          await client.deleteEvent(athlete_id, event_id);
+          await client.deleteEvent(event_id);
           const { id, name, start_date_local, category } = event;
           return { deleted: { id, name, start_date_local, category } };
         } catch (error) {
@@ -224,7 +223,6 @@ export function getIntervalsTools(client: IntervalsClient, hevy: HevyClient | nu
         (hevy ? " and a matching routine in the athlete's Hevy app." : ".") +
         " Use this for every gym session instead of icu_create_calendar_event.",
       inputSchema: z.object({
-        athlete_id: z.string().describe("Athlete ID"),
         name: z.string().describe("Short session name (e.g. 'Gym', 'Gym · Legs', 'Strength A')"),
         start_date_local: z.string().describe("Date/time in ISO-8601 format (e.g. '2026-09-29T18:00:00')"),
         moving_time: z.number().optional().describe("Planned duration in seconds, warm-up included"),
@@ -242,13 +240,13 @@ export function getIntervalsTools(client: IntervalsClient, hevy: HevyClient | nu
             }
           : {}),
       }),
-      execute: async ({ athlete_id, ...session }): Promise<GymSessionResult> => {
+      execute: async (session): Promise<GymSessionResult> => {
         const input = session as GymSessionInput;
         const [intervals, hevyResult] = await Promise.all([
           input.hevy_only && hevy
             ? Promise.resolve("skipped" as const)
             : client
-                .createEvent(athlete_id, {
+                .createEvent({
                   name: input.name,
                   start_date_local: input.start_date_local,
                   type: "WeightTraining",

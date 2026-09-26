@@ -63,8 +63,7 @@ Read the code for these. Prefer depth on the risky paths (chat route, storage, t
   validation, duplicated types that should be shared.
 - **Structure / maintainability** — oversized files (scan "largest files"; `components/Sidebar.tsx`,
   `CoachPreferencesModal.tsx`, `ChatInterface.tsx` are candidates), duplicated logic (date math, fetch wrappers,
-  formatting), dead or unwired code (e.g. `lib/mcp/bridge.ts` is documented as not wired in — keep, wire, or delete?),
-  unused exports and dependencies (e.g. is `@modelcontextprotocol/sdk` only used by the bridge?), leftover TODO/FIXME.
+  formatting), dead or unwired code, unused exports and dependencies, leftover TODO/FIXME.
 - **Tooling & tests** — no test suite: identify the highest-value pure functions to cover first (e.g.
   `lib/intervals/workout.ts` parsing, `lib/chat/context.ts` pruning/summary cutoff, `lib/chat/approvals.ts` merging,
   `lib/intervals/compact.ts`); deprecated `next lint` with no ESLint config; missing CI; missing Docker/self-host
