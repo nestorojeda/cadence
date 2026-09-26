@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
     const client = new IntervalsClient(apiKey, athleteId);
     const since = new Date();
     since.setDate(since.getDate() - LOOKBACK_DAYS);
-    const activities = await client.getActivities(athleteId, 200, toLocalDate(since));
+    const activities = await client.getActivities(200, toLocalDate(since));
 
     const summary = summarizeTerrain(activities);
     if (!summary) {

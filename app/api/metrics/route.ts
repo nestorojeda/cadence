@@ -24,23 +24,23 @@ export async function GET(req: NextRequest) {
     const weekStart = toLocalDate(monday);
 
     const [athlete, fitness, wellness, events, activities, keyEvents] = await Promise.all([
-      client.getAthlete(athleteId).catch((e) => {
+      client.getAthlete().catch((e) => {
         console.warn("Could not load athlete profile:", e);
         return null;
       }),
-      client.getFitnessSummary(athleteId).catch((e) => {
+      client.getFitnessSummary().catch((e) => {
         console.warn("Could not load fitness summary:", e);
         return null;
       }),
-      client.getWellness(athleteId, toLocalDate(historyStart)).catch((e) => {
+      client.getWellness(toLocalDate(historyStart)).catch((e) => {
         console.warn("Could not load wellness history:", e);
         return [];
       }),
-      client.getEvents(athleteId, weekStart, toLocalDate(sunday)).catch((e) => {
+      client.getEvents(weekStart, toLocalDate(sunday)).catch((e) => {
         console.warn("Could not load this week's calendar:", e);
         return [];
       }),
-      client.getActivities(athleteId, 50, weekStart, toLocalDate(sunday)).catch((e) => {
+      client.getActivities(50, weekStart, toLocalDate(sunday)).catch((e) => {
         console.warn("Could not load this week's activities:", e);
         return [];
       }),

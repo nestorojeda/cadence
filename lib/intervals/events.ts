@@ -59,7 +59,7 @@ export async function getKeyEvents(client: IntervalsClient, athleteId: string): 
   if (hit && Date.now() - hit.at < CACHE_TTL_MS) return hit.events;
 
   const today = daysFromToday(0);
-  const events = await client.getEvents(athleteId, daysFromToday(-LOOKBACK_DAYS), daysFromToday(HORIZON_DAYS));
+  const events = await client.getEvents(daysFromToday(-LOOKBACK_DAYS), daysFromToday(HORIZON_DAYS));
   const keyEvents = events
     .map((e) => toKeyEvent(e, today))
     .filter((e): e is KeyEvent => e !== null)

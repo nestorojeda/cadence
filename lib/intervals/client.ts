@@ -111,9 +111,12 @@ export class IntervalsClient {
     };
   }
 
-  /** `/athlete/{id}` for the given athlete, else the client's own; the ID is encoded so it can't change the path. */
-  private athletePath(athleteId?: string): string {
-    return `/athlete/${encodeURIComponent(athleteId || this.defaultAthleteId)}`;
+  /**
+   * `/athlete/{id}` for the athlete this client is bound to; the ID is encoded so it can't change the path. There is
+   * deliberately no per-call override: the chat tools must not reach another athlete.
+   */
+  private athletePath(): string {
+    return `/athlete/${encodeURIComponent(this.defaultAthleteId)}`;
   }
 
   private async request<T>(path: string, what: string, init?: RequestInit): Promise<T> {
@@ -126,28 +129,27 @@ export class IntervalsClient {
     return res.json() as Promise<T>;
   }
 
-  async getAthlete(athleteId?: string): Promise<AthleteProfile> {
-    return this.request(this.athletePath(athleteId), "fetch athlete profile");
+  async getAthlete(): Promise<AthleteProfile> {
+    return this.request(this.athletePath(), "fetch athlete profile");
   }
 
-  async getWellness(athleteId?: string, oldest?: string, newest?: string): Promise<WellnessRecord[]> {
+  async getWellness(oldest?: string, newest?: string): Promise<WellnessRecord[]> {
     const params = new URLSearchParams();
     if (oldest) params.set("oldest", oldest);
     if (newest) params.set("newest", newest);
 
     const qs = params.toString() ? `?${params.toString()}` : "";
-    return this.request(`${this.athletePath(athleteId)}/wellness${qs}`, "fetch wellness data");
+    return this.request(`${this.athletePath()}/wellness${qs}`, "fetch wellness data");
   }
 
-  async getFitnessSummary(athleteId?: string): Promise<FitnessSummary> {
-    const id = athleteId || this.defaultAthleteId;
+  async getFitnessSummary(): Promise<FitnessSummary> {
     const today = new Date();
     // Fetch last 14 days of wellness to get recent CTL/ATL/TSB trends
     const fourteenDaysAgo = new Date(today);
     fourteenDaysAgo.setDate(today.getDate() - 14);
     const oldest = fourteenDaysAgo.toISOString().split("T")[0];
 
-    const records = await this.getWellness(id, oldest);
+    const records = await this.getWellness(oldest);
     const latest = records.length > 0 ? records[records.length - 1] : null;
 
     const ctl = latest?.ctl != null ? Math.round(latest.ctl * 10) / 10 : null;
@@ -181,7 +183,7 @@ export class IntervalsClient {
     }
 
     return {
-      athlete_id: id,
+      athlete_id: this.defaultAthleteId,
       date: latest?.id || today.toISOString().split("T")[0],
       ctl,
       atl,
@@ -194,12 +196,7 @@ export class IntervalsClient {
     };
   }
 
-  async getActivities(
-    athleteId?: string,
-    limit: number = 10,
-    oldest?: string,
-    newest?: string
-  ): Promise<ActivitySummary[]> {
+  async getActivities(limit: number = 10, oldest?: string, newest?: string): Promise<ActivitySummary[]> {
     const params = new URLSearchParams();
     params.set("limit", limit.toString());
 
@@ -212,14 +209,14 @@ export class IntervalsClient {
     params.set("oldest", oldest);
     if (newest) params.set("newest", newest);
 
-    return this.request(`${this.athletePath(athleteId)}/activities?${params.toString()}`, "fetch activities");
+    return this.request(`${this.athletePath()}/activities?${params.toString()}`, "fetch activities");
   }
 
   async getActivity(activityId: string): Promise<Record<string, unknown>> {
     return this.request(`/activity/${encodeURIComponent(activityId)}`, `fetch activity ${activityId}`);
   }
 
-  async getEvents(athleteId?: string, oldest?: string, newest?: string): Promise<CalendarEvent[]> {
+  async getEvents(oldest?: string, newest?: string): Promise<CalendarEvent[]> {
     const params = new URLSearchParams();
     if (!oldest) {
       const d = new Date();
@@ -229,7 +226,7 @@ export class IntervalsClient {
     params.set("oldest", oldest);
     if (newest) params.set("newest", newest);
 
-    return this.request(`${this.athletePath(athleteId)}/events?${params.toString()}`, "fetch calendar events");
+    return this.request(`${this.athletePath()}/events?${params.toString()}`, "fetch calendar events");
   }
 
   async createEvent(eventData: Record<string, unknown>): Promise<CalendarEvent> {
