@@ -43,9 +43,12 @@ export async function getPreferences(athleteId: string): Promise<CoachPreference
       mountainTerrainNotes?: unknown;
       terrainNotes?: unknown;
     };
+    const defaults = createDefaultPreferences(cleanId);
     const parsed: CoachPreferences = {
-      ...createDefaultPreferences(cleanId),
+      ...defaults,
       ...stored,
+      // Nested, so merged on its own: files written before gym preferences existed have none.
+      gym: { ...defaults.gym, ...stored.gym },
     };
     memoryCache.set(cleanId, parsed);
     return parsed;

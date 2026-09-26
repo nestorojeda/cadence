@@ -6,8 +6,10 @@ import remarkGfm from "remark-gfm";
 import { AlertTriangle, Check, ChevronDown } from "lucide-react";
 import { getToolName, isTextUIPart, isToolUIPart, type UIMessage } from "ai";
 import { WorkoutCard, type WorkoutCardStatus, type WorkoutEventInput } from "./WorkoutCard";
+import { GymCard } from "./GymCard";
+import type { GymSessionInput, GymSessionResult } from "@/lib/coach/gym";
 import { CadenceMark } from "@/components/CadenceMark";
-import { CREATE_EVENT_TOOL } from "@/lib/intervals/tool-names";
+import { CREATE_EVENT_TOOL, CREATE_GYM_TOOL } from "@/lib/intervals/tool-names";
 
 interface ChatMessageProps {
   message: UIMessage;
@@ -25,7 +27,13 @@ const TOOL_LABELS: Record<string, string> = {
   icu_get_recent_activities: "recent rides",
   icu_get_activity_details: "ride details",
   icu_get_calendar_events: "calendar",
+  hevy_search_exercises: "exercises",
+  hevy_get_recent_workouts: "gym workouts",
+  hevy_get_exercise_history: "lift history",
 };
+
+/** Write tools render as session cards rather than in the read trace. */
+const CARD_TOOLS = new Set([CREATE_EVENT_TOOL, CREATE_GYM_TOOL]);
 
 function toolLabel(name: string) {
   return TOOL_LABELS[name] ?? name.replace(/^icu_(get_)?/, "").replace(/_/g, " ");
@@ -97,7 +105,7 @@ export function ChatMessage({ message, isStreaming = false, onApproval }: ChatMe
   }
 
   const toolParts = message.parts.filter(isToolUIPart) as ToolPart[];
-  const readParts = toolParts.filter((p) => getToolName(p) !== CREATE_EVENT_TOOL);
+  const readParts = toolParts.filter((p) => !CARD_TOOLS.has(getToolName(p)));
   const running = toolParts.find(isRunning);
   const pending = toolParts.filter((p) => p.state === "approval-requested");
   const lastPendingId = pending[pending.length - 1]?.toolCallId;
@@ -105,11 +113,13 @@ export function ChatMessage({ message, isStreaming = false, onApproval }: ChatMe
     for (const part of pending) if (part.approval) onApproval?.({ id: part.approval.id, approved });
   };
   const hasText = message.parts.some((p) => isTextUIPart(p) && p.text.trim());
+  // A finished turn should end in a reply or a session card; say so rather than leave just the read trace.
+  const endedSilently = !isStreaming && !hasText && !toolParts.some((p) => CARD_TOOLS.has(getToolName(p)));
 
   let liveText: string | null = null;
   if (isStreaming && running) {
     const name = getToolName(running);
-    liveText = name === CREATE_EVENT_TOOL ? "adding to your calendar…" : `reading ${toolLabel(name)}…`;
+    liveText = CARD_TOOLS.has(name) ? "adding to your calendar…" : `reading ${toolLabel(name)}…`;
   } else if (isStreaming && !hasText) {
     liveText = "thinking…";
   }
@@ -129,19 +139,29 @@ export function ChatMessage({ message, isStreaming = false, onApproval }: ChatMe
             </div>
           );
         }
-        if (isToolUIPart(part) && getToolName(part) === CREATE_EVENT_TOOL) {
+        if (isToolUIPart(part) && CARD_TOOLS.has(getToolName(part))) {
           const toolPart = part as ToolPart;
           const approvalId = toolPart.state === "approval-requested" ? toolPart.approval.id : undefined;
+          const onDecide =
+            approvalId && onApproval ? (approved: boolean) => onApproval({ id: approvalId, approved }) : undefined;
           return (
             <React.Fragment key={toolPart.toolCallId}>
-              <WorkoutCard
-                input={(toolPart.input ?? {}) as Partial<WorkoutEventInput>}
-                status={workoutStatus(toolPart)}
-                errorText={toolErrorText(toolPart)}
-                onDecide={
-                  approvalId && onApproval ? (approved) => onApproval({ id: approvalId, approved }) : undefined
-                }
-              />
+              {getToolName(toolPart) === CREATE_GYM_TOOL ? (
+                <GymCard
+                  input={(toolPart.input ?? {}) as Partial<GymSessionInput>}
+                  status={workoutStatus(toolPart)}
+                  output={toolPart.state === "output-available" ? (toolPart.output as GymSessionResult) : undefined}
+                  errorText={toolErrorText(toolPart)}
+                  onDecide={onDecide}
+                />
+              ) : (
+                <WorkoutCard
+                  input={(toolPart.input ?? {}) as Partial<WorkoutEventInput>}
+                  status={workoutStatus(toolPart)}
+                  errorText={toolErrorText(toolPart)}
+                  onDecide={onDecide}
+                />
+              )}
               {pending.length > 1 && toolPart.toolCallId === lastPendingId && (
                 <div className="flex flex-wrap items-center justify-between gap-3 px-1">
                   <span className="font-mono text-xs text-fg-muted">{pending.length} sessions to review</span>
@@ -170,6 +190,13 @@ export function ChatMessage({ message, isStreaming = false, onApproval }: ChatMe
         }
         return null;
       })}
+
+      {endedSilently && (
+        <div className="flex items-start gap-2 text-xs text-fg-subtle" role="status">
+          <AlertTriangle className="w-3.5 h-3.5 text-signal-warn shrink-0" />
+          <span>The coach stopped before replying. Ask it to continue, or rephrase the request.</span>
+        </div>
+      )}
     </div>
   );
 }

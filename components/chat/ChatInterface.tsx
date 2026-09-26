@@ -51,6 +51,7 @@ function getModelSettings() {
     thinkingLevel: localStorage.getItem("apex_thinking_level") || undefined,
     apiKey: (API_KEY_STORAGE[modelProvider] && localStorage.getItem(API_KEY_STORAGE[modelProvider])) || undefined,
     intervalsApiKey: localStorage.getItem("apex_intervals_key") || undefined,
+    hevyApiKey: localStorage.getItem("apex_hevy_key") || undefined,
   };
 }
 

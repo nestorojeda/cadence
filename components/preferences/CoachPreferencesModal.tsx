@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { Minus, Mountain, MountainSnow, RotateCcw, ScanSearch, Waves, type LucideIcon } from "lucide-react";
 import { CoachPreferences, createDefaultPreferences } from "@/lib/types/preferences";
 import { TERRAINS, type Terrain, type TerrainSummary } from "@/lib/intervals/terrain";
+import { GYM_EQUIPMENT, GYM_EXPERIENCE, GYM_GOALS, type GymPreferences } from "@/lib/coach/gym";
 import { GhostButton, Modal, ModalSection, PrimaryButton, SavedNote, inputClass } from "@/components/ui/Modal";
 
 interface CoachPreferencesModalProps {
@@ -72,6 +73,14 @@ export function CoachPreferencesModal({
       ...preferences,
       [key]: list.includes(day) ? list.filter((d) => d !== day) : [...list, day],
     });
+  };
+
+  const setGym = (patch: Partial<GymPreferences>) =>
+    setPreferences((prev) => ({ ...prev, gym: { ...prev.gym, ...patch } }));
+
+  const toggleGoal = (goal: GymPreferences["goals"][number]) => {
+    const goals = preferences.gym.goals;
+    setGym({ goals: goals.includes(goal) ? goals.filter((g) => g !== goal) : [...goals, goal] });
   };
 
   const handleSave = async () => {
@@ -272,6 +281,71 @@ export function CoachPreferencesModal({
           </ModalSection>
 
           <ModalSection
+            label="Gym"
+            hint="What your strength work is for. The coach picks exercises, sets, reps and RPE from it and keeps heavy leg days away from key rides."
+          >
+            <div className="flex flex-wrap gap-2" role="group" aria-label="Gym goals">
+              {GYM_GOALS.map((goal) => {
+                const selected = preferences.gym.goals.includes(goal.id);
+                return (
+                  <button
+                    key={goal.id}
+                    type="button"
+                    aria-pressed={selected}
+                    onClick={() => toggleGoal(goal.id)}
+                    className={`h-9 px-3 rounded-full border text-[13px] transition ${
+                      selected
+                        ? "border-fg-muted bg-ink-raised text-fg"
+                        : "border-ink-line text-fg-subtle hover:border-ink-edge hover:bg-ink-surface"
+                    }`}
+                  >
+                    {selected && <span className="inline-block w-2 h-2 rounded-[2px] mr-2" style={{ background: "#c084fc" }} />}
+                    {goal.label}
+                  </button>
+                );
+              })}
+            </div>
+            <Segmented
+              label="Experience"
+              options={GYM_EXPERIENCE}
+              value={preferences.gym.experience}
+              onChange={(experience) => setGym({ experience })}
+            />
+            <Segmented
+              label="Equipment"
+              options={GYM_EQUIPMENT}
+              value={preferences.gym.equipment}
+              onChange={(equipment) => setGym({ equipment })}
+            />
+            <div className="flex items-center justify-between gap-4">
+              <span className="text-[13px] text-fg-soft">Session length</span>
+              <div className="relative w-28">
+                <input
+                  type="number"
+                  aria-label="Gym session length in minutes"
+                  min={15}
+                  max={120}
+                  step={5}
+                  value={preferences.gym.sessionMinutes}
+                  onChange={(e) => setGym({ sessionMinutes: Number(e.target.value) })}
+                  className={`${inputClass} font-mono pr-12`}
+                />
+                <span className="absolute right-3.5 top-1/2 -translate-y-1/2 font-mono text-xs text-fg-muted pointer-events-none">
+                  min
+                </span>
+              </div>
+            </div>
+            <textarea
+              aria-label="Gym notes"
+              rows={2}
+              value={preferences.gym.notes}
+              onChange={(e) => setGym({ notes: e.target.value })}
+              placeholder="e.g. Lower back is sensitive to heavy deadlifts, love kettlebell work, no pull-up bar…"
+              className={`${inputClass} h-auto py-2.5 leading-relaxed resize-none`}
+            />
+          </ModalSection>
+
+          <ModalSection
             label="Terrain settings"
             hint={
               detectNote ? (
@@ -358,6 +432,40 @@ function HoursInput({
         className={`${inputClass} font-mono pr-8`}
       />
       <span className="absolute right-3.5 top-1/2 -translate-y-1/2 font-mono text-xs text-fg-muted pointer-events-none">h</span>
+    </div>
+  );
+}
+
+function Segmented<T extends string>({
+  label,
+  options,
+  value,
+  onChange,
+}: {
+  label: string;
+  options: Array<{ id: T; label: string }>;
+  value: T;
+  onChange: (value: T) => void;
+}) {
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+      <span className="text-[13px] text-fg-soft">{label}</span>
+      <div role="radiogroup" aria-label={label} className="flex p-0.5 rounded-[10px] border border-ink-line bg-ink-surface">
+        {options.map((o) => (
+          <button
+            key={o.id}
+            type="button"
+            role="radio"
+            aria-checked={value === o.id}
+            onClick={() => onChange(o.id)}
+            className={`h-8 px-3 rounded-lg text-xs transition ${
+              value === o.id ? "bg-ink-raised text-fg font-medium" : "text-fg-muted hover:text-fg"
+            }`}
+          >
+            {o.label}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }

@@ -50,17 +50,19 @@ Next.js 15 App Router, React 19, Tailwind 3, TypeScript strict, path alias `@/*`
 | `app/api/preferences/route.ts` | GET/POST coach rules for an athlete. |
 | `lib/llm/models.ts` | Provider IDs and default model per provider — the single source for defaults (server and UI). Also the Google model dropdown list (`GOOGLE_MODELS`) with each model's supported Gemini thinking levels, and `resolveThinkingLevel`. |
 | `lib/intervals/client.ts` | Typed REST client for `https://intervals.icu/api/v1` (Basic auth `API_KEY:<key>`). |
-| `lib/intervals/tools.ts` | AI SDK tool definitions (`tool({ description, inputSchema, execute })`) wrapping the client. Tools return `{ error }` instead of throwing so the model can recover. |
+| `lib/intervals/tools.ts` | AI SDK tool definitions (`tool({ description, inputSchema, execute })`) wrapping the client. Tools return `{ error }` instead of throwing so the model can recover. `create_gym_session` writes a `WeightTraining` event and, with Hevy connected, a Hevy routine; each target reports its own result. |
 | `lib/intervals/events.ts` | Key events: upcoming races (`RACE_A/B/C`) and time off (`HOLIDAY/SICK/INJURED`, `end_date_local` exclusive) for the next ~6 months, cached 5 min per athlete. The chat route puts them in the system prompt (they're usually beyond the calendar tool's window) and `/api/metrics` returns them for the sidebar's "Next races" and away days. |
 | `lib/intervals/workout.ts` | Parses Intervals.icu workout text (event `description`) into timed %FTP steps for the `WorkoutChart` power profile in `WorkoutCard`. |
 | `lib/intervals/compact.ts` | Trims Intervals.icu responses to the fields the coach uses and bounds default date ranges (wellness: 14 days, max 90). Every read tool must return compacted data — raw responses are huge (unbounded wellness was 1.4M chars). |
-| `lib/coach/prompt.ts` | Builds the coach system prompt from methodology + the athlete's saved preferences. |
+| `lib/coach/prompt.ts` | Builds the coach system prompt from methodology + the athlete's saved preferences (including the strength-training section). |
+| `lib/coach/gym.ts` | Gym preferences (`goals`, experience, equipment, session length, notes → `preferences.gym`) and the `create_gym_session` input/result types and text formatting. Client-safe. |
+| `lib/hevy/*` | Optional [Hevy](https://api.hevyapp.com/docs) integration (Pro only, `api-key` header): `client.ts` (templates cached in memory, routines go in a "Cadence" folder), `routine.ts` (gym session → routine; routine sets have no RPE, so it goes in exercise notes), `tools.ts` (read tools, only registered when a key is set). Key from `apex_hevy_key` or `HEVY_API_KEY`. |
 | `lib/storage/chat-store.ts` | Chats persisted at `data/chats/{athleteId}/{chatId}.json` plus an `index.json` of `ChatMeta`; writes are serialized per athlete. |
 | `lib/chat/context.ts` | Token economy: what the model sees of a stored chat (see below). |
 | `lib/storage/preferences-store.ts` | Preferences persisted as JSON at `data/athletes/{athleteId}.json`, with in-memory cache. |
 | `lib/mcp/bridge.ts` | Optional stdio bridge to the Python `intervals-icu-mcp` server (`USE_LOCAL_MCP=true`). Currently not wired into the chat route. |
 | `components/Sidebar.tsx` | Desktop rail (form, sparkline, week, rules/settings) with a 68px compact mode (`apex_sidebar_compact` in localStorage), and the mobile top bar. |
-| `components/chat/*` | `useChat` UI (from `@ai-sdk/react`), message rendering via `message.parts` (read tools collapse into one trace pill; `icu_create_calendar_event` renders as `WorkoutCard`), quick prompts. |
+| `components/chat/*` | `useChat` UI (from `@ai-sdk/react`), message rendering via `message.parts` (read tools collapse into one trace pill; `icu_create_calendar_event` renders as `WorkoutCard`, `create_gym_session` as `GymCard`), quick prompts. |
 | `components/SettingsModal.tsx` | Provider/model/API-key selection (Google: model dropdown plus thinking effort, `apex_thinking_level`), stored in browser `localStorage` (`apex_*` keys) and sent with each chat request. |
 
 Configuration: server-side env vars in `.env.local` (see `.env.example`); keys entered in the UI override env vars per request.

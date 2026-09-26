@@ -51,6 +51,7 @@ export function SettingsModal({ isOpen, onClose, onSettingsChanged }: SettingsMo
   const [anthropicKey, setAnthropicKey] = useState("");
   const [athleteId, setAthleteId] = useState("i435091");
   const [intervalsApiKey, setIntervalsApiKey] = useState("");
+  const [hevyApiKey, setHevyApiKey] = useState("");
   const [savedSuccess, setSavedSuccess] = useState(false);
 
   useEffect(() => {
@@ -72,6 +73,7 @@ export function SettingsModal({ isOpen, onClose, onSettingsChanged }: SettingsMo
       setAnthropicKey(localStorage.getItem("apex_anthropic_key") || "");
       setAthleteId(localStorage.getItem("apex_athlete_id") || "i435091");
       setIntervalsApiKey(localStorage.getItem("apex_intervals_key") || "");
+      setHevyApiKey(localStorage.getItem("apex_hevy_key") || "");
     }
   }, [isOpen]);
 
@@ -86,6 +88,7 @@ export function SettingsModal({ isOpen, onClose, onSettingsChanged }: SettingsMo
     localStorage.setItem("apex_anthropic_key", anthropicKey);
     localStorage.setItem("apex_athlete_id", athleteId);
     localStorage.setItem("apex_intervals_key", intervalsApiKey);
+    localStorage.setItem("apex_hevy_key", hevyApiKey);
 
     setSavedSuccess(true);
     if (onSettingsChanged) onSettingsChanged();
@@ -298,6 +301,36 @@ export function SettingsModal({ isOpen, onClose, onSettingsChanged }: SettingsMo
           autoComplete="off"
           value={intervalsApiKey}
           onChange={(e) => setIntervalsApiKey(e.target.value)}
+          placeholder="Not set"
+          className={`${inputClass} font-mono`}
+        />
+      </ModalSection>
+
+      <ModalSection
+        label="Hevy API key (optional)"
+        htmlFor="hevy-key"
+        hint={
+          <>
+            With a key, gym sessions the coach schedules also land in Hevy as routines, and it sets weights from your
+            past lifts. Needs Hevy Pro; find it at{" "}
+            <a
+              href="https://hevy.com/settings?developer"
+              target="_blank"
+              rel="noreferrer"
+              className="text-fg-subtle underline underline-offset-2 hover:text-fg"
+            >
+              hevy.com/settings
+            </a>
+            . Leave blank to use <code className="font-mono text-fg-subtle">HEVY_API_KEY</code> from .env.local.
+          </>
+        }
+      >
+        <input
+          id="hevy-key"
+          type="password"
+          autoComplete="off"
+          value={hevyApiKey}
+          onChange={(e) => setHevyApiKey(e.target.value)}
           placeholder="Not set"
           className={`${inputClass} font-mono`}
         />

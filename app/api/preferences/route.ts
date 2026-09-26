@@ -24,6 +24,7 @@ export async function POST(req: NextRequest) {
     const updated: CoachPreferences = {
       ...current,
       ...body,
+      gym: { ...current.gym, ...body.gym },
       athleteId,
       updatedAt: new Date().toISOString(),
     };

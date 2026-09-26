@@ -15,6 +15,8 @@ import { createAnthropic } from "@ai-sdk/anthropic";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { IntervalsClient } from "@/lib/intervals/client";
 import { getIntervalsTools } from "@/lib/intervals/tools";
+import { HevyClient } from "@/lib/hevy/client";
+import { getHevyTools } from "@/lib/hevy/tools";
 import { getKeyEvents } from "@/lib/intervals/events";
 import { getPreferences } from "@/lib/storage/preferences-store";
 import { buildCoachSystemPrompt } from "@/lib/coach/prompt";
@@ -34,6 +36,13 @@ import type { CoachMessageMetadata, StoredChat } from "@/lib/chat/types";
 import { WRITE_TOOL_NAMES } from "@/lib/intervals/tool-names";
 
 export const maxDuration = 60;
+
+/**
+ * Model steps per turn. Planning with Hevy lookups can take many read rounds, so the last steps are reserved: reads
+ * are switched off for the final two (the coach can still schedule), and the final step answers without tools, so a
+ * turn never ends on a tool result with no reply.
+ */
+const MAX_STEPS = 12;
 
 function jsonError(error: string, status: number) {
   return new Response(JSON.stringify({ error }), {
@@ -59,6 +68,7 @@ export async function POST(req: NextRequest) {
       thinkingLevel,
       apiKey: clientApiKey,
       intervalsApiKey: clientIntervalsKey,
+      hevyApiKey: clientHevyKey,
     }: {
       id: string;
       message: UIMessage;
@@ -68,6 +78,7 @@ export async function POST(req: NextRequest) {
       thinkingLevel?: ThinkingLevel;
       apiKey?: string;
       intervalsApiKey?: string;
+      hevyApiKey?: string;
     } = await req.json();
 
     if (!isValidChatId(chatId) || !message || (message.role !== "user" && message.role !== "assistant")) {
@@ -78,7 +89,13 @@ export async function POST(req: NextRequest) {
     const intervalsApiKey =
       clientIntervalsKey || process.env.INTERVALS_ICU_API_KEY || "";
     const intervalsClient = new IntervalsClient(intervalsApiKey, athleteId);
-    const tools = getIntervalsTools(intervalsClient);
+    // Hevy is optional: with a key, gym sessions also become Hevy routines and the coach can read past lifts.
+    const hevyKey = clientHevyKey || process.env.HEVY_API_KEY;
+    const hevyClient = hevyKey ? new HevyClient(hevyKey) : null;
+    const tools = {
+      ...getIntervalsTools(intervalsClient, hevyClient),
+      ...(hevyClient ? getHevyTools(hevyClient) : {}),
+    };
 
     // Persistent preferences plus upcoming races and time off, which are usually beyond the calendar tool's window.
     const [preferences, keyEvents] = await Promise.all([
@@ -88,7 +105,7 @@ export async function POST(req: NextRequest) {
         return null;
       }),
     ]);
-    const systemPrompt = buildCoachSystemPrompt(preferences, new Date(), keyEvents);
+    const systemPrompt = buildCoachSystemPrompt(preferences, new Date(), keyEvents, { hevyConnected: !!hevyClient });
 
     // Resolve Language Model Provider
     let model: LanguageModel;
@@ -209,7 +226,14 @@ export async function POST(req: NextRequest) {
       providerOptions,
       // Calendar writes wait for the athlete: the stream ends with a preview card to approve or skip.
       toolApproval: Object.fromEntries(WRITE_TOOL_NAMES.map((name) => [name, "user-approval" as const])),
-      stopWhen: isStepCount(6), // Allows multi-turn tool calling (e.g. check wellness -> check activities -> answer)
+      stopWhen: isStepCount(MAX_STEPS),
+      prepareStep: ({ stepNumber }) => {
+        if (stepNumber >= MAX_STEPS - 1) return { toolChoice: "none" as const };
+        if (stepNumber >= MAX_STEPS - 3) {
+          return { activeTools: WRITE_TOOL_NAMES.filter((name) => name in tools) as Array<keyof typeof tools> };
+        }
+        return undefined;
+      },
     });
 
     return createUIMessageStreamResponse({
