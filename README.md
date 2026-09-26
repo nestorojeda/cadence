@@ -154,7 +154,7 @@ into Settings, where they're kept in your browser and used only for your request
 
 | Provider | Get a key | Default model | Good to know |
 |---|---|---|---|
-| **Google Gemini** | [AI Studio](https://aistudio.google.com/apikey) | `gemini-3.6-flash` | Free tier available. The default. |
+| **Google Gemini** | [AI Studio](https://aistudio.google.com/apikey) | `gemini-3.8-flash` | Free tier available. The default. |
 | **OpenAI** | [platform.openai.com](https://platform.openai.com/api-keys) | `gpt-4o` | Any chat model with tool calling. |
 | **Anthropic Claude** | [console.anthropic.com](https://console.anthropic.com/settings/keys) | `claude-sonnet-5` | Any Claude model. |
 | **Ollama** (local) | No key | `qwen3:1.7b` | Free and private. Coaching quality depends on the model you run. |

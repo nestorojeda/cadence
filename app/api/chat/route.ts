@@ -9,15 +9,24 @@ import {
   type LanguageModel,
   type UIMessage,
 } from "ai";
-import { createGoogle } from "@ai-sdk/google";
+import { createGoogle, type GoogleLanguageModelOptions } from "@ai-sdk/google";
 import { createOpenAI } from "@ai-sdk/openai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { IntervalsClient } from "@/lib/intervals/client";
 import { getIntervalsTools } from "@/lib/intervals/tools";
+import { getKeyEvents } from "@/lib/intervals/events";
 import { getPreferences } from "@/lib/storage/preferences-store";
 import { buildCoachSystemPrompt } from "@/lib/coach/prompt";
-import { DEFAULT_MODELS, DEFAULT_OLLAMA_BASE_URL, DEFAULT_PROVIDER } from "@/lib/llm/models";
+import {
+  DEFAULT_MODELS,
+  DEFAULT_OLLAMA_BASE_URL,
+  DEFAULT_PROVIDER,
+  THINKING_LEVELS,
+  resolveThinkingLevel,
+  supportsThinkingLevel,
+  type ThinkingLevel,
+} from "@/lib/llm/models";
 import { isValidChatId, loadChat, updateChat } from "@/lib/storage/chat-store";
 import { buildModelMessages, foldSummary, historyInstructions, messagesAfterSummary } from "@/lib/chat/context";
 import { applyApprovalResponses, expirePendingApprovals } from "@/lib/chat/approvals";
@@ -47,6 +56,7 @@ export async function POST(req: NextRequest) {
       athleteId = process.env.INTERVALS_ICU_ATHLETE_ID || "i435091",
       modelProvider = DEFAULT_PROVIDER,
       modelName,
+      thinkingLevel,
       apiKey: clientApiKey,
       intervalsApiKey: clientIntervalsKey,
     }: {
@@ -55,6 +65,7 @@ export async function POST(req: NextRequest) {
       athleteId?: string;
       modelProvider?: string;
       modelName?: string;
+      thinkingLevel?: ThinkingLevel;
       apiKey?: string;
       intervalsApiKey?: string;
     } = await req.json();
@@ -63,18 +74,25 @@ export async function POST(req: NextRequest) {
       return jsonError("Expected a chat `id` and a user or assistant `message`.", 400);
     }
 
-    // Load persistent preferences for this athlete
-    const preferences = await getPreferences(athleteId);
-    const systemPrompt = buildCoachSystemPrompt(preferences);
-
     // Initialize Intervals.icu client and AI tools
     const intervalsApiKey =
       clientIntervalsKey || process.env.INTERVALS_ICU_API_KEY || "";
     const intervalsClient = new IntervalsClient(intervalsApiKey, athleteId);
     const tools = getIntervalsTools(intervalsClient);
 
+    // Persistent preferences plus upcoming races and time off, which are usually beyond the calendar tool's window.
+    const [preferences, keyEvents] = await Promise.all([
+      getPreferences(athleteId),
+      getKeyEvents(intervalsClient, athleteId).catch((error) => {
+        console.warn("[POST /api/chat] Could not load races:", errorMessage(error));
+        return null;
+      }),
+    ]);
+    const systemPrompt = buildCoachSystemPrompt(preferences, new Date(), keyEvents);
+
     // Resolve Language Model Provider
     let model: LanguageModel;
+    let providerOptions: Parameters<typeof streamText>[0]["providerOptions"];
     // Turns a stream error into the message shown in the chat; providers can override it with a friendlier hint.
     let describeError = errorMessage;
     if (modelProvider === "google") {
@@ -86,7 +104,18 @@ export async function POST(req: NextRequest) {
         );
       }
       const google = createGoogle({ apiKey: key });
-      model = google(modelName || DEFAULT_MODELS.google);
+      const googleModel = modelName || DEFAULT_MODELS.google;
+      model = google(googleModel);
+      // Effort is the athlete's choice in Settings (they pay for the thinking tokens). Older models (2.5) take a
+      // thinkingBudget instead, so they keep their default.
+      if (supportsThinkingLevel(googleModel)) {
+        const requested = thinkingLevel && THINKING_LEVELS.includes(thinkingLevel) ? thinkingLevel : undefined;
+        providerOptions = {
+          google: {
+            thinkingConfig: { thinkingLevel: resolveThinkingLevel(googleModel, requested) },
+          } satisfies GoogleLanguageModelOptions,
+        };
+      }
     } else if (modelProvider === "openai") {
       const key = clientApiKey || process.env.OPENAI_API_KEY;
       if (!key) {
@@ -177,6 +206,7 @@ export async function POST(req: NextRequest) {
       instructions: systemPrompt + historyInstructions(stored),
       messages: modelMessages,
       tools,
+      providerOptions,
       // Calendar writes wait for the athlete: the stream ends with a preview card to approve or skip.
       toolApproval: Object.fromEntries(WRITE_TOOL_NAMES.map((name) => [name, "user-approval" as const])),
       stopWhen: isStepCount(6), // Allows multi-turn tool calling (e.g. check wellness -> check activities -> answer)

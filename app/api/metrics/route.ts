@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { IntervalsClient, type ActivitySummary } from "@/lib/intervals/client";
 import { toLocalDate, type MetricsResponse, type WeekActivity } from "@/lib/intervals/metrics";
+import { RACE_CATEGORIES, getKeyEvents } from "@/lib/intervals/events";
 
 export async function GET(req: NextRequest) {
   try {
@@ -21,7 +22,7 @@ export async function GET(req: NextRequest) {
     sunday.setDate(monday.getDate() + 6);
     const weekStart = toLocalDate(monday);
 
-    const [athlete, fitness, wellness, events, activities] = await Promise.all([
+    const [athlete, fitness, wellness, events, activities, keyEvents] = await Promise.all([
       client.getAthlete(athleteId).catch((e) => {
         console.warn("Could not load athlete profile:", e);
         return null;
@@ -42,6 +43,10 @@ export async function GET(req: NextRequest) {
         console.warn("Could not load this week's activities:", e);
         return [];
       }),
+      getKeyEvents(client, athleteId).catch((e) => {
+        console.warn("Could not load races:", e);
+        return null;
+      }),
     ]);
 
     const formHistory = wellness.flatMap((r) => {
@@ -58,7 +63,8 @@ export async function GET(req: NextRequest) {
       return found;
     };
     const planned = events
-      .filter((e) => e.category !== "NOTE")
+      // Sessions and races; notes and time off (HOLIDAY, SICK, …) aren't something to ride.
+      .filter((e) => e.category === "WORKOUT" || RACE_CATEGORIES.includes(e.category))
       .sort((a, b) => a.start_date_local.localeCompare(b.start_date_local));
     const paired = new Map(planned.map((e) => [e.id, take((a) => a.paired_event_id === e.id)]));
     const week = planned.map((e) => {
@@ -86,6 +92,7 @@ export async function GET(req: NextRequest) {
       week,
       unplanned,
       weekStart,
+      keyEvents,
     };
     return NextResponse.json(body);
   } catch (error) {

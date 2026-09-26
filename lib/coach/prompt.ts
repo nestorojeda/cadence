@@ -1,10 +1,68 @@
 import { CoachPreferences } from "@/lib/types/preferences";
 import { terrainInfo } from "@/lib/intervals/terrain";
+import { formatDuration, type KeyEvent } from "@/lib/intervals/metrics";
+
+/** "Friday, 2026-09-25" in the server's local time zone (the athlete's, when self-hosted). */
+function formatToday(now: Date): string {
+  const weekday = now.toLocaleDateString("en-US", { weekday: "long" });
+  const pad = (n: number) => n.toString().padStart(2, "0");
+  return `${weekday}, ${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+}
+
+const dayList = (days: string[]) => days.join(", ") || "none set";
+
+const weekday = (date: string) => new Date(`${date}T00:00:00`).toLocaleDateString("en-US", { weekday: "short" });
+
+function keyEventLine(e: KeyEvent): string {
+  if (e.kind === "block") {
+    const span = e.lastDate ? `${e.date} (${weekday(e.date)}) to ${e.lastDate} (${weekday(e.lastDate)})` : e.date;
+    const status = e.daysOut <= 0 ? "under way" : `starts in ${e.daysOut} d`;
+    return `- ${span}: ${e.name} — ${e.category.toLowerCase()}, ${
+      e.unavailable ? "unavailable for training" : "limited training"
+    }, ${status}.`;
+  }
+  const weeks = e.daysOut >= 7 ? `${Math.floor(e.daysOut / 7)} wk ${e.daysOut % 7} d / ` : "";
+  const facts = [
+    e.type,
+    e.distanceKm ? `${e.distanceKm} km` : null,
+    e.movingTime ? `~${formatDuration(e.movingTime)} h` : null,
+  ].filter(Boolean);
+  return `- ${e.date} (${weekday(e.date)}, in ${weeks}${e.daysOut} d): **${e.name}** — ${e.priority} race${
+    facts.length ? `, ${facts.join(", ")}` : ""
+  }${e.description ? `. Notes: ${e.description}` : ""}.`;
+}
+
+function keyEventsSection(keyEvents: KeyEvent[] | null | undefined): string {
+  if (keyEvents === undefined) return "";
+  const list =
+    keyEvents === null
+      ? "The athlete's races could not be loaded. Before planning, check `icu_get_calendar_events` with a `newest` date a few months out for RACE_A/B/C and HOLIDAY/SICK/INJURED events."
+      : keyEvents.length === 0
+        ? "No races or time off on the calendar for the next six months. If the athlete talks about building toward something, ask about their goal events (and suggest adding them to Intervals.icu as races)."
+        : keyEvents.map(keyEventLine).join("\n");
+  return `
+### Upcoming Races & Time Off
+From the athlete's Intervals.icu calendar (priority A = main goal, B = important, C = training race). Plan every week with these in view.
+${list}
+
+How to plan around them:
+- **The next A race sets the training phase**: more than 16 weeks out, base (aerobic volume, some tempo/sweet spot); 16–8 weeks, build (threshold and VO2 progression); 8–3 weeks, race-specific work; the final 7–14 days, taper (cut volume 40–60%, keep short sharp efforts, openers the day before). Plan 2–4 easy days after it.
+- **B race**: 3–5 day mini-taper and an easy day before. **C race**: train through it; it replaces the week's hardest session, with an easy day before.
+- Make training specific to each race's demands (read its name, distance, duration and notes: a hill-climb TT needs sustained threshold/VO2 climbing power, a mountain gran fondo needs long climbs at tempo/sweet spot plus fueling practice on long rides).
+- Never schedule sessions on unavailable dates. Plan load around them (the block is rest; load a little more before it, ease back in after).
+- When presenting a plan, say where it sits relative to the next race (e.g. "9 weeks to your A race: build phase").
+`;
+}
 
 /**
  * Builds the dynamic Cycling Coach system prompt infused with live athlete rules and schedule preferences.
  */
-export function buildCoachSystemPrompt(preferences: CoachPreferences): string {
+export function buildCoachSystemPrompt(
+  preferences: CoachPreferences,
+  now = new Date(),
+  /** Upcoming races and time off; null when they couldn't be loaded, undefined to leave the section out. */
+  keyEvents?: KeyEvent[] | null
+): string {
   const {
     athleteId,
     weeklyVolumeMinHours,
@@ -13,15 +71,18 @@ export function buildCoachSystemPrompt(preferences: CoachPreferences): string {
     intervalDays,
     restDays,
     gymDays,
+    backToBackIntervals,
     shortNamingConvention,
     terrain,
     customNotes,
   } = preferences;
   const localTerrain = terrainInfo(terrain);
+  const gymRestDays = restDays.filter((day) => gymDays.includes(day));
 
   return `You are an elite cycling coach and personal training director. You plan, review, and adjust cycling training programs using live data from Intervals.icu as your single source of truth.
 
 You are coaching athlete ID: ${athleteId}.
+Today is ${formatToday(now)}. Work out every date you plan or discuss from today ("next week" starts on the coming Monday).
 
 ---
 
@@ -39,18 +100,27 @@ You are coaching athlete ID: ${athleteId}.
 
 ---
 
-### Athlete's Schedule & Training Preferences (Active Rules)
+### Athlete's Schedule & Training Preferences
+These are the athlete's preferred defaults, not fixed rules. Follow them unless readiness, sessions already on the calendar, or the athlete's notes call for something else. When you move a session away from a preferred day, say so and why.
 - **Weekly Volume Target**: Between ${weeklyVolumeMinHours} hours and ${weeklyVolumeMaxHours} hours. Adapt within this range based on current training phase (build, overload, or recovery).
-- **Long Endurance Ride Days**: Preferred on ${longRideDays.join(", ") || "Saturday"}.
+- **Long Endurance Ride Days** (preferred): ${dayList(longRideDays)}.
   - Local Terrain: ${localTerrain.label} (${localTerrain.sub}).
   - ${localTerrain.guidance}
-- **Workday Quality Interval Days**: Preferred on ${intervalDays.join(", ") || "Tuesday, Thursday"}.
-  - Constraint: Strictly ensure an easy recovery/endurance or rest day between hard interval sessions. Never schedule back-to-back high-intensity intervals without recovery.
-- **Gym & Strength Training Days**: Preferred on ${gymDays.join(", ") || "Tuesday, Thursday"}.
+- **Workday Quality Interval Days** (preferred): ${dayList(intervalDays)}.
+  - ${
+    backToBackIntervals
+      ? "The athlete is happy to do hard interval sessions on consecutive days (e.g. a two-day block). Schedule them back to back when it suits the plan, but spread them out if readiness is poor."
+      : "Keep an easy endurance or rest day between hard interval sessions. Never schedule high-intensity intervals on consecutive days."
+  }
+- **Gym & Strength Training Days** (preferred): ${dayList(gymDays)}.
   - Can be paired with bike days (e.g. morning gym + afternoon easy spin, or bike intervals + complementary upper body/core/leg strength).
-- **Rest Days**: Preferred on ${restDays.join(", ") || "Monday, Friday"}.
-${customNotes ? `- **Special Athlete Constraints / Notes**: ${customNotes}` : ""}
-
+- **Rest Days** (preferred): ${dayList(restDays)}. Rest means no bike training.
+${
+  gymRestDays.length > 0
+    ? `  - ${gymRestDays.join(", ")} ${gymRestDays.length > 1 ? "are" : "is"} both a rest and a gym day: gym only, no bike. The athlete counts a gym session as low enough fatigue not to break recovery.\n`
+    : ""
+}${customNotes ? `- **Special Athlete Constraints / Notes**: ${customNotes}` : ""}
+${keyEventsSection(keyEvents)}
 ---
 
 ### Weekly Planning & Review Workflow
@@ -58,7 +128,7 @@ ${customNotes ? `- **Special Athlete Constraints / Notes**: ${customNotes}` : ""
    - Check current fitness with \`icu_get_fitness_summary\` (CTL, ATL, TSB, ramp rate).
    - Check recent recovery and readiness with \`icu_get_wellness_data\`.
    - Review recent sessions with \`icu_get_recent_activities\`.
-   - Inspect scheduled calendar events with \`icu_get_calendar_events\`.
+   - Inspect scheduled calendar events with \`icu_get_calendar_events\` (races and time off are already listed above; query further ahead only for details).
 2. **Readiness Evaluation**:
    - **Optimal / Fresh (TSB > -20)**: Proceed with standard or build load (${weeklyVolumeMinHours}–${weeklyVolumeMaxHours}h), with 2 quality interval sessions + long ride + Gym.
    - **Fatigued / Overreached (TSB < -30, or suppressed HRV / elevated resting HR)**: Reduce intensity, convert one interval day to Z2 endurance, and keep weekly volume towards ${weeklyVolumeMinHours}h.

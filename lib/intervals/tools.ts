@@ -91,7 +91,9 @@ export function getIntervalsTools(client: IntervalsClient) {
 
     icu_get_calendar_events: tool({
       description:
-        "Get calendar events (planned workouts, notes, races) scheduled on Intervals.icu.",
+        "Get calendar events on Intervals.icu. `category` is WORKOUT (planned session), NOTE, RACE_A / RACE_B / RACE_C " +
+        "(race by priority), or HOLIDAY / SICK / INJURED (time off; `end_date_local` is exclusive). Upcoming races and " +
+        "time off are already listed in your instructions; pass a later `newest` to look beyond the default window.",
       inputSchema: z.object({
         athlete_id: z.string().optional().describe("Athlete ID"),
         oldest: z.string().optional().describe("Oldest date in YYYY-MM-DD format (defaults to 7 days ago)"),

@@ -132,9 +132,12 @@ export function CoachPreferencesModal({
     setPreferences(createDefaultPreferences(athleteId));
   };
 
-  // A rest day that also has a session planned is almost always a mistake worth pointing out.
+  // A rest day with a bike session is almost always a mistake worth pointing out. Gym on a rest day is fine: the
+  // coach reads it as gym only, no bike.
   const restConflicts = preferences.restDays.filter((day) =>
-    SESSION_ROWS.some((row) => row.key !== "restDays" && preferences[row.key].includes(day))
+    SESSION_ROWS.some(
+      (row) => row.key !== "restDays" && row.key !== "gymDays" && preferences[row.key].includes(day)
+    )
   );
 
   return (
@@ -199,10 +202,10 @@ export function CoachPreferencesModal({
               restConflicts.length > 0 ? (
                 <span className="text-signal-warn">
                   {restConflicts.join(", ")}{" "}
-                  {restConflicts.length > 1 ? "are marked as rest but also have sessions" : "is marked as rest but also has a session"}.
+                  {restConflicts.length > 1 ? "are marked as rest but also have rides" : "is marked as rest but also has a ride"}.
                 </span>
               ) : (
-                "The coach always keeps an easy or rest day between interval sessions."
+                "Preferences, not fixed rules: the coach moves sessions when your form or calendar calls for it. Gym on a rest day means gym only, no bike."
               )
             }
           >
@@ -239,6 +242,33 @@ export function CoachPreferencesModal({
                 </React.Fragment>
               ))}
             </div>
+            <label className="flex items-center justify-between gap-4 pt-2 cursor-pointer">
+              <span className="flex flex-col gap-0.5">
+                <span className="text-[13px] text-fg-soft">Allow back-to-back interval days</span>
+                <span className="text-xs text-fg-muted">
+                  {preferences.backToBackIntervals
+                    ? "Hard sessions may land on consecutive days."
+                    : "The coach keeps an easy or rest day between interval sessions."}
+                </span>
+              </span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={preferences.backToBackIntervals}
+                onClick={() =>
+                  setPreferences({ ...preferences, backToBackIntervals: !preferences.backToBackIntervals })
+                }
+                className={`relative shrink-0 w-10 h-6 rounded-full border transition ${
+                  preferences.backToBackIntervals ? "bg-signal border-transparent" : "bg-ink-surface border-ink-edge"
+                }`}
+              >
+                <span
+                  className={`absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full transition-all ${
+                    preferences.backToBackIntervals ? "left-5 bg-on-signal" : "left-1 bg-fg-muted"
+                  }`}
+                />
+              </button>
+            </label>
           </ModalSection>
 
           <ModalSection

@@ -75,21 +75,33 @@ export function compactWellness(records: Row[]): Row[] {
 }
 
 export function compactEvents(events: Row[]): Row[] {
-  return events.map((e) =>
-    pick(e, [
+  return events.map((e) => ({
+    ...pick(e, [
       "id",
       "start_date_local",
+      // Exclusive; only worth sending for events that span several days (holidays, illness).
+      ...(isMultiDay(e) ? ["end_date_local"] : []),
       "category",
       "type",
       "name",
       "moving_time",
+      "distance",
       "icu_training_load",
       "icu_intensity",
       // Set once a ride has been done against this plan.
       "paired_activity_id",
       "description",
-    ])
-  );
+    ]),
+    ...(e.training_availability && e.training_availability !== "NORMAL"
+      ? { training_availability: e.training_availability }
+      : {}),
+  }));
+}
+
+function isMultiDay(e: Row): boolean {
+  const start = typeof e.start_date_local === "string" ? new Date(e.start_date_local) : null;
+  const end = typeof e.end_date_local === "string" ? new Date(e.end_date_local) : null;
+  return !!start && !!end && end.getTime() - start.getTime() > 86_400_000;
 }
 
 const ACTIVITY_FIELDS: Array<string | [string, string]> = [

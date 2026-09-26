@@ -17,12 +17,18 @@ const PROMPTS = [
   {
     title: "Plan this week",
     sub: "Around your fatigue and your saved coach rules",
-    prompt: "Plan my upcoming training week based on my current fatigue and my active schedule preferences (intervals, Saturday long ride, gym).",
+    prompt: "Plan my upcoming training week based on my current fatigue and my saved coach rules.",
   },
   {
     title: "Review my recent rides",
     sub: "Power and TSS against what was planned",
     prompt: "Review my recent rides and activities this past week. How did my actual power and TSS compare to targets?",
+  },
+  {
+    title: "Build toward my next race",
+    sub: "Phase, taper and key sessions from your calendar",
+    prompt:
+      "Look at my upcoming races and time off on Intervals.icu. Where am I in the build toward my next goal race, and how should the coming weeks look?",
   },
   {
     title: "Prepare my long ride",

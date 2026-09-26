@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { History, PanelLeftClose, PanelLeftOpen, RefreshCw, Settings, SlidersHorizontal, SquarePen } from "lucide-react";
+import { Flag, History, PanelLeftClose, PanelLeftOpen, RefreshCw, Settings, SlidersHorizontal, SquarePen } from "lucide-react";
 import { APP_NAME } from "@/lib/brand";
 import { CadenceMark } from "@/components/CadenceMark";
 import { ThemeCycleButton, ThemeToggle } from "@/components/ThemeToggle";
@@ -10,9 +10,11 @@ import {
   ZONE_LEGEND,
   activityZoneColor,
   eventZoneColor,
+  formatCountdown,
   formatDuration,
   formatSigned,
   toLocalDate,
+  type KeyEvent,
   type MetricsResponse,
 } from "@/lib/intervals/metrics";
 import { formatChatDate, type ChatMeta } from "@/lib/chat/types";
@@ -47,6 +49,24 @@ export function Wordmark({ size = "md" }: { size?: "sm" | "md" }) {
       <span className={`font-semibold tracking-tight ${size === "sm" ? "text-base" : "text-lg"}`}>{APP_NAME}</span>
     </div>
   );
+}
+
+/** Upcoming races listed in the full sidebar. */
+const MAX_RACES = 3;
+
+function upcomingRaces(metrics: MetricsResponse | null): KeyEvent[] {
+  return (metrics?.keyEvents ?? []).filter((e) => e.kind === "race");
+}
+
+/** The race to count down to in tight spaces: the next A race, else the next race. */
+function focusRace(metrics: MetricsResponse | null): KeyEvent | undefined {
+  const races = upcomingRaces(metrics);
+  return races.find((e) => e.priority === "A") ?? races[0];
+}
+
+/** "Nov 29" */
+function shortDate(date: string): string {
+  return new Date(`${date}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
 /** True when form is in a range worth flagging rather than celebrating. */
@@ -116,6 +136,20 @@ export function Sidebar({
           </span>
         </div>
 
+        {/* Next race */}
+        {(() => {
+          const race = focusRace(metrics);
+          return race ? (
+            <div
+              className="flex flex-col items-center gap-1"
+              title={`${race.name} (${race.priority} race) — ${shortDate(race.date)}, ${formatCountdown(race.daysOut)}`}
+            >
+              <Flag className={`w-3.5 h-3.5 ${race.priority === "A" ? "text-signal" : "text-fg-muted"}`} />
+              <span className="font-mono text-[10px] text-fg-muted">{formatCountdown(race.daysOut)}</span>
+            </div>
+          ) : null;
+        })()}
+
         {/* Week */}
         {metrics && (
           <div className="flex flex-col items-center gap-0.5" aria-label="This week">
@@ -125,7 +159,9 @@ export function Sidebar({
                 title={`${day.label}: ${
                   day.sessions.length
                     ? day.sessions.map((x) => `${x.name} — ${x.status}`).join(" + ")
-                    : "Rest"
+                    : day.away
+                      ? `Away · ${day.away.name}`
+                      : "Rest"
                 }`}
                 aria-current={day.isToday ? "date" : undefined}
                 className={`flex items-center gap-2 h-7 px-2 rounded-md ${day.isToday ? "bg-ink-raised" : ""}`}
@@ -222,6 +258,14 @@ export function Sidebar({
           <Stat label="Fatigue · ATL" value={fitness?.atl} />
         </div>
       </section>
+
+      {/* Races */}
+      {upcomingRaces(metrics).length > 0 && (
+        <section className="flex flex-col gap-2.5">
+          <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-fg-muted">Next races</span>
+          <RaceList races={upcomingRaces(metrics).slice(0, MAX_RACES)} />
+        </section>
+      )}
 
       {/* Week */}
       <section className="flex flex-col gap-2.5">
@@ -416,6 +460,8 @@ interface Session {
   name: string;
   status: SessionStatus;
   color: string;
+  /** Race priority, when the session is a race. */
+  race?: KeyEvent["priority"];
   /** Ridden time when done, otherwise planned time; seconds. */
   duration?: number;
   planned?: number;
@@ -438,6 +484,7 @@ function weekDays(metrics: MetricsResponse) {
                 name: e.name,
                 status: "done",
                 color: activityZoneColor(e.completed),
+                race: racePriority(e.category),
                 duration: e.completed.movingTime,
                 planned: e.movingTime,
               }
@@ -445,6 +492,7 @@ function weekDays(metrics: MetricsResponse) {
                 name: e.name,
                 status: date < today ? "missed" : "planned",
                 color: eventZoneColor(e),
+                race: racePriority(e.category),
                 duration: e.movingTime,
                 planned: e.movingTime,
               }
@@ -453,13 +501,56 @@ function weekDays(metrics: MetricsResponse) {
         .filter((a) => a.date === date)
         .map((a): Session => ({ name: a.name, status: "unplanned", color: activityZoneColor(a), duration: a.movingTime })),
     ];
-    return { label, sessions, first: sessions[0], isToday: date === today };
+    const away = (metrics.keyEvents ?? []).find(
+      (e) => e.kind === "block" && e.unavailable && e.date <= date && (e.lastDate ?? e.date) >= date
+    );
+    return { label, sessions, first: sessions[0], isToday: date === today, away };
   });
 }
 
-/** Planned: a ring in the planned zone. Done: filled with the ridden zone. Missed: an empty grey ring. */
-function SessionMark({ session }: { session: Pick<Session, "status" | "color"> }) {
+function racePriority(category: string): KeyEvent["priority"] {
+  const match = /^RACE_([ABC])$/.exec(category);
+  return match ? (match[1] as KeyEvent["priority"]) : undefined;
+}
+
+/** Upcoming races: priority, name, date and distance, countdown. */
+function RaceList({ races }: { races: KeyEvent[] }) {
+  return (
+    <div className="flex flex-col gap-1">
+      {races.map((race) => (
+        <div key={race.id} className="flex items-center gap-3 py-1 px-2" title={`${race.name} — ${race.priority} race`}>
+          <span
+            className={`w-5 h-5 shrink-0 flex items-center justify-center rounded font-mono text-[11px] font-semibold ${
+              race.priority === "A" ? "bg-signal text-on-signal" : "border border-ink-edge text-fg-muted"
+            }`}
+          >
+            {race.priority}
+          </span>
+          <span className="flex-1 min-w-0 flex flex-col">
+            <span className={`truncate text-[13px] ${race.priority === "A" ? "text-fg" : "text-fg-soft"}`}>{race.name}</span>
+            <span className="font-mono text-[11px] text-fg-muted">
+              {shortDate(race.date)}
+              {race.distanceKm ? ` · ${race.distanceKm} km` : ""}
+            </span>
+          </span>
+          <span className="font-mono text-[11px] text-fg-muted shrink-0">{formatCountdown(race.daysOut)}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function SessionMark({ session }: { session: Pick<Session, "status" | "color" | "race"> }) {
   const { status, color } = session;
+  if (session.race) {
+    return (
+      <Flag
+        className={`w-[11px] h-[11px] -mx-px shrink-0 ${
+          status === "missed" ? "text-ink-edge" : session.race === "A" ? "text-signal" : "text-fg-soft"
+        }`}
+      />
+    );
+  }
   const filled = status === "done" || status === "unplanned";
   return (
     <span
@@ -497,7 +588,7 @@ function WeekList({ metrics }: { metrics: MetricsResponse | null }) {
 
   return (
     <div className="flex flex-col">
-      {weekDays(metrics).map(({ label, sessions, first, isToday }) => (
+      {weekDays(metrics).map(({ label, sessions, first, isToday, away }) => (
         <div
           key={label}
           className={`flex items-center gap-3 h-[34px] px-2 rounded-lg ${isToday ? "bg-ink-raised" : ""}`}
@@ -515,7 +606,9 @@ function WeekList({ metrics }: { metrics: MetricsResponse | null }) {
             }`}
             title={first ? `${first.name} — ${first.status}` : undefined}
           >
-            <span className={first?.status === "missed" ? "line-through" : ""}>{first ? first.name : "Rest"}</span>
+            <span className={first?.status === "missed" ? "line-through" : ""}>
+              {first ? first.name : away ? `Away · ${away.name}` : "Rest"}
+            </span>
             {sessions.length > 1 && <span className="text-fg-muted"> +{sessions.length - 1}</span>}
           </span>
           <span className="font-mono text-[11px] text-fg-muted shrink-0">{first ? sessionDuration(first) : ""}</span>
@@ -553,6 +646,10 @@ function WeekLegend() {
         <span className="flex items-center gap-1.5">
           <SessionMark session={{ status: "unplanned", color: "rgb(var(--fg-muted))" }} />
           unplanned
+        </span>
+        <span className="flex items-center gap-1.5">
+          <Flag className="w-2.5 h-2.5" />
+          race
         </span>
       </div>
     </div>

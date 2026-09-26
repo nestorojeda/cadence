@@ -48,9 +48,10 @@ Next.js 15 App Router, React 19, Tailwind 3, TypeScript strict, path alias `@/*`
 | `app/api/chats/*` | Chat history: list (index only), load, rename (`PATCH`), delete. |
 | `app/api/metrics/route.ts` | Sidebar/briefing data: CTL/ATL/TSB, 42-day form history, this week's planned events (`MetricsResponse` in `lib/intervals/metrics.ts`). |
 | `app/api/preferences/route.ts` | GET/POST coach rules for an athlete. |
-| `lib/llm/models.ts` | Provider IDs and default model per provider — the single source for defaults (server and UI). |
+| `lib/llm/models.ts` | Provider IDs and default model per provider — the single source for defaults (server and UI). Also the Google model dropdown list (`GOOGLE_MODELS`) with each model's supported Gemini thinking levels, and `resolveThinkingLevel`. |
 | `lib/intervals/client.ts` | Typed REST client for `https://intervals.icu/api/v1` (Basic auth `API_KEY:<key>`). |
 | `lib/intervals/tools.ts` | AI SDK tool definitions (`tool({ description, inputSchema, execute })`) wrapping the client. Tools return `{ error }` instead of throwing so the model can recover. |
+| `lib/intervals/events.ts` | Key events: upcoming races (`RACE_A/B/C`) and time off (`HOLIDAY/SICK/INJURED`, `end_date_local` exclusive) for the next ~6 months, cached 5 min per athlete. The chat route puts them in the system prompt (they're usually beyond the calendar tool's window) and `/api/metrics` returns them for the sidebar's "Next races" and away days. |
 | `lib/intervals/workout.ts` | Parses Intervals.icu workout text (event `description`) into timed %FTP steps for the `WorkoutChart` power profile in `WorkoutCard`. |
 | `lib/intervals/compact.ts` | Trims Intervals.icu responses to the fields the coach uses and bounds default date ranges (wellness: 14 days, max 90). Every read tool must return compacted data — raw responses are huge (unbounded wellness was 1.4M chars). |
 | `lib/coach/prompt.ts` | Builds the coach system prompt from methodology + the athlete's saved preferences. |
@@ -60,7 +61,7 @@ Next.js 15 App Router, React 19, Tailwind 3, TypeScript strict, path alias `@/*`
 | `lib/mcp/bridge.ts` | Optional stdio bridge to the Python `intervals-icu-mcp` server (`USE_LOCAL_MCP=true`). Currently not wired into the chat route. |
 | `components/Sidebar.tsx` | Desktop rail (form, sparkline, week, rules/settings) with a 68px compact mode (`apex_sidebar_compact` in localStorage), and the mobile top bar. |
 | `components/chat/*` | `useChat` UI (from `@ai-sdk/react`), message rendering via `message.parts` (read tools collapse into one trace pill; `icu_create_calendar_event` renders as `WorkoutCard`), quick prompts. |
-| `components/SettingsModal.tsx` | Provider/model/API-key selection, stored in browser `localStorage` (`apex_*` keys) and sent with each chat request. |
+| `components/SettingsModal.tsx` | Provider/model/API-key selection (Google: model dropdown plus thinking effort, `apex_thinking_level`), stored in browser `localStorage` (`apex_*` keys) and sent with each chat request. |
 
 Configuration: server-side env vars in `.env.local` (see `.env.example`); keys entered in the UI override env vars per request.
 

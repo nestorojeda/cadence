@@ -1,7 +1,18 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { DEFAULT_MODELS, DEFAULT_PROVIDER, type ModelProvider } from "@/lib/llm/models";
+import { ChevronDown } from "lucide-react";
+import {
+  DEFAULT_MODELS,
+  DEFAULT_PROVIDER,
+  DEFAULT_THINKING_LEVEL,
+  GOOGLE_MODELS,
+  THINKING_LEVELS,
+  resolveThinkingLevel,
+  supportsThinkingLevel,
+  type ModelProvider,
+  type ThinkingLevel,
+} from "@/lib/llm/models";
 import { GhostButton, Modal, ModalSection, PrimaryButton, SavedNote, inputClass } from "@/components/ui/Modal";
 import { ThemeToggle } from "@/components/ThemeToggle";
 
@@ -18,9 +29,23 @@ const PROVIDERS: Array<{ id: ModelProvider; label: string; sub: string; envVar?:
   { id: "ollama", label: "Ollama", sub: "Local" },
 ];
 
+const CUSTOM_MODEL = "__custom__";
+
+const THINKING_LABELS: Record<ThinkingLevel, { label: string; sub: string }> = {
+  minimal: { label: "Minimal", sub: "Cheapest" },
+  low: { label: "Low", sub: "Quick" },
+  medium: { label: "Medium", sub: "Balanced" },
+  high: { label: "High", sub: "Deepest" },
+};
+
+const isListedGoogleModel = (id: string) => GOOGLE_MODELS.some((m) => m.id === id);
+
 export function SettingsModal({ isOpen, onClose, onSettingsChanged }: SettingsModalProps) {
   const [provider, setProvider] = useState<ModelProvider>(DEFAULT_PROVIDER);
   const [modelName, setModelName] = useState(DEFAULT_MODELS[DEFAULT_PROVIDER]);
+  // Google models come from a dropdown; "custom" reveals a text field for IDs not in GOOGLE_MODELS.
+  const [customModel, setCustomModel] = useState(false);
+  const [thinkingLevel, setThinkingLevel] = useState<ThinkingLevel>(DEFAULT_THINKING_LEVEL);
   const [geminiKey, setGeminiKey] = useState("");
   const [openAiKey, setOpenAiKey] = useState("");
   const [anthropicKey, setAnthropicKey] = useState("");
@@ -32,7 +57,16 @@ export function SettingsModal({ isOpen, onClose, onSettingsChanged }: SettingsMo
     if (typeof window !== "undefined") {
       const storedProvider = (localStorage.getItem("apex_model_provider") as ModelProvider) || DEFAULT_PROVIDER;
       setProvider(storedProvider);
-      setModelName(localStorage.getItem("apex_model_name") || DEFAULT_MODELS[storedProvider]);
+      const storedModel = localStorage.getItem("apex_model_name") || DEFAULT_MODELS[storedProvider];
+      setModelName(storedModel);
+      setCustomModel(storedProvider === "google" && !isListedGoogleModel(storedModel));
+      const storedLevel = localStorage.getItem("apex_thinking_level") as ThinkingLevel | null;
+      setThinkingLevel(
+        resolveThinkingLevel(
+          storedModel,
+          storedLevel && THINKING_LEVELS.includes(storedLevel) ? storedLevel : DEFAULT_THINKING_LEVEL
+        )
+      );
       setGeminiKey(localStorage.getItem("apex_gemini_key") || "");
       setOpenAiKey(localStorage.getItem("apex_openai_key") || "");
       setAnthropicKey(localStorage.getItem("apex_anthropic_key") || "");
@@ -46,6 +80,7 @@ export function SettingsModal({ isOpen, onClose, onSettingsChanged }: SettingsMo
   const handleSave = () => {
     localStorage.setItem("apex_model_provider", provider);
     localStorage.setItem("apex_model_name", modelName);
+    localStorage.setItem("apex_thinking_level", thinkingLevel);
     localStorage.setItem("apex_gemini_key", geminiKey);
     localStorage.setItem("apex_openai_key", openAiKey);
     localStorage.setItem("apex_anthropic_key", anthropicKey);
@@ -67,6 +102,14 @@ export function SettingsModal({ isOpen, onClose, onSettingsChanged }: SettingsMo
   };
   const activeProvider = PROVIDERS.find((p) => p.id === provider)!;
   const activeKey = keyField[provider];
+  const showThinking = provider === "google" && supportsThinkingLevel(modelName);
+  const thinkingOptions = GOOGLE_MODELS.find((m) => m.id === modelName)?.thinkingLevels ?? THINKING_LEVELS;
+
+  const selectModel = (id: string) => {
+    setModelName(id);
+    // Keep the chosen effort if the new model accepts it, else move to its closest level.
+    setThinkingLevel((level) => resolveThinkingLevel(id, level));
+  };
 
   return (
     <Modal
@@ -95,7 +138,8 @@ export function SettingsModal({ isOpen, onClose, onSettingsChanged }: SettingsMo
                 aria-checked={selected}
                 onClick={() => {
                   setProvider(p.id);
-                  setModelName(DEFAULT_MODELS[p.id]);
+                  selectModel(DEFAULT_MODELS[p.id]);
+                  setCustomModel(false);
                 }}
                 className={`flex flex-col items-start gap-0.5 px-3 py-2.5 rounded-[10px] border text-left transition ${
                   selected ? "border-fg-muted bg-ink-raised" : "border-ink-line hover:border-ink-edge hover:bg-ink-surface"
@@ -113,15 +157,84 @@ export function SettingsModal({ isOpen, onClose, onSettingsChanged }: SettingsMo
       </ModalSection>
 
       <ModalSection label="Model" htmlFor="model-name">
-        <input
-          id="model-name"
-          type="text"
-          value={modelName}
-          onChange={(e) => setModelName(e.target.value)}
-          placeholder={`e.g. ${DEFAULT_MODELS[provider]}`}
-          className={`${inputClass} font-mono`}
-        />
+        {provider === "google" && (
+          <div className="relative">
+            <select
+              id={customModel ? "model-select" : "model-name"}
+              aria-label="Model"
+              value={customModel ? CUSTOM_MODEL : modelName}
+              onChange={(e) => {
+                if (e.target.value === CUSTOM_MODEL) {
+                  setCustomModel(true);
+                  setModelName("");
+                } else {
+                  setCustomModel(false);
+                  selectModel(e.target.value);
+                }
+              }}
+              className={`${inputClass} appearance-none pr-10 cursor-pointer`}
+            >
+              {GOOGLE_MODELS.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.label} · {m.note}
+                </option>
+              ))}
+              <option value={CUSTOM_MODEL}>Custom model ID…</option>
+            </select>
+            <ChevronDown
+              size={16}
+              aria-hidden
+              className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-fg-muted"
+            />
+          </div>
+        )}
+        {(provider !== "google" || customModel) && (
+          <input
+            id="model-name"
+            type="text"
+            value={modelName}
+            onChange={(e) => setModelName(e.target.value)}
+            placeholder={`e.g. ${DEFAULT_MODELS[provider]}`}
+            className={`${inputClass} font-mono`}
+          />
+        )}
       </ModalSection>
+
+      {showThinking && (
+        <ModalSection
+          label="Thinking effort"
+          hint="Higher effort reasons longer before answering. Thinking tokens are billed as output, so it costs more and replies take longer."
+        >
+          <div role="radiogroup" aria-label="Thinking effort" className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            {THINKING_LEVELS.map((level) => {
+              const available = thinkingOptions.includes(level);
+              const selected = thinkingLevel === level;
+              return (
+                <button
+                  key={level}
+                  type="button"
+                  role="radio"
+                  aria-checked={selected}
+                  disabled={!available}
+                  title={available ? undefined : "Not supported by this model"}
+                  onClick={() => setThinkingLevel(level)}
+                  className={`flex flex-col items-start gap-0.5 px-3 py-2.5 rounded-[10px] border text-left transition disabled:opacity-40 disabled:cursor-not-allowed ${
+                    selected
+                      ? "border-fg-muted bg-ink-raised"
+                      : "border-ink-line enabled:hover:border-ink-edge enabled:hover:bg-ink-surface"
+                  }`}
+                >
+                  <span className="flex items-center gap-1.5 text-[13px] font-medium">
+                    {selected && <span className="w-1.5 h-1.5 rounded-full bg-signal" />}
+                    {THINKING_LABELS[level].label}
+                  </span>
+                  <span className="text-[11px] text-fg-muted">{THINKING_LABELS[level].sub}</span>
+                </button>
+              );
+            })}
+          </div>
+        </ModalSection>
+      )}
 
       {activeKey && (
         <ModalSection

@@ -56,14 +56,13 @@ export async function buildModelMessages(messages: UIMessage[], tools: ToolSet):
 /** Extra instructions for a stored chat: the summary of folded turns and a staleness note. */
 export function historyInstructions(chat: StoredChat | null): string {
   if (!chat || chat.messages.length === 0) return "";
-  const today = new Date().toISOString().slice(0, 10);
   const started = chat.meta.createdAt.slice(0, 10);
   const lines = [
     "",
     "---",
     "",
     "### Conversation history",
-    `This conversation started on ${started}; today is ${today}. Data returned by tools in earlier turns may be stale and ` +
+    `This conversation started on ${started}. Data returned by tools in earlier turns may be stale and ` +
       "is not repeated here — call the tools again for any current numbers.",
   ];
   if (chat.summary) {

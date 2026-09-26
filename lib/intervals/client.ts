@@ -60,11 +60,18 @@ export interface CalendarEvent {
   id: number;
   name: string;
   start_date_local: string;
+  /** Exclusive end; midnight after the last day for all-day events. */
+  end_date_local?: string;
+  /** WORKOUT, NOTE, RACE_A/B/C, HOLIDAY, SICK, INJURED, … */
   category: string;
   description?: string;
   moving_time?: number;
+  /** Meters. */
+  distance?: number;
   icu_training_load?: number;
   type?: string;
+  /** NORMAL, LIMITED or UNAVAILABLE. */
+  training_availability?: string;
 }
 
 export interface FitnessSummary {

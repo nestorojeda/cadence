@@ -20,7 +20,7 @@ Run these in order and stop at the first failure — fix it before continuing.
 
      ```bash
      curl -sN localhost:3000/api/chat -H 'content-type: application/json' -d '{
-       "modelProvider": "google", "modelName": "gemini-3.6-flash",
+       "modelProvider": "google", "modelName": "gemini-3.8-flash",
        "id": "smoketest",
        "message": {"id":"1","role":"user","parts":[{"type":"text","text":"What is my current form (TSB)? Use your tools."}]}
      }' | tail -20

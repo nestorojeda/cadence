@@ -12,7 +12,14 @@ import { ArrowUp, Square } from "lucide-react";
 import { ChatMessage, CoachLabel, LiveStatus } from "./ChatMessage";
 import { COMPOSER_CHIPS, QuickPrompts } from "./QuickPrompts";
 import { DEFAULT_MODELS, DEFAULT_PROVIDER, type ModelProvider } from "@/lib/llm/models";
-import { FORM_LABELS, formatDuration, formatSigned, toLocalDate, type MetricsResponse } from "@/lib/intervals/metrics";
+import {
+  FORM_LABELS,
+  formatCountdown,
+  formatDuration,
+  formatSigned,
+  toLocalDate,
+  type MetricsResponse,
+} from "@/lib/intervals/metrics";
 import { EMPTY_USAGE, addUsage, formatTokens, messageUsage } from "@/lib/chat/types";
 
 interface ChatInterfaceProps {
@@ -41,6 +48,7 @@ function getModelSettings() {
   return {
     modelProvider,
     modelName: localStorage.getItem("apex_model_name") || DEFAULT_MODELS[modelProvider],
+    thinkingLevel: localStorage.getItem("apex_thinking_level") || undefined,
     apiKey: (API_KEY_STORAGE[modelProvider] && localStorage.getItem(API_KEY_STORAGE[modelProvider])) || undefined,
     intervalsApiKey: localStorage.getItem("apex_intervals_key") || undefined,
   };
@@ -221,6 +229,8 @@ function Briefing({ metrics }: { metrics: MetricsResponse | null }) {
   const today = now ? toLocalDate(now) : null;
   const todays = metrics?.week.filter((e) => e.date === today) ?? [];
   const warn = fitness?.form_status === "fatigued" || fitness?.form_status === "very_fatigued";
+  const races = metrics?.keyEvents?.filter((e) => e.kind === "race") ?? [];
+  const race = races.find((e) => e.priority === "A") ?? races[0];
 
   return (
     <div className="flex flex-col gap-6">
@@ -242,6 +252,22 @@ function Briefing({ metrics }: { metrics: MetricsResponse | null }) {
                     todays[0].movingTime ? ` (${formatDuration(todays.reduce((s, e) => s + (e.movingTime ?? 0), 0))})` : ""
                   }.`
                 : "Nothing planned today.")}
+          </p>
+        )}
+        {race && (
+          <p className="text-base leading-relaxed text-fg-subtle">
+            {race.priority === "A" ? "Goal race" : `Next race (${race.priority})`}: <span className="text-fg">{race.name}</span>,{" "}
+            {race.daysOut <= 1 ? (
+              formatCountdown(race.daysOut)
+            ) : (
+              <>
+                <span className="font-mono text-fg">
+                  {race.daysOut < 21 ? race.daysOut : Math.round(race.daysOut / 7)}
+                </span>{" "}
+                {race.daysOut < 21 ? "days" : "weeks"} out
+              </>
+            )}
+            .
           </p>
         )}
       </div>

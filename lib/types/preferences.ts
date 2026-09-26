@@ -8,6 +8,7 @@ export interface CoachPreferences {
   intervalDays: string[];       // e.g. ["Tuesday", "Thursday"]
   restDays: string[];           // e.g. ["Monday", "Friday"]
   gymDays: string[];            // e.g. ["Tuesday", "Thursday"]
+  backToBackIntervals: boolean; // allow hard interval days on consecutive days
   shortNamingConvention: boolean; // short names like VO2, OU, etc.
   terrain: Terrain;             // what the athlete's local roads are like; shapes long-ride planning
   customNotes: string;          // freeform user notes
@@ -22,6 +23,7 @@ export const createDefaultPreferences = (athleteId: string): CoachPreferences =>
   intervalDays: ["Tuesday", "Thursday"],
   restDays: ["Monday", "Friday"],
   gymDays: ["Tuesday", "Thursday"],
+  backToBackIntervals: false,
   shortNamingConvention: true,
   terrain: "rolling",
   customNotes: "",

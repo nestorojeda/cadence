@@ -12,6 +12,37 @@ export interface MetricsResponse {
   unplanned: WeekActivity[];
   /** Monday of the current week, YYYY-MM-DD. */
   weekStart: string;
+  /** Races and unavailable blocks in the coming months, soonest first; null when the calendar couldn't be read. */
+  keyEvents: KeyEvent[] | null;
+}
+
+/** A race or a block of time off from the Intervals.icu calendar (see lib/intervals/events.ts). */
+export interface KeyEvent {
+  id: number;
+  kind: "race" | "block";
+  category: string;
+  /** Race priority from its RACE_A / RACE_B / RACE_C category. */
+  priority?: "A" | "B" | "C";
+  name: string;
+  date: string; // YYYY-MM-DD, first day
+  /** Last day (inclusive), YYYY-MM-DD, when the event spans several days. */
+  lastDate?: string;
+  /** Days from today to the first day; negative for a block already under way. */
+  daysOut: number;
+  type?: string;
+  distanceKm?: number;
+  movingTime?: number; // seconds
+  description?: string;
+  /** The athlete can't train during it (Intervals.icu's training_availability). */
+  unavailable?: boolean;
+}
+
+/** "today", "tomorrow", "12 d", "9 wk" — countdown to a key event. */
+export function formatCountdown(daysOut: number): string {
+  if (daysOut <= 0) return "today";
+  if (daysOut === 1) return "tomorrow";
+  if (daysOut < 21) return `${daysOut} d`;
+  return `${Math.round(daysOut / 7)} wk`;
 }
 
 export interface WeekEvent {
