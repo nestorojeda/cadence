@@ -72,6 +72,8 @@ export interface CalendarEvent {
   type?: string;
   /** NORMAL, LIMITED or UNAVAILABLE. */
   training_availability?: string;
+  /** Set once a ride has been done against this plan. */
+  paired_activity_id?: string | null;
 }
 
 export interface FitnessSummary {
@@ -270,5 +272,45 @@ export class IntervalsClient {
       throw new Error(`Failed to create calendar event (${res.status}): ${await res.text()}`);
     }
     return res.json();
+  }
+
+  async getEvent(athleteId: string, eventId: string): Promise<CalendarEvent> {
+    const id = athleteId || this.defaultAthleteId;
+    const res = await fetch(`${this.baseUrl}/athlete/${id}/events/${encodeURIComponent(eventId)}`, {
+      headers: this.getHeaders(),
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    });
+    if (!res.ok) {
+      throw new Error(`Failed to fetch calendar event ${eventId} (${res.status}): ${await res.text()}`);
+    }
+    return res.json();
+  }
+
+  /** Partial update: fields left out of `changes` keep their current values. */
+  async updateEvent(athleteId: string, eventId: string, changes: Record<string, unknown>): Promise<CalendarEvent> {
+    const id = athleteId || this.defaultAthleteId;
+    const res = await fetch(`${this.baseUrl}/athlete/${id}/events/${encodeURIComponent(eventId)}`, {
+      method: "PUT",
+      headers: this.getHeaders(),
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      body: JSON.stringify(changes),
+    });
+    if (!res.ok) {
+      throw new Error(`Failed to update calendar event ${eventId} (${res.status}): ${await res.text()}`);
+    }
+    return res.json();
+  }
+
+  /** Deletes this one event only (not other events of the same plan). */
+  async deleteEvent(athleteId: string, eventId: string): Promise<void> {
+    const id = athleteId || this.defaultAthleteId;
+    const res = await fetch(`${this.baseUrl}/athlete/${id}/events/${encodeURIComponent(eventId)}`, {
+      method: "DELETE",
+      headers: this.getHeaders(),
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    });
+    if (!res.ok) {
+      throw new Error(`Failed to delete calendar event ${eventId} (${res.status}): ${await res.text()}`);
+    }
   }
 }

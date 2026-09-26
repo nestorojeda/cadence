@@ -169,6 +169,8 @@ ${strengthSection(gym, gymDays, hevyConnected)}${keyEventsSection(keyEvents)}
    - When scheduling a plan, call the tool for ALL of its sessions in the same step so the athlete can review them together.
    - If a session is declined, do not call the tool for it again; ask what they would like to change.
    - Only say a session is on the calendar once its tool result confirms it.
+   - To change a session already on the calendar (move it, swap its content, shorten it), call \`icu_update_calendar_event\` with only the fields that change; to drop one, call \`icu_delete_calendar_event\`. Never create a new event to "move" a session, which would leave a duplicate. Take the \`event_id\` from \`icu_get_calendar_events\` in the current turn. These also wait for the athlete's approval.
+   - Races, time off, and past or completed sessions can't be changed or removed; ask the athlete to do that in Intervals.icu.
    - Write the workout \`description\` in Intervals.icu workout syntax so it becomes a structured workout (and the athlete sees its power profile). One step per line starting with "- ", a duration, then a %FTP target; repeats are a header line ending in "Nx" followed by their steps and a blank line. Do not put repeats on a single line. Example:
      \`\`\`
      Warmup

@@ -60,7 +60,7 @@ Next.js 15 App Router, React 19, Tailwind 3, TypeScript strict, path alias `@/*`
 | `lib/api/athlete.ts` | `resolveAthleteId`: the athlete ID from the request, else `INTERVALS_ICU_ATHLETE_ID`, else a 400. Every route uses it; there is no hardcoded default athlete. |
 | `lib/llm/models.ts` | Provider IDs and default model per provider — the single source for defaults (server and UI). Also the Google model dropdown list (`GOOGLE_MODELS`) with each model's supported Gemini thinking levels, and `resolveThinkingLevel`. |
 | `lib/intervals/client.ts` | Typed REST client for `https://intervals.icu/api/v1` (Basic auth `API_KEY:<key>`). Every request has a 30 s timeout (so does the Hevy client). |
-| `lib/intervals/tools.ts` | AI SDK tool definitions (`tool({ description, inputSchema, execute })`) wrapping the client. Tools return `{ error }` instead of throwing so the model can recover. `create_gym_session` writes a `WeightTraining` event and, with Hevy connected, a Hevy routine; each target reports its own result. |
+| `lib/intervals/tools.ts` | AI SDK tool definitions (`tool({ description, inputSchema, execute })`) wrapping the client. Tools return `{ error }` instead of throwing so the model can recover. `create_gym_session` writes a `WeightTraining` event and, with Hevy connected, a Hevy routine; each target reports its own result. `icu_update_calendar_event` (partial `PUT`) and `icu_delete_calendar_event` re-read the event and refuse anything but upcoming, not-yet-done `WORKOUT`/`NOTE` events (`editBlockReason` in `events.ts`). |
 | `lib/intervals/events.ts` | Key events: upcoming races (`RACE_A/B/C`) and time off (`HOLIDAY/SICK/INJURED`, `end_date_local` exclusive) for the next ~6 months, cached 5 min per athlete. The chat route puts them in the system prompt (they're usually beyond the calendar tool's window) and `/api/metrics` returns them for the sidebar's "Next races" and away days. |
 | `lib/intervals/workout.ts` | Parses Intervals.icu workout text (event `description`) into timed %FTP steps for the `WorkoutChart` power profile in `WorkoutCard`. |
 | `lib/intervals/compact.ts` | Trims Intervals.icu responses to the fields the coach uses and bounds default date ranges (wellness: 14 days, max 90). Every read tool must return compacted data — raw responses are huge (unbounded wellness was 1.4M chars). |
@@ -99,10 +99,12 @@ online and in model training data are v3/v4 and will not compile. Authoritative 
   history from the client or skip `buildModelMessages`. Response messages need `generateMessageId` (the summary
   cutoff refers to message IDs); per-reply token usage is attached as message metadata.
 - **Write tools need the athlete's approval.** The route sets `toolApproval: 'user-approval'` for every name in
-  `WRITE_TOOL_NAMES`, so the stream pauses on an `approval-requested` part (rendered as a `WorkoutCard` with Add/Skip).
+  `WRITE_TOOL_NAMES`, so the stream pauses on an `approval-requested` part (rendered as a `WorkoutCard`, `GymCard` or `RemovedEventCard` with approve/Skip).
   The client answers with `addToolApprovalResponse`, and `sendAutomaticallyWhen` resends the paused *assistant* message.
   The route merges only the decisions into the stored copy (`lib/chat/approvals.ts`), so tool inputs always come from
   disk. Approvals left unanswered when the athlete sends a new message become `output-denied`.
+  Update/delete cards show the event as it was from the chat's earlier `icu_get_calendar_events` outputs
+  (`eventsBeforeWrites` in `lib/chat/known-events.ts`), never from the model's input.
 - **Never strip `providerMetadata` / `callProviderMetadata` from messages** when persisting or transforming chat
   history. Gemini thinking models require the `thoughtSignature` on function-call parts to be sent back; losing it
   produces "Function call is missing a thought_signature". Keep the full `UIMessage` round-trip intact.

@@ -4,6 +4,7 @@ import { IntervalsClient } from "./client";
 import { HevyClient } from "@/lib/hevy/client";
 import { routineTitle, toHevyRoutine } from "@/lib/hevy/routine";
 import { formatGymDescription, type GymSessionInput, type GymSessionResult } from "@/lib/coach/gym";
+import { editBlockReason } from "./events";
 import {
   MAX_WELLNESS_DAYS,
   compactActivities,
@@ -17,6 +18,12 @@ import {
 // Read tools return trimmed records (see ./compact) with bounded default date ranges: raw Intervals.icu responses are
 // large and every result is re-sent to the model on each later step of the turn.
 type Row = Record<string, unknown>;
+
+const EVENT_DESCRIPTION_HINT =
+  "For workouts: the steps in Intervals.icu workout syntax, one step per line starting with '- ' " +
+  "(duration like 10m / 30s / 1m30s, target like 75% or 50-65% of FTP, 'ramp 50-75%', or Z2). " +
+  "Repeats: a header line ending in 'Nx' (e.g. 'Main set 5x') followed by its steps, closed by a blank line. " +
+  "Separate sections with blank lines. For notes: free text.";
 
 const gymExerciseSchema = z.object({
   name: z
@@ -142,18 +149,68 @@ export function getIntervalsTools(client: IntervalsClient, hevy: HevyClient | nu
         description: z
           .string()
           .optional()
-          .describe(
-            "For workouts: the steps in Intervals.icu workout syntax, one step per line starting with '- ' " +
-              "(duration like 10m / 30s / 1m30s, target like 75% or 50-65% of FTP, 'ramp 50-75%', or Z2). " +
-              "Repeats: a header line ending in 'Nx' (e.g. 'Main set 5x') followed by its steps, closed by a blank line. " +
-              "Separate sections with blank lines. For notes: free text."
-          ),
+          .describe(EVENT_DESCRIPTION_HINT),
         moving_time: z.number().optional().describe("Target duration in seconds"),
         icu_training_load: z.number().optional().describe("Target TSS"),
       }),
       execute: async ({ athlete_id, ...eventData }) => {
         try {
           return await client.createEvent(athlete_id, eventData);
+        } catch (error) {
+          return { error: (error as Error).message };
+        }
+      },
+    }),
+
+    icu_update_calendar_event: tool({
+      description:
+        "Change a planned workout or note on the Intervals.icu calendar: move it to another day or time, rename it, " +
+        "or replace its steps, duration or load. Pass only the fields that change. Take `event_id` from " +
+        "icu_get_calendar_events. Races, time off, and past or completed sessions can't be changed.",
+      inputSchema: z.object({
+        athlete_id: z.string().describe("Athlete ID"),
+        event_id: z.string().describe("Intervals.icu event ID, from icu_get_calendar_events"),
+        name: z.string().optional().describe("New short name"),
+        start_date_local: z.string().optional().describe("New date/time in ISO-8601 format (e.g. '2026-09-25T09:00:00')"),
+        type: z.string().optional().describe("New activity type (Ride, VirtualRide, Workout, Note)"),
+        description: z.string().optional().describe(EVENT_DESCRIPTION_HINT),
+        moving_time: z.number().optional().describe("New target duration in seconds"),
+        icu_training_load: z.number().optional().describe("New target TSS"),
+      }),
+      execute: async ({ athlete_id, event_id, ...changes }) => {
+        try {
+          const today = daysFromToday(0);
+          const blocked = editBlockReason(await client.getEvent(athlete_id, event_id), today);
+          if (blocked) return { error: blocked };
+          if (changes.start_date_local && changes.start_date_local.slice(0, 10) < today) {
+            return { error: "Sessions can't be moved into the past." };
+          }
+          const defined = Object.fromEntries(Object.entries(changes).filter(([, value]) => value !== undefined));
+          if (Object.keys(defined).length === 0) return { error: "Nothing to change: pass at least one field." };
+          const updated = await client.updateEvent(athlete_id, event_id, defined);
+          return compactEvents([updated as unknown as Row])[0];
+        } catch (error) {
+          return { error: (error as Error).message };
+        }
+      },
+    }),
+
+    icu_delete_calendar_event: tool({
+      description:
+        "Remove a planned workout or note from the Intervals.icu calendar. Take `event_id` from " +
+        "icu_get_calendar_events. Races, time off, and past or completed sessions can't be removed.",
+      inputSchema: z.object({
+        athlete_id: z.string().describe("Athlete ID"),
+        event_id: z.string().describe("Intervals.icu event ID, from icu_get_calendar_events"),
+      }),
+      execute: async ({ athlete_id, event_id }) => {
+        try {
+          const event = await client.getEvent(athlete_id, event_id);
+          const blocked = editBlockReason(event, daysFromToday(0));
+          if (blocked) return { error: blocked };
+          await client.deleteEvent(athlete_id, event_id);
+          const { id, name, start_date_local, category } = event;
+          return { deleted: { id, name, start_date_local, category } };
         } catch (error) {
           return { error: (error as Error).message };
         }
