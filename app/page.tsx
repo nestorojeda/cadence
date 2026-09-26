@@ -125,11 +125,6 @@ export default function Home() {
     if (chat && chat.athleteId !== athleteId) newChat(athleteId);
   }, [athleteId, chat, newChat]);
 
-  const onTurnEnd = useCallback(() => {
-    if (chat) setChatParam(chat.id);
-    fetchChats();
-  }, [chat, fetchChats]);
-
   const renameChat = async (id: string, title: string) => {
     await fetch(`/api/chats/${encodeURIComponent(id)}?athleteId=${encodeURIComponent(athleteId)}`, {
       method: "PATCH",
@@ -166,6 +161,16 @@ export default function Home() {
   useEffect(() => {
     fetchMetrics();
   }, [fetchMetrics]);
+
+  const onTurnEnd = useCallback(
+    (changedCalendar: boolean) => {
+      if (chat) setChatParam(chat.id);
+      fetchChats();
+      // The sidebar's week shows planned sessions; refresh it after the coach adds, moves or removes one.
+      if (changedCalendar) fetchMetrics();
+    },
+    [chat, fetchChats, fetchMetrics]
+  );
 
   return (
     <main className="flex-1 flex bg-ink">

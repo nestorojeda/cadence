@@ -5,6 +5,7 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["**/*.test.ts"],
-    exclude: ["node_modules/**", ".next/**"],
+    // .claude/ holds agent worktrees (full repo copies with their own node_modules), which must not run here.
+    exclude: ["**/node_modules/**", ".next/**", ".claude/**"],
   },
 });

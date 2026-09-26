@@ -73,6 +73,8 @@ export interface CalendarEvent {
   type?: string;
   /** NORMAL, LIMITED or UNAVAILABLE. */
   training_availability?: string;
+  /** Set once a ride has been done against this plan. */
+  paired_activity_id?: string | null;
 }
 
 export interface FitnessSummary {
@@ -237,5 +239,27 @@ export class IntervalsClient {
       method: "POST",
       body: JSON.stringify(eventData),
     });
+  }
+
+  async getEvent(eventId: string): Promise<CalendarEvent> {
+    return this.request(`${this.athletePath()}/events/${encodeURIComponent(eventId)}`, `fetch calendar event ${eventId}`);
+  }
+
+  /** Partial update: fields left out of `changes` keep their current values. */
+  async updateEvent(eventId: string, changes: Record<string, unknown>): Promise<CalendarEvent> {
+    return this.request(`${this.athletePath()}/events/${encodeURIComponent(eventId)}`, `update calendar event ${eventId}`, {
+      method: "PUT",
+      body: JSON.stringify(changes),
+    });
+  }
+
+  /** Deletes this one event only (not other events of the same plan). The response body isn't used. */
+  async deleteEvent(eventId: string): Promise<void> {
+    const res = await fetch(`${this.baseUrl}${this.athletePath()}/events/${encodeURIComponent(eventId)}`, {
+      method: "DELETE",
+      headers: this.getHeaders(),
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    });
+    if (!res.ok) throw await upstreamError(res, `delete calendar event ${eventId}`);
   }
 }

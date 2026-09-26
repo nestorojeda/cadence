@@ -5,11 +5,12 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { AlertTriangle, Check, ChevronDown } from "lucide-react";
 import { getToolName, isTextUIPart, isToolUIPart, type UIMessage } from "ai";
-import { WorkoutCard, type WorkoutCardStatus, type WorkoutEventInput } from "./WorkoutCard";
+import { RemovedEventCard, WorkoutCard, type WorkoutCardStatus, type WorkoutEventInput } from "./WorkoutCard";
 import { GymCard } from "./GymCard";
 import type { GymSessionInput, GymSessionResult } from "@/lib/coach/gym";
 import { CadenceMark } from "@/components/CadenceMark";
-import { CREATE_EVENT_TOOL, CREATE_GYM_TOOL } from "@/lib/intervals/tool-names";
+import type { KnownEvent } from "@/lib/chat/known-events";
+import { CREATE_EVENT_TOOL, CREATE_GYM_TOOL, DELETE_EVENT_TOOL, UPDATE_EVENT_TOOL } from "@/lib/intervals/tool-names";
 
 interface ChatMessageProps {
   message: UIMessage;
@@ -17,6 +18,8 @@ interface ChatMessageProps {
   isStreaming?: boolean;
   /** Answers a pending calendar change; only given while the athlete can still decide (last message, idle). */
   onApproval?: (response: { id: string; approved: boolean; reason?: string }) => void;
+  /** For update/delete calls (by toolCallId): the event as it was before, from the chat's calendar reads. */
+  eventsBefore?: Map<string, KnownEvent>;
 }
 
 type ToolPart = Extract<UIMessage["parts"][number], { toolCallId: string }>;
@@ -33,7 +36,7 @@ const TOOL_LABELS: Record<string, string> = {
 };
 
 /** Write tools render as session cards rather than in the read trace. */
-const CARD_TOOLS = new Set([CREATE_EVENT_TOOL, CREATE_GYM_TOOL]);
+const CARD_TOOLS = new Set([CREATE_EVENT_TOOL, CREATE_GYM_TOOL, UPDATE_EVENT_TOOL, DELETE_EVENT_TOOL]);
 
 function toolLabel(name: string) {
   return TOOL_LABELS[name] ?? name.replace(/^icu_(get_)?/, "").replace(/_/g, " ");
@@ -89,7 +92,7 @@ export function LiveStatus({ text }: { text: string }) {
   );
 }
 
-export function ChatMessage({ message, isStreaming = false, onApproval }: ChatMessageProps) {
+export function ChatMessage({ message, isStreaming = false, onApproval, eventsBefore }: ChatMessageProps) {
   if (message.role === "user") {
     const text = message.parts
       .filter(isTextUIPart)
@@ -109,6 +112,7 @@ export function ChatMessage({ message, isStreaming = false, onApproval }: ChatMe
   const running = toolParts.find(isRunning);
   const pending = toolParts.filter((p) => p.state === "approval-requested");
   const lastPendingId = pending[pending.length - 1]?.toolCallId;
+  const onlyAdds = pending.every((p) => getToolName(p) === CREATE_EVENT_TOOL || getToolName(p) === CREATE_GYM_TOOL);
   const answerAll = (approved: boolean) => {
     for (const part of pending) if (part.approval) onApproval?.({ id: part.approval.id, approved });
   };
@@ -119,7 +123,7 @@ export function ChatMessage({ message, isStreaming = false, onApproval }: ChatMe
   let liveText: string | null = null;
   if (isStreaming && running) {
     const name = getToolName(running);
-    liveText = CARD_TOOLS.has(name) ? "adding to your calendar…" : `reading ${toolLabel(name)}…`;
+    liveText = CARD_TOOLS.has(name) ? "updating your calendar…" : `reading ${toolLabel(name)}…`;
   } else if (isStreaming && !hasText) {
     liveText = "thinking…";
   }
@@ -144,9 +148,20 @@ export function ChatMessage({ message, isStreaming = false, onApproval }: ChatMe
           const approvalId = toolPart.state === "approval-requested" ? toolPart.approval.id : undefined;
           const onDecide =
             approvalId && onApproval ? (approved: boolean) => onApproval({ id: approvalId, approved }) : undefined;
+          const toolName = getToolName(toolPart);
+          const eventId = (toolPart.input as { event_id?: string } | undefined)?.event_id;
+          const before = eventsBefore?.get(toolPart.toolCallId) as Partial<WorkoutEventInput> | undefined;
           return (
             <React.Fragment key={toolPart.toolCallId}>
-              {getToolName(toolPart) === CREATE_GYM_TOOL ? (
+              {toolName === DELETE_EVENT_TOOL ? (
+                <RemovedEventCard
+                  event={before}
+                  eventId={eventId}
+                  status={workoutStatus(toolPart)}
+                  errorText={toolErrorText(toolPart)}
+                  onDecide={onDecide}
+                />
+              ) : toolName === CREATE_GYM_TOOL ? (
                 <GymCard
                   input={(toolPart.input ?? {}) as Partial<GymSessionInput>}
                   status={workoutStatus(toolPart)}
@@ -157,6 +172,9 @@ export function ChatMessage({ message, isStreaming = false, onApproval }: ChatMe
               ) : (
                 <WorkoutCard
                   input={(toolPart.input ?? {}) as Partial<WorkoutEventInput>}
+                  previous={toolName === UPDATE_EVENT_TOOL ? before : undefined}
+                  eventId={toolName === UPDATE_EVENT_TOOL ? eventId : undefined}
+                  kind={toolName === UPDATE_EVENT_TOOL ? "update" : "create"}
                   status={workoutStatus(toolPart)}
                   errorText={toolErrorText(toolPart)}
                   onDecide={onDecide}
@@ -164,7 +182,7 @@ export function ChatMessage({ message, isStreaming = false, onApproval }: ChatMe
               )}
               {pending.length > 1 && toolPart.toolCallId === lastPendingId && (
                 <div className="flex flex-wrap items-center justify-between gap-3 px-1">
-                  <span className="font-mono text-xs text-fg-muted">{pending.length} sessions to review</span>
+                  <span className="font-mono text-xs text-fg-muted">{pending.length} {onlyAdds ? "sessions" : "changes"} to review</span>
                   <div className="flex gap-2">
                     <button
                       type="button"
@@ -180,7 +198,7 @@ export function ChatMessage({ message, isStreaming = false, onApproval }: ChatMe
                       onClick={() => answerAll(true)}
                       className="h-8 px-3 rounded-lg bg-signal text-on-signal text-xs font-semibold hover:brightness-95 transition disabled:opacity-40"
                     >
-                      Add all {pending.length}
+                      {onlyAdds ? "Add" : "Approve"} all {pending.length}
                     </button>
                   </div>
                 </div>

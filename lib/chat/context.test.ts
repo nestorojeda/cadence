@@ -160,4 +160,25 @@ describe("foldSummary", () => {
     expect(prompts[0]).not.toContain("question m0");
     expect(prompts[0]).not.toContain("question m10");
   });
+
+  it("labels each kind of calendar write in the transcript", async () => {
+    const { model, prompts } = mockModel();
+    const write = (toolName: string, input: object) =>
+      ({ type: `tool-${toolName}`, toolCallId: toolName, state: "output-available", input, output: {} }) as UIMessage["parts"][number];
+    const messages = conversation(15);
+    messages[1] = {
+      ...messages[1],
+      parts: [
+        ...messages[1].parts,
+        write("icu_create_calendar_event", { name: "VO2" }),
+        write("icu_update_calendar_event", { event_id: "7", name: "Endurance" }),
+        write("icu_delete_calendar_event", { event_id: "8" }),
+      ],
+    };
+    await foldSummary(model, chat(messages));
+    // The prompt is JSON, so the transcript's quotes are escaped.
+    expect(prompts[0]).toContain('[Scheduled on calendar: {\\"name\\":\\"VO2\\"}]');
+    expect(prompts[0]).toContain("[Changed on calendar:");
+    expect(prompts[0]).toContain("[Removed from calendar:");
+  });
 });

@@ -10,7 +10,7 @@ import {
   type ToolSet,
   type UIMessage,
 } from "ai";
-import { WRITE_TOOL_NAMES } from "@/lib/intervals/tool-names";
+import { DELETE_EVENT_TOOL, UPDATE_EVENT_TOOL, WRITE_TOOL_NAMES } from "@/lib/intervals/tool-names";
 import type { ChatSummary, StoredChat, TokenUsage } from "./types";
 
 /**
@@ -71,6 +71,12 @@ export function historyInstructions(chat: StoredChat | null): string {
   return lines.join("\n");
 }
 
+function writeLabel(toolName: string): string {
+  if (toolName === UPDATE_EVENT_TOOL) return "Changed on calendar";
+  if (toolName === DELETE_EVENT_TOOL) return "Removed from calendar";
+  return "Scheduled on calendar";
+}
+
 /** Plain-text transcript for the summarizer: athlete/coach text plus what the coach wrote to the calendar. */
 function transcript(messages: UIMessage[]): string {
   return messages
@@ -79,7 +85,7 @@ function transcript(messages: UIMessage[]): string {
       for (const part of m.parts) {
         if (isTextUIPart(part) && part.text.trim()) parts.push(part.text.trim());
         if (isToolUIPart(part) && WRITE_TOOL_NAMES.includes(getToolName(part)) && part.state === "output-available") {
-          parts.push(`[Scheduled on calendar: ${JSON.stringify(part.input).slice(0, 300)}]`);
+          parts.push(`[${writeLabel(getToolName(part))}: ${JSON.stringify(part.input).slice(0, 300)}]`);
         }
       }
       const text = parts.join("\n").slice(0, SUMMARY_INPUT_CHARS);
