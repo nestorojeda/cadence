@@ -77,7 +77,7 @@ export function getIntervalsTools(client: IntervalsClient, hevy: HevyClient | nu
       execute: async ({ oldest, newest }) => {
         try {
           const range = wellnessRange(oldest, newest);
-          const records = await client.getWellness(undefined, range.oldest, range.newest);
+          const records = await client.getWellness(range.oldest, range.newest);
           return compactWellness(records as unknown as Row[]);
         } catch (error) {
           return { error: (error as Error).message };
@@ -95,7 +95,7 @@ export function getIntervalsTools(client: IntervalsClient, hevy: HevyClient | nu
       }),
       execute: async ({ limit, oldest, newest }) => {
         try {
-          const activities = await client.getActivities(undefined, limit, oldest, newest);
+          const activities = await client.getActivities(limit, oldest, newest);
           return compactActivities(activities as unknown as Row[]);
         } catch (error) {
           return { error: (error as Error).message };
@@ -131,7 +131,7 @@ export function getIntervalsTools(client: IntervalsClient, hevy: HevyClient | nu
       execute: async ({ oldest, newest }) => {
         try {
           const range = eventsRange(oldest, newest);
-          const events = await client.getEvents(undefined, range.oldest, range.newest);
+          const events = await client.getEvents(range.oldest, range.newest);
           return compactEvents(events as unknown as Row[]);
         } catch (error) {
           return { error: (error as Error).message };
@@ -154,9 +154,11 @@ export function getIntervalsTools(client: IntervalsClient, hevy: HevyClient | nu
         moving_time: z.number().optional().describe("Target duration in seconds"),
         icu_training_load: z.number().optional().describe("Target TSS"),
       }),
-      execute: async (eventData) => {
+      execute: async ({ name, start_date_local, type, category, description, moving_time, icu_training_load }) => {
         try {
-          return await client.createEvent(eventData);
+          // Fields are listed rather than passed through: approved calls run with the input stored in the chat, which
+          // in older chats may carry extra keys (e.g. an `athlete_id` from before tools were bound to the athlete).
+          return await client.createEvent({ name, start_date_local, type, category, description, moving_time, icu_training_load });
         } catch (error) {
           return { error: (error as Error).message };
         }
@@ -177,8 +179,10 @@ export function getIntervalsTools(client: IntervalsClient, hevy: HevyClient | nu
         moving_time: z.number().optional().describe("New target duration in seconds"),
         icu_training_load: z.number().optional().describe("New target TSS"),
       }),
-      execute: async ({ event_id, ...changes }) => {
+      execute: async ({ event_id, name, start_date_local, type, description, moving_time, icu_training_load }) => {
         try {
+          // Named fields only, as in icu_create_calendar_event: approved calls run with the input stored in the chat.
+          const changes = { name, start_date_local, type, description, moving_time, icu_training_load };
           const today = daysFromToday(0);
           const blocked = editBlockReason(await client.getEvent(event_id), today);
           if (blocked) return { error: blocked };

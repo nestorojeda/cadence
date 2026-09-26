@@ -1,5 +1,6 @@
+import { safeValidateUIMessages, type UIMessage } from "ai";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { CalendarEvent, IntervalsClient } from "./client";
+import { IntervalsClient, type CalendarEvent } from "./client";
 import { getIntervalsTools } from "./tools";
 
 const workout: CalendarEvent = {
@@ -110,5 +111,94 @@ describe("icu_delete_calendar_event", () => {
     expect(await run(tools.icu_delete_calendar_event, { event_id: "7" })).toEqual({
       error: "Failed to fetch calendar event 7 (404)",
     });
+  });
+});
+
+describe("athlete binding", () => {
+  const ATHLETE = "i12345";
+  const INVENTED = { athlete_id: "USER_A123" };
+  let fetchMock: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    // GET /events/{id} returns the workout, other GETs an empty list, writes echo their body.
+    fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+      if (init?.method === "DELETE") return new Response(null, { status: 200 });
+      if (init?.body) return Response.json({ ...workout, ...JSON.parse(String(init.body)) });
+      return Response.json(/\/events\/\d+$/.test(new URL(url).pathname) ? workout : []);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  const bound = () => getIntervalsTools(new IntervalsClient("key", ATHLETE));
+  const exec = (t: object, input: unknown) => run(t as { execute?: (input: unknown, options: never) => unknown }, input);
+  const paths = () => fetchMock.mock.calls.map(([url]) => new URL(String(url)).pathname);
+  const bodies = () => fetchMock.mock.calls.flatMap(([, init]) => (init?.body ? [JSON.parse(String(init.body))] : []));
+
+  it("has no athlete_id input on any tool", () => {
+    for (const [name, t] of Object.entries(bound())) {
+      const shape = (t.inputSchema as unknown as { shape: Record<string, unknown> }).shape;
+      expect(Object.keys(shape), name).not.toContain("athlete_id");
+    }
+  });
+
+  it("drops a model-invented athlete_id when parsing input", () => {
+    const schema = bound().icu_create_calendar_event.inputSchema as unknown as {
+      parse: (v: unknown) => Record<string, unknown>;
+    };
+    expect(schema.parse({ name: "VO2", start_date_local: "2026-09-29T09:00:00", ...INVENTED })).not.toHaveProperty(
+      "athlete_id"
+    );
+  });
+
+  it("only reaches the bound athlete and never forwards athlete_id, whatever the input says", async () => {
+    // Approved write calls run with the input stored in the chat, which isn't re-parsed and may predate the schema.
+    const t = bound();
+    await exec(t.icu_get_fitness_summary, { athlete_id: "default_value" });
+    await exec(t.icu_get_wellness_data, { athlete_id: "example_athlete" });
+    await exec(t.icu_get_recent_activities, { ...INVENTED, limit: 5 });
+    await exec(t.icu_get_calendar_events, INVENTED);
+    await exec(t.icu_create_calendar_event, { ...INVENTED, name: "VO2", start_date_local: "2026-09-29T09:00:00", type: "Ride", category: "WORKOUT" });
+    await exec(t.icu_update_calendar_event, { ...INVENTED, event_id: "7", name: "Z2" });
+    await exec(t.icu_delete_calendar_event, { ...INVENTED, event_id: "7" });
+    await exec(t.create_gym_session, {
+      ...INVENTED,
+      name: "Gym",
+      start_date_local: "2026-09-29T18:00:00",
+      exercises: [{ name: "Squat (Barbell)", sets: 3, reps: 5 }],
+    });
+    expect(paths().length).toBeGreaterThanOrEqual(9);
+    for (const path of paths()) expect(path).toMatch(new RegExp(`^/api/v1/athlete/${ATHLETE}/`));
+    expect(bodies()).toHaveLength(3);
+    for (const body of bodies()) expect(body).not.toHaveProperty("athlete_id");
+  });
+
+  it("still validates stored history whose tool inputs carry athlete_id", async () => {
+    const stored: UIMessage[] = [
+      { id: "u1", role: "user", parts: [{ type: "text", text: "Add a VO2 ride" }] },
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          {
+            type: "tool-icu_get_fitness_summary",
+            toolCallId: "call-read",
+            state: "output-available",
+            input: { athlete_id: "default_value" },
+            output: { ctl: 50 },
+          },
+          {
+            type: "tool-icu_create_calendar_event",
+            toolCallId: "call-write",
+            state: "output-available",
+            input: { ...INVENTED, name: "VO2", start_date_local: "2026-09-29T09:00:00", type: "Ride", category: "WORKOUT" },
+            output: { id: 7 },
+          },
+        ],
+      } as UIMessage,
+    ];
+    expect((await safeValidateUIMessages({ messages: stored, tools: bound() })).success).toBe(true);
   });
 });
