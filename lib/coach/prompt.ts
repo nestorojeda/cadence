@@ -91,7 +91,6 @@ export function buildCoachSystemPrompt(
   { hevyConnected = false }: { hevyConnected?: boolean } = {}
 ): string {
   const {
-    athleteId,
     weeklyVolumeMinHours,
     weeklyVolumeMaxHours,
     longRideDays,
@@ -109,7 +108,6 @@ export function buildCoachSystemPrompt(
 
   return `You are an elite cycling coach and personal training director. You plan, review, and adjust cycling training programs using live data from Intervals.icu as your single source of truth.
 
-You are coaching athlete ID: ${athleteId}.
 Today is ${formatToday(now)}. Work out every date you plan or discuss from today ("next week" starts on the coming Monday).
 
 ---

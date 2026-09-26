@@ -10,6 +10,10 @@ type Row = Record<string, unknown>;
 
 /** Most wellness days the coach can request at once. */
 export const MAX_WELLNESS_DAYS = 90;
+/** Most calendar days the coach can request at once (races and time off further out are in the system prompt). */
+export const MAX_EVENT_DAYS = 62;
+/** Longest event description sent; structured workouts fit, long free-text notes are cut. */
+const MAX_EVENT_DESCRIPTION_CHARS = 600;
 
 function round(value: unknown): unknown {
   return typeof value === "number" && !Number.isInteger(value) ? Math.round(value * 10) / 10 : value;
@@ -43,6 +47,24 @@ export function wellnessRange(oldest?: string, newest?: string): { oldest: strin
   return { oldest: start < floor ? floor : start, newest: end };
 }
 
+/** `date` (YYYY-MM-DD) moved by `days`, in local time. */
+function addDays(date: string, days: number): string {
+  const d = new Date(`${date}T00:00:00`);
+  d.setDate(d.getDate() + days);
+  return toLocalDate(d);
+}
+
+/**
+ * Date range for a calendar request: 7 days back to 14 ahead by default, never longer than MAX_EVENT_DAYS from
+ * `oldest` (a longer request is cut at the end, so the coach pages forward with a later `oldest`).
+ */
+export function eventsRange(oldest?: string, newest?: string): { oldest: string; newest: string } {
+  const start = oldest || daysFromToday(-7);
+  const end = newest || daysFromToday(14);
+  const latest = addDays(start, MAX_EVENT_DAYS - 1);
+  return { oldest: start, newest: end > latest ? latest : end };
+}
+
 export function compactWellness(records: Row[]): Row[] {
   return records.map((r) => {
     const ride = (r.sportInfo as Row[] | undefined)?.find((s) => s.type === "Ride");
@@ -74,9 +96,13 @@ export function compactWellness(records: Row[]): Row[] {
   });
 }
 
+function truncate(value: unknown, max: number): unknown {
+  return typeof value === "string" && value.length > max ? `${value.slice(0, max)}…` : value;
+}
+
 export function compactEvents(events: Row[]): Row[] {
   return events.map((e) => ({
-    ...pick(e, [
+    ...pick({ ...e, description: truncate(e.description, MAX_EVENT_DESCRIPTION_CHARS) }, [
       "id",
       "start_date_local",
       // Exclusive; only worth sending for events that span several days (holidays, illness).
