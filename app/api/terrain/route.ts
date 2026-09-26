@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { missingAthlete, resolveAthleteId } from "@/lib/api/athlete";
 import { IntervalsClient } from "@/lib/intervals/client";
 import { toLocalDate } from "@/lib/intervals/metrics";
 import { summarizeTerrain } from "@/lib/intervals/terrain";
@@ -7,9 +8,9 @@ const LOOKBACK_DAYS = 90;
 
 /** Suggests the athlete's terrain type from their recent outdoor rides. */
 export async function GET(req: NextRequest) {
+  const athleteId = resolveAthleteId(req.nextUrl.searchParams.get("athleteId"));
+  if (!athleteId) return missingAthlete();
   try {
-    const { searchParams } = new URL(req.url);
-    const athleteId = searchParams.get("athleteId") || process.env.INTERVALS_ICU_ATHLETE_ID || "i435091";
     // Key entered in Settings travels in a header (never the URL); falls back to the server's env var.
     const apiKey = req.headers.get("x-intervals-api-key") || process.env.INTERVALS_ICU_API_KEY || "";
 

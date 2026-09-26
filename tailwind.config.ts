@@ -36,15 +36,6 @@ const config: Config = {
         },
         // Text on a signal fill: dark on lime at night, white on olive by day.
         "on-signal": "rgb(var(--on-signal) / <alpha-value>)",
-        cycling: {
-          zone1: "#94a3b8", // Active Recovery (Slate)
-          zone2: "#38bdf8", // Endurance (Light Blue)
-          zone3: "#4ade80", // Tempo (Green)
-          zone4: "#facc15", // Threshold (Yellow)
-          zone5: "#fb923c", // VO2max (Orange)
-          zone6: "#f87171", // Anaerobic (Red)
-          zone7: "#c084fc", // Neuromuscular (Purple)
-        },
       },
       fontFamily: {
         sans: ["var(--font-sans)", "system-ui", "sans-serif"],

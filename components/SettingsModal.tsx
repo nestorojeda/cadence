@@ -49,7 +49,7 @@ export function SettingsModal({ isOpen, onClose, onSettingsChanged }: SettingsMo
   const [geminiKey, setGeminiKey] = useState("");
   const [openAiKey, setOpenAiKey] = useState("");
   const [anthropicKey, setAnthropicKey] = useState("");
-  const [athleteId, setAthleteId] = useState("i435091");
+  const [athleteId, setAthleteId] = useState("");
   const [intervalsApiKey, setIntervalsApiKey] = useState("");
   const [hevyApiKey, setHevyApiKey] = useState("");
   const [savedSuccess, setSavedSuccess] = useState(false);
@@ -71,7 +71,7 @@ export function SettingsModal({ isOpen, onClose, onSettingsChanged }: SettingsMo
       setGeminiKey(localStorage.getItem("apex_gemini_key") || "");
       setOpenAiKey(localStorage.getItem("apex_openai_key") || "");
       setAnthropicKey(localStorage.getItem("apex_anthropic_key") || "");
-      setAthleteId(localStorage.getItem("apex_athlete_id") || "i435091");
+      setAthleteId(localStorage.getItem("apex_athlete_id") || "");
       setIntervalsApiKey(localStorage.getItem("apex_intervals_key") || "");
       setHevyApiKey(localStorage.getItem("apex_hevy_key") || "");
     }
@@ -86,7 +86,7 @@ export function SettingsModal({ isOpen, onClose, onSettingsChanged }: SettingsMo
     localStorage.setItem("apex_gemini_key", geminiKey);
     localStorage.setItem("apex_openai_key", openAiKey);
     localStorage.setItem("apex_anthropic_key", anthropicKey);
-    localStorage.setItem("apex_athlete_id", athleteId);
+    localStorage.setItem("apex_athlete_id", athleteId.trim());
     localStorage.setItem("apex_intervals_key", intervalsApiKey);
     localStorage.setItem("apex_hevy_key", hevyApiKey);
 
@@ -280,7 +280,7 @@ export function SettingsModal({ isOpen, onClose, onSettingsChanged }: SettingsMo
           type="text"
           value={athleteId}
           onChange={(e) => setAthleteId(e.target.value)}
-          placeholder="e.g. i435091"
+          placeholder="e.g. i123456 (blank: INTERVALS_ICU_ATHLETE_ID)"
           className={`${inputClass} font-mono`}
         />
       </ModalSection>

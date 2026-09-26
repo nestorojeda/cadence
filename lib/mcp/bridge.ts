@@ -18,9 +18,9 @@ export async function getLocalMCPClient(): Promise<Client | null> {
 
   try {
     const projectPath =
-      process.env.MCP_SERVER_PATH || "/Users/nojeda/repo/intervals-icu-mcp";
+      process.env.MCP_SERVER_PATH || "../intervals-icu-mcp";
     const apiKey = process.env.INTERVALS_ICU_API_KEY || "";
-    const athleteId = process.env.INTERVALS_ICU_ATHLETE_ID || "i435091";
+    const athleteId = process.env.INTERVALS_ICU_ATHLETE_ID || "";
 
     mcpTransport = new StdioClientTransport({
       command: "uv",

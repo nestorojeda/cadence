@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { deleteChat, isValidChatId, loadChat, renameChat } from "@/lib/storage/chat-store";
+import { missingAthlete, resolveAthleteId } from "@/lib/api/athlete";
 
 type Params = { params: Promise<{ id: string }> };
 
-function athleteIdOf(req: NextRequest) {
-  return req.nextUrl.searchParams.get("athleteId") || process.env.INTERVALS_ICU_ATHLETE_ID || "i435091";
-}
+const renameSchema = z.object({
+  title: z.string().transform((t) => t.replace(/\s+/g, " ").trim().slice(0, 120)).pipe(z.string().min(1)),
+});
 
 const invalidId = () => NextResponse.json({ error: "Invalid chat ID" }, { status: 400 });
 const notFound = () => NextResponse.json({ error: "Chat not found" }, { status: 404 });
@@ -13,8 +15,10 @@ const notFound = () => NextResponse.json({ error: "Chat not found" }, { status: 
 export async function GET(req: NextRequest, { params }: Params) {
   const { id } = await params;
   if (!isValidChatId(id)) return invalidId();
+  const athleteId = resolveAthleteId(req.nextUrl.searchParams.get("athleteId"));
+  if (!athleteId) return missingAthlete();
   try {
-    const chat = await loadChat(athleteIdOf(req), id);
+    const chat = await loadChat(athleteId, id);
     return chat ? NextResponse.json(chat) : notFound();
   } catch (error) {
     console.error("[GET /api/chats/:id] Error:", error);
@@ -25,11 +29,12 @@ export async function GET(req: NextRequest, { params }: Params) {
 export async function PATCH(req: NextRequest, { params }: Params) {
   const { id } = await params;
   if (!isValidChatId(id)) return invalidId();
+  const athleteId = resolveAthleteId(req.nextUrl.searchParams.get("athleteId"));
+  if (!athleteId) return missingAthlete();
   try {
-    const { title } = (await req.json()) as { title?: unknown };
-    const clean = typeof title === "string" ? title.replace(/\s+/g, " ").trim().slice(0, 120) : "";
-    if (!clean) return NextResponse.json({ error: "Title is required" }, { status: 400 });
-    const meta = await renameChat(athleteIdOf(req), id, clean);
+    const body = renameSchema.safeParse(await req.json().catch(() => null));
+    if (!body.success) return NextResponse.json({ error: "Title is required" }, { status: 400 });
+    const meta = await renameChat(athleteId, id, body.data.title);
     return meta ? NextResponse.json(meta) : notFound();
   } catch (error) {
     console.error("[PATCH /api/chats/:id] Error:", error);
@@ -40,8 +45,10 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 export async function DELETE(req: NextRequest, { params }: Params) {
   const { id } = await params;
   if (!isValidChatId(id)) return invalidId();
+  const athleteId = resolveAthleteId(req.nextUrl.searchParams.get("athleteId"));
+  if (!athleteId) return missingAthlete();
   try {
-    await deleteChat(athleteIdOf(req), id);
+    await deleteChat(athleteId, id);
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("[DELETE /api/chats/:id] Error:", error);

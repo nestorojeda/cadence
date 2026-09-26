@@ -26,6 +26,7 @@ persistent, per-athlete schedule rules.
 pnpm install          # package manager is pnpm (see pnpm-lock.yaml) — don't use npm/yarn
 pnpm dev              # http://localhost:3000
 pnpm exec tsc --noEmit  # typecheck — run after every change
+pnpm test             # unit tests (Vitest); `pnpm test:watch` while iterating
 pnpm build            # full production build — run before declaring a feature done
 ```
 
@@ -34,9 +35,16 @@ start a second `pnpm dev` (e.g. on port 3001) next to an existing one. Symptoms:
 page rendering as unstyled HTML because the CSS URL 404s. Before starting a server, check `lsof -iTCP:3000-3010
 -sTCP:LISTEN` and reuse the user's running server. Fix: stop the extra process, `rm -rf .next`, restart one server. `.claude/launch.json` defines the `dev`
 preview server. The `verify` skill (`.claude/skills/verify`) has the full check sequence, including a curl smoke test
-of the chat route.
+of the chat route. The `tech-debt-audit` skill (`.claude/skills/tech-debt-audit`) produces a prioritized technical-debt
+report; its `scan.sh` collects the mechanical signals.
 
-There is no test suite yet. `pnpm lint` (`next lint`) is deprecated in Next 15.5 and has no ESLint config; prefer `tsc`.
+**Tests** are Vitest (`vitest.config.mts`, node environment), colocated as `lib/**/<module>.test.ts` with
+`describe/it/expect/vi` imported from `vitest` (no globals). They must not touch the network or a real LLM: use
+`MockLanguageModelV4` from `ai/test` where a model is needed, fake clients for Intervals/Hevy, and for the stores point
+`process.cwd()` at a temp dir and `vi.resetModules()` to clear their in-memory caches. Add or update tests with every
+change to `lib/`; there are no React component or route handler tests yet.
+
+`pnpm lint` (`next lint`) is deprecated in Next 15.5 and has no ESLint config; prefer `tsc`.
 
 ## Architecture
 
@@ -47,9 +55,11 @@ Next.js 15 App Router, React 19, Tailwind 3, TypeScript strict, path alias `@/*`
 | `app/api/chat/route.ts` | Chat endpoint. Takes `{ id, message }` (only the new message), loads the chat's history from disk, resolves the LLM provider/model + API key, builds the system prompt, runs `streamText` with Intervals tools, streams a UI message stream, and saves the result in `onEnd`. |
 | `app/api/chats/*` | Chat history: list (index only), load, rename (`PATCH`), delete. |
 | `app/api/metrics/route.ts` | Sidebar/briefing data: CTL/ATL/TSB, 42-day form history, this week's planned events (`MetricsResponse` in `lib/intervals/metrics.ts`). |
-| `app/api/preferences/route.ts` | GET/POST coach rules for an athlete. |
+| `app/api/preferences/route.ts` | GET/POST coach rules for an athlete (POST body validated with zod; unknown fields dropped). |
+| `app/api/terrain/route.ts` | Suggests the athlete's terrain type from 90 days of outdoor rides (`lib/intervals/terrain.ts`, which also holds the terrain options and their long-ride guidance). |
+| `lib/api/athlete.ts` | `resolveAthleteId`: the athlete ID from the request, else `INTERVALS_ICU_ATHLETE_ID`, else a 400. Every route uses it; there is no hardcoded default athlete. |
 | `lib/llm/models.ts` | Provider IDs and default model per provider — the single source for defaults (server and UI). Also the Google model dropdown list (`GOOGLE_MODELS`) with each model's supported Gemini thinking levels, and `resolveThinkingLevel`. |
-| `lib/intervals/client.ts` | Typed REST client for `https://intervals.icu/api/v1` (Basic auth `API_KEY:<key>`). |
+| `lib/intervals/client.ts` | Typed REST client for `https://intervals.icu/api/v1` (Basic auth `API_KEY:<key>`). Every request has a 30 s timeout (so does the Hevy client). |
 | `lib/intervals/tools.ts` | AI SDK tool definitions (`tool({ description, inputSchema, execute })`) wrapping the client. Tools return `{ error }` instead of throwing so the model can recover. `create_gym_session` writes a `WeightTraining` event and, with Hevy connected, a Hevy routine; each target reports its own result. |
 | `lib/intervals/events.ts` | Key events: upcoming races (`RACE_A/B/C`) and time off (`HOLIDAY/SICK/INJURED`, `end_date_local` exclusive) for the next ~6 months, cached 5 min per athlete. The chat route puts them in the system prompt (they're usually beyond the calendar tool's window) and `/api/metrics` returns them for the sidebar's "Next races" and away days. |
 | `lib/intervals/workout.ts` | Parses Intervals.icu workout text (event `description`) into timed %FTP steps for the `WorkoutChart` power profile in `WorkoutCard`. |
@@ -59,10 +69,12 @@ Next.js 15 App Router, React 19, Tailwind 3, TypeScript strict, path alias `@/*`
 | `lib/hevy/*` | Optional [Hevy](https://api.hevyapp.com/docs) integration (Pro only, `api-key` header): `client.ts` (templates cached in memory, routines go in a "Cadence" folder), `routine.ts` (gym session → routine; routine sets have no RPE, so it goes in exercise notes), `tools.ts` (read tools, only registered when a key is set). Key from `apex_hevy_key` or `HEVY_API_KEY`. |
 | `lib/storage/chat-store.ts` | Chats persisted at `data/chats/{athleteId}/{chatId}.json` plus an `index.json` of `ChatMeta`; writes are serialized per athlete. |
 | `lib/chat/context.ts` | Token economy: what the model sees of a stored chat (see below). |
-| `lib/storage/preferences-store.ts` | Preferences persisted as JSON at `data/athletes/{athleteId}.json`, with in-memory cache. |
+| `lib/storage/preferences-store.ts` | Preferences persisted as JSON at `data/athletes/{athleteId}.json`, with in-memory cache. A corrupt file is left in place (defaults are used, not written). |
+| `lib/storage/json-file.ts` | `writeJsonAtomic` (temp file + rename), used by both stores. |
 | `lib/mcp/bridge.ts` | Optional stdio bridge to the Python `intervals-icu-mcp` server (`USE_LOCAL_MCP=true`). Currently not wired into the chat route. |
 | `components/Sidebar.tsx` | Desktop rail (form, sparkline, week, rules/settings) with a 68px compact mode (`apex_sidebar_compact` in localStorage), and the mobile top bar. |
 | `components/chat/*` | `useChat` UI (from `@ai-sdk/react`), message rendering via `message.parts` (read tools collapse into one trace pill; `icu_create_calendar_event` renders as `WorkoutCard`, `create_gym_session` as `GymCard`), quick prompts. |
+| `components/preferences/CoachPreferencesModal.tsx` | "Coach rules" dialog: weekly volume, session days, terrain (with detection), gym preferences. |
 | `components/SettingsModal.tsx` | Provider/model/API-key selection (Google: model dropdown plus thinking effort, `apex_thinking_level`), stored in browser `localStorage` (`apex_*` keys) and sent with each chat request. |
 
 Configuration: server-side env vars in `.env.local` (see `.env.example`); keys entered in the UI override env vars per request.
@@ -109,7 +121,8 @@ online and in model training data are v3/v4 and will not compile. Authoritative 
 - **Light / dark / system color mode.** Color tokens are CSS variables (RGB channels) in `app/globals.css`: light
   values on `:root`, dark on `.dark`; `tailwind.config.ts` maps `ink-*`, `fg-*`, `signal*`, `on-signal` to them. Never
   hardcode a hex in a component (training-zone colors excepted) — add a token with both values. Text on a
-  `bg-signal` fill is `text-on-signal` (lime by night, olive by day). The preference is `apex_theme` in localStorage
+  `bg-signal` fill is `text-on-signal` (lime by night, olive by day). Zone colours have one source,
+  `POWER_ZONE_COLORS` in `lib/intervals/workout.ts` (gym = `STRENGTH_COLOR` in `lib/intervals/metrics.ts`). The preference is `apex_theme` in localStorage
   (absent = system), applied before paint by `THEME_INIT_SCRIPT` (`lib/theme.ts`) in `app/layout.tsx`; the
   `useTheme` hook and toggles live in `components/ThemeToggle.tsx`. Changing `tailwind.config.ts` needs a dev-server
   restart to show up.

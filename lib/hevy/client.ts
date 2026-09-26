@@ -86,6 +86,7 @@ interface CacheEntry<T> {
 const templateCache = new Map<string, CacheEntry<HevyExerciseTemplate[]>>();
 const folderCache = new Map<string, number>();
 const TEMPLATE_TTL_MS = 6 * 60 * 60 * 1000;
+const REQUEST_TIMEOUT_MS = 30_000;
 
 /** Routines the coach creates go in this folder. */
 export const HEVY_FOLDER_TITLE = "Cadence";
@@ -98,6 +99,7 @@ export class HevyClient {
   private async request<T>(path: string, what: string, init?: RequestInit): Promise<T> {
     const res = await fetch(`${this.baseUrl}${path}`, {
       ...init,
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       headers: {
         "api-key": this.apiKey,
         "Content-Type": "application/json",

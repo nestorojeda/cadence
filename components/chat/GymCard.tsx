@@ -1,12 +1,9 @@
 "use client";
 
 import React from "react";
-import { formatDuration } from "@/lib/intervals/metrics";
+import { STRENGTH_COLOR, formatDuration } from "@/lib/intervals/metrics";
 import { formatRest, formatSetsReps, type GymSessionInput, type GymSessionResult } from "@/lib/coach/gym";
 import { CardStat, SessionCardShell, SessionCardStatus, formatDay, type WorkoutCardStatus } from "./SessionCardParts";
-
-/** Gym colour used across the app (Coach rules, sidebar week). */
-const GYM_COLOR = "#c084fc";
 
 interface GymCardProps {
   input: Partial<GymSessionInput>;
@@ -64,7 +61,7 @@ export function GymCard({ input, status, output, errorText, onDecide }: GymCardP
       <div className="flex flex-wrap justify-between items-start gap-4">
         <div className="flex flex-col gap-1 min-w-0">
           <span className="flex items-center gap-2 font-mono text-[11px] text-fg-muted">
-            <span className="w-2 h-2 rounded-[2px]" style={{ background: GYM_COLOR }} />
+            <span className="w-2 h-2 rounded-[2px]" style={{ background: STRENGTH_COLOR }} />
             {[formatDay(input.start_date_local), "STRENGTH", input.hevy_only ? "HEVY ONLY" : null]
               .filter(Boolean)
               .join(" · ")}

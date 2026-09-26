@@ -26,7 +26,7 @@ export interface WorkoutStep {
 
 /** Coggan power zones by upper bound in %FTP; the last zone is open-ended. */
 const ZONE_UPPER = [55, 75, 90, 105, 120, 150];
-/** Z1–Z7, matching the `zone*` Tailwind colours. */
+/** Z1–Z7; the single source for zone colours (sidebar week, Coach rules, cards reuse them). */
 export const POWER_ZONE_COLORS = ["#94a3b8", "#38bdf8", "#4ade80", "#facc15", "#fb923c", "#f87171", "#c084fc"];
 /** %FTP drawn for a `Zn` target: roughly the middle of the zone. */
 const ZONE_MIDPOINT = [45, 65, 83, 98, 113, 135, 160];

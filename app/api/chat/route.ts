@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { z } from "zod";
 import {
   createUIMessageStreamResponse,
   generateId,
@@ -34,6 +35,7 @@ import { buildModelMessages, foldSummary, historyInstructions, messagesAfterSumm
 import { applyApprovalResponses, expirePendingApprovals } from "@/lib/chat/approvals";
 import type { CoachMessageMetadata, StoredChat } from "@/lib/chat/types";
 import { WRITE_TOOL_NAMES } from "@/lib/intervals/tool-names";
+import { resolveAthleteId } from "@/lib/api/athlete";
 
 export const maxDuration = 60;
 
@@ -43,6 +45,25 @@ export const maxDuration = 60;
  * turn never ends on a tool result with no reply.
  */
 const MAX_STEPS = 12;
+
+const optionalString = z.string().max(4096).optional();
+
+const requestSchema = z.object({
+  id: z.string().refine(isValidChatId),
+  message: z
+    .object({ id: z.string().min(1), role: z.enum(["user", "assistant"]), parts: z.array(z.unknown()) })
+    .passthrough(),
+  athleteId: optionalString,
+  modelProvider: optionalString,
+  modelName: optionalString,
+  // A stale stored level shouldn't fail the request: unknown values fall back to the model's default.
+  thinkingLevel: optionalString.transform((v) =>
+    THINKING_LEVELS.includes(v as ThinkingLevel) ? (v as ThinkingLevel) : undefined
+  ),
+  apiKey: optionalString,
+  intervalsApiKey: optionalString,
+  hevyApiKey: optionalString,
+});
 
 function jsonError(error: string, status: number) {
   return new Response(JSON.stringify({ error }), {
@@ -59,30 +80,24 @@ export async function POST(req: NextRequest) {
   try {
     // The client sends only the new message (or, to answer tool approvals, the paused assistant message); history is
     // loaded from disk so it isn't re-uploaded every turn.
+    const body = requestSchema.safeParse(await req.json().catch(() => null));
+    if (!body.success) {
+      return jsonError("Expected a chat `id` and a user or assistant `message`.", 400);
+    }
     const {
       id: chatId,
-      message,
-      athleteId = process.env.INTERVALS_ICU_ATHLETE_ID || "i435091",
       modelProvider = DEFAULT_PROVIDER,
       modelName,
       thinkingLevel,
       apiKey: clientApiKey,
       intervalsApiKey: clientIntervalsKey,
       hevyApiKey: clientHevyKey,
-    }: {
-      id: string;
-      message: UIMessage;
-      athleteId?: string;
-      modelProvider?: string;
-      modelName?: string;
-      thinkingLevel?: ThinkingLevel;
-      apiKey?: string;
-      intervalsApiKey?: string;
-      hevyApiKey?: string;
-    } = await req.json();
-
-    if (!isValidChatId(chatId) || !message || (message.role !== "user" && message.role !== "assistant")) {
-      return jsonError("Expected a chat `id` and a user or assistant `message`.", 400);
+    } = body.data;
+    // Only the envelope is checked here; parts pass through untouched (they carry provider metadata).
+    const message = body.data.message as unknown as UIMessage;
+    const athleteId = resolveAthleteId(body.data.athleteId);
+    if (!athleteId) {
+      return jsonError("No valid Intervals.icu athlete ID. Set it in Settings or INTERVALS_ICU_ATHLETE_ID in .env.local.", 400);
     }
 
     // Initialize Intervals.icu client and AI tools
@@ -126,10 +141,9 @@ export async function POST(req: NextRequest) {
       // Effort is the athlete's choice in Settings (they pay for the thinking tokens). Older models (2.5) take a
       // thinkingBudget instead, so they keep their default.
       if (supportsThinkingLevel(googleModel)) {
-        const requested = thinkingLevel && THINKING_LEVELS.includes(thinkingLevel) ? thinkingLevel : undefined;
         providerOptions = {
           google: {
-            thinkingConfig: { thinkingLevel: resolveThinkingLevel(googleModel, requested) },
+            thinkingConfig: { thinkingLevel: resolveThinkingLevel(googleModel, thinkingLevel) },
           } satisfies GoogleLanguageModelOptions,
         };
       }

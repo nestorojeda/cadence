@@ -1,6 +1,6 @@
 ---
 name: verify
-description: Verify a change in the Apex Cycling Coach app — typecheck, production build, and a live smoke test of the chat endpoint with tool calling. Use after modifying anything under app/, lib/ or components/, and before declaring a feature or fix done.
+description: Verify a change in the Apex Cycling Coach app — typecheck, unit tests, production build, and a live smoke test of the chat endpoint with tool calling. Use after modifying anything under app/, lib/ or components/, and before declaring a feature or fix done.
 ---
 
 # Verify a change
@@ -8,10 +8,12 @@ description: Verify a change in the Apex Cycling Coach app — typecheck, produc
 Run these in order and stop at the first failure — fix it before continuing.
 
 1. **Typecheck**: `pnpm exec tsc --noEmit`
-2. **Build**: `pnpm build` (catches App Router / server-client boundary errors tsc misses).
+2. **Unit tests**: `pnpm test` (Vitest, no network). If the change is in `lib/`, add or update the colocated
+   `*.test.ts` first.
+3. **Build**: `pnpm build` (catches App Router / server-client boundary errors tsc misses).
    Only when **no** dev server is running — they share `.next/` and a build breaks a live dev server.
    Check with `lsof -iTCP:3000-3010 -sTCP:LISTEN`; if one is running, skip the build and say so.
-3. **Smoke test the chat route** (only if the change touches the chat, tools, prompt, or provider code):
+4. **Smoke test the chat route** (only if the change touches the chat, tools, prompt, or provider code):
    - Reuse the user's dev server if one is already running (check ports 3000–3010); otherwise start the `dev`
      preview server. Never run two at once.
    - POST a new message that forces a tool call, so multi-step tool loops are exercised. The route takes a chat `id`
@@ -32,7 +34,7 @@ Run these in order and stop at the first failure — fix it before continuing.
    - **Ollama** (no keys besides Intervals): needs `ollama serve` running and `ollama pull qwen3:1.7b`
      (check `curl -s localhost:11434/api/tags`). Use `"modelProvider": "ollama", "modelName": "qwen3:1.7b"`.
      A 1.7B model calls tools less reliably, so retry once with a more direct prompt before treating a tool-less answer as a bug.
-4. **UI check** (only for component changes): open http://localhost:3000 in the browser pane, send a quick prompt,
+5. **UI check** (only for component changes): open http://localhost:3000 in the browser pane, send a quick prompt,
    confirm tool-call pills and the markdown answer render, and check the console for errors.
 
 Report what was run and what passed — don't claim a step passed if it was skipped.

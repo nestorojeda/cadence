@@ -5,6 +5,8 @@ import { Minus, Mountain, MountainSnow, RotateCcw, ScanSearch, Waves, type Lucid
 import { CoachPreferences, createDefaultPreferences } from "@/lib/types/preferences";
 import { TERRAINS, type Terrain, type TerrainSummary } from "@/lib/intervals/terrain";
 import { GYM_EQUIPMENT, GYM_EXPERIENCE, GYM_GOALS, type GymPreferences } from "@/lib/coach/gym";
+import { STRENGTH_COLOR } from "@/lib/intervals/metrics";
+import { POWER_ZONE_COLORS } from "@/lib/intervals/workout";
 import { GhostButton, Modal, ModalSection, PrimaryButton, SavedNote, inputClass } from "@/components/ui/Modal";
 
 interface CoachPreferencesModalProps {
@@ -27,10 +29,10 @@ const TERRAIN_ICONS: Record<Terrain, LucideIcon> = {
 };
 
 const SESSION_ROWS: Array<{ key: DayListKey; label: string; color: string }> = [
-  { key: "intervalDays", label: "Intervals", color: "#fb923c" },
-  { key: "longRideDays", label: "Long ride", color: "#4ade80" },
-  { key: "gymDays", label: "Gym", color: "#c084fc" },
-  { key: "restDays", label: "Rest", color: "#94a3b8" },
+  { key: "intervalDays", label: "Intervals", color: POWER_ZONE_COLORS[4] },
+  { key: "longRideDays", label: "Long ride", color: POWER_ZONE_COLORS[2] },
+  { key: "gymDays", label: "Gym", color: STRENGTH_COLOR },
+  { key: "restDays", label: "Rest", color: POWER_ZONE_COLORS[0] },
 ];
 
 export function CoachPreferencesModal({
@@ -155,7 +157,7 @@ export function CoachPreferencesModal({
       description={
         <>
           The coach follows these when planning your weeks. Saved on this server for{" "}
-          <span className="font-mono text-fg-subtle">{athleteId}</span>.
+          <span className="font-mono text-fg-subtle">{preferences.athleteId || athleteId}</span>.
         </>
       }
       onClose={onClose}
@@ -299,7 +301,7 @@ export function CoachPreferencesModal({
                         : "border-ink-line text-fg-subtle hover:border-ink-edge hover:bg-ink-surface"
                     }`}
                   >
-                    {selected && <span className="inline-block w-2 h-2 rounded-[2px] mr-2" style={{ background: "#c084fc" }} />}
+                    {selected && <span className="inline-block w-2 h-2 rounded-[2px] mr-2" style={{ background: STRENGTH_COLOR }} />}
                     {goal.label}
                   </button>
                 );

@@ -11,10 +11,9 @@ import type { ChatMeta, StoredChat } from "@/lib/chat/types";
 import { DEFAULT_MODELS, DEFAULT_PROVIDER, type ModelProvider } from "@/lib/llm/models";
 import type { MetricsResponse } from "@/lib/intervals/metrics";
 
-const DEFAULT_ATHLETE_ID = "i435091";
-
+/** Athlete ID from Settings; empty means the server's INTERVALS_ICU_ATHLETE_ID. */
 function storedAthleteId() {
-  return localStorage.getItem("apex_athlete_id") || DEFAULT_ATHLETE_ID;
+  return localStorage.getItem("apex_athlete_id") || "";
 }
 
 /** Keeps the open chat in `?chat=` so a reload reopens it. */
@@ -38,7 +37,7 @@ function readModelLabel() {
 }
 
 export default function Home() {
-  const [athleteId, setAthleteId] = useState(DEFAULT_ATHLETE_ID);
+  const [athleteId, setAthleteId] = useState("");
   const [isRulesOpen, setIsRulesOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [modelLabel, setModelLabel] = useState("");
@@ -171,7 +170,7 @@ export default function Home() {
   return (
     <main className="flex-1 flex bg-ink">
       <Sidebar
-        athleteId={athleteId}
+        athleteId={athleteId || metrics?.athlete?.id || ""}
         metrics={metrics}
         loading={metricsLoading}
         modelLabel={modelLabel}

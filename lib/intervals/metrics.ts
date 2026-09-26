@@ -1,4 +1,5 @@
 import type { FitnessSummary } from "./client";
+import { POWER_ZONE_COLORS } from "./workout";
 
 /** Shape returned by GET /api/metrics, consumed by the sidebar and the chat's empty state. */
 export interface MetricsResponse {
@@ -94,8 +95,9 @@ export function formatDuration(seconds?: number): string {
 /** Sessions with no intensity to go on; a CSS variable so it follows the color mode. */
 export const NO_ZONE_COLOR = "rgb(var(--zone-none))";
 
-const ZONE_COLORS = ["#94a3b8", "#38bdf8", "#4ade80", "#facc15", "#fb923c"];
-const STRENGTH_COLOR = "#c084fc";
+/** Week list: Z1–Z5+ by intensity factor, gym sessions in the Z7 purple. */
+const ZONE_COLORS = POWER_ZONE_COLORS.slice(0, 5);
+export const STRENGTH_COLOR = POWER_ZONE_COLORS[6];
 /** Upper IF bound of Z1–Z4; anything above is Z5+. */
 const INTENSITY_BOUNDS = [0.55, 0.75, 0.9, 1.05];
 

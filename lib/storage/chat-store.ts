@@ -9,6 +9,7 @@ import {
   type ChatMeta,
   type StoredChat,
 } from "@/lib/chat/types";
+import { writeJsonAtomic } from "./json-file";
 
 /**
  * Chat history persisted as JSON on local disk:
@@ -48,13 +49,6 @@ async function readJson<T>(file: string): Promise<T | null> {
   }
 }
 
-/** Write via a temp file so a crash mid-write never leaves truncated JSON. */
-async function writeJson(file: string, value: unknown): Promise<void> {
-  await fs.mkdir(path.dirname(file), { recursive: true });
-  const tmp = `${file}.${process.pid}.tmp`;
-  await fs.writeFile(tmp, JSON.stringify(value), "utf-8");
-  await fs.rename(tmp, file);
-}
 
 // Writes for one athlete run one at a time: the chat route and the background summary both update the same files.
 const locks = new Map<string, Promise<unknown>>();
@@ -96,7 +90,7 @@ function computeMeta(chat: StoredChat): ChatMeta {
 async function writeIndex(athleteId: string, update: (index: ChatMeta[]) => ChatMeta[]) {
   const index = (await readJson<ChatMeta[]>(indexFile(athleteId))) ?? [];
   const next = update(index).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-  await writeJson(indexFile(athleteId), next);
+  await writeJsonAtomic(indexFile(athleteId), next);
 }
 
 export async function listChats(athleteId: string): Promise<ChatMeta[]> {
@@ -136,7 +130,7 @@ export async function updateChat(
       },
     };
     chat.meta = computeMeta(chat);
-    await writeJson(file, chat);
+    await writeJsonAtomic(file, chat);
     await writeIndex(athleteId, (index) => [...index.filter((m) => m.id !== chatId), chat.meta]);
     return chat;
   });

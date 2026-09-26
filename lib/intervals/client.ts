@@ -87,6 +87,9 @@ export interface FitnessSummary {
   hrv?: number | null;
 }
 
+/** Intervals.icu can stall; without a limit a hung request holds the chat turn until the route times out. */
+const REQUEST_TIMEOUT_MS = 30_000;
+
 export class IntervalsClient {
   private apiKey: string;
   private defaultAthleteId: string;
@@ -94,7 +97,7 @@ export class IntervalsClient {
 
   constructor(apiKey?: string, defaultAthleteId?: string) {
     this.apiKey = apiKey || process.env.INTERVALS_ICU_API_KEY || "";
-    this.defaultAthleteId = defaultAthleteId || process.env.INTERVALS_ICU_ATHLETE_ID || "i435091";
+    this.defaultAthleteId = defaultAthleteId || process.env.INTERVALS_ICU_ATHLETE_ID || "";
   }
 
   private getHeaders(): Record<string, string> {
@@ -111,6 +114,7 @@ export class IntervalsClient {
     const id = athleteId || this.defaultAthleteId;
     const res = await fetch(`${this.baseUrl}/athlete/${id}`, {
       headers: this.getHeaders(),
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
     if (!res.ok) {
       throw new Error(`Failed to fetch athlete profile (${res.status}): ${await res.text()}`);
@@ -127,6 +131,7 @@ export class IntervalsClient {
     const qs = params.toString() ? `?${params.toString()}` : "";
     const res = await fetch(`${this.baseUrl}/athlete/${id}/wellness${qs}`, {
       headers: this.getHeaders(),
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
     if (!res.ok) {
       throw new Error(`Failed to fetch wellness data (${res.status}): ${await res.text()}`);
@@ -210,6 +215,7 @@ export class IntervalsClient {
 
     const res = await fetch(`${this.baseUrl}/athlete/${id}/activities?${params.toString()}`, {
       headers: this.getHeaders(),
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
     if (!res.ok) {
       throw new Error(`Failed to fetch activities (${res.status}): ${await res.text()}`);
@@ -220,6 +226,7 @@ export class IntervalsClient {
   async getActivity(activityId: string): Promise<Record<string, unknown>> {
     const res = await fetch(`${this.baseUrl}/activity/${activityId}`, {
       headers: this.getHeaders(),
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
     if (!res.ok) {
       throw new Error(`Failed to fetch activity ${activityId} (${res.status}): ${await res.text()}`);
@@ -240,6 +247,7 @@ export class IntervalsClient {
 
     const res = await fetch(`${this.baseUrl}/athlete/${id}/events?${params.toString()}`, {
       headers: this.getHeaders(),
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
     if (!res.ok) {
       throw new Error(`Failed to fetch calendar events (${res.status}): ${await res.text()}`);
@@ -255,6 +263,7 @@ export class IntervalsClient {
     const res = await fetch(`${this.baseUrl}/athlete/${id}/events`, {
       method: "POST",
       headers: this.getHeaders(),
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       body: JSON.stringify(eventData),
     });
     if (!res.ok) {

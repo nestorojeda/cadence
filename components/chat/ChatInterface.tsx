@@ -198,7 +198,7 @@ export function ChatInterface({ athleteId, metrics, chatId, initialMessages, tit
       </div>
 
       {/* Composer */}
-      <div className="sticky bottom-0 z-20 flex justify-center px-3 lg:px-8 pt-3 pb-4 lg:pb-6 bg-gradient-to-t from-ink from-70% to-transparent">
+      <div className="sticky bottom-0 z-20 flex justify-center px-3 lg:px-8 pt-3 pb-4 lg:pb-6 bg-ink">
         <div className="w-full max-w-[720px] flex flex-col gap-2">
           {composer}
           <span className="hidden lg:block text-[11px] text-fg-muted text-center">

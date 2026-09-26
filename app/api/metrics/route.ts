@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
+import { missingAthlete, resolveAthleteId } from "@/lib/api/athlete";
 import { IntervalsClient, type ActivitySummary } from "@/lib/intervals/client";
 import { toLocalDate, type MetricsResponse, type WeekActivity } from "@/lib/intervals/metrics";
 import { RACE_CATEGORIES, getKeyEvents } from "@/lib/intervals/events";
 
 export async function GET(req: NextRequest) {
+  const athleteId = resolveAthleteId(req.nextUrl.searchParams.get("athleteId"));
+  if (!athleteId) return missingAthlete();
   try {
-    const { searchParams } = new URL(req.url);
-    const athleteId = searchParams.get("athleteId") || process.env.INTERVALS_ICU_ATHLETE_ID || "i435091";
     // Key entered in Settings travels in a header (never the URL); falls back to the server's env var.
     const apiKey = req.headers.get("x-intervals-api-key") || process.env.INTERVALS_ICU_API_KEY || "";
 
@@ -97,7 +98,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json(body);
   } catch (error) {
     console.error("[GET /api/metrics] Error:", error);
-    return NextResponse.json({ error: (error as Error).message }, { status: 500 });
+    return NextResponse.json({ error: "Could not load metrics from Intervals.icu." }, { status: 500 });
   }
 }
 
