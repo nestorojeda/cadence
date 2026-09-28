@@ -1,0 +1,6 @@
+.next
+.claude/worktrees
+data
+node_modules
+pnpm-lock.yaml
+next-env.d.ts
