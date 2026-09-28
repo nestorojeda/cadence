@@ -1,21 +1,8 @@
 import fs from "fs/promises";
 import path from "path";
 import { isTextUIPart, type UIMessage } from "ai";
-import {
-  CHAT_ID_PATTERN,
-  EMPTY_USAGE,
-  addUsage,
-  messageUsage,
-  type ChatMeta,
-  type StoredChat,
-} from "@/lib/chat/types";
+import { CHAT_ID_PATTERN, EMPTY_USAGE, addUsage, messageUsage, type ChatMeta, type StoredChat } from "@/lib/chat/types";
 import { writeJsonAtomic } from "./json-file";
-
-/**
- * Chat history persisted as JSON on local disk:
- *   data/chats/{athleteId}/index.json   — ChatMeta[] for the history list
- *   data/chats/{athleteId}/{chatId}.json — full StoredChat
- */
 
 function athleteDir(athleteId: string): string {
   // Sanitize athlete ID to prevent directory traversal
@@ -49,7 +36,6 @@ async function readJson<T>(file: string): Promise<T | null> {
   }
 }
 
-
 // Writes for one athlete run one at a time: the chat route and the background summary both update the same files.
 const locks = new Map<string, Promise<unknown>>();
 
@@ -58,13 +44,12 @@ function withLock<T>(athleteId: string, fn: () => Promise<T>): Promise<T> {
   const run = (locks.get(key) ?? Promise.resolve()).then(fn, fn);
   const settled = run.catch(() => {});
   locks.set(key, settled);
-  settled.then(() => {
+  void settled.then(() => {
     if (locks.get(key) === settled) locks.delete(key);
   });
   return run;
 }
 
-/** Title from the first user message — no model call needed. */
 function deriveTitle(messages: UIMessage[]): string {
   const text = messages
     .find((m) => m.role === "user")
@@ -101,15 +86,11 @@ export async function loadChat(athleteId: string, chatId: string): Promise<Store
   return readJson<StoredChat>(chatFile(athleteId, chatId));
 }
 
-/**
- * Read-modify-write of one chat under the athlete's lock. `update` receives the stored chat (or null for a new one)
- * and returns the new state; meta (title, counts, usage) is recomputed from it.
- */
 export async function updateChat(
   athleteId: string,
   chatId: string,
   update: (chat: StoredChat | null) => Omit<StoredChat, "meta"> & { meta?: Partial<ChatMeta> },
-  { touch = true }: { touch?: boolean } = {}
+  { touch = true }: { touch?: boolean } = {},
 ): Promise<StoredChat> {
   return withLock(athleteId, async () => {
     const file = chatFile(athleteId, chatId);

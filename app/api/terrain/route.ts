@@ -6,7 +6,6 @@ import { summarizeTerrain } from "@/lib/intervals/terrain";
 
 const LOOKBACK_DAYS = 90;
 
-/** Suggests the athlete's terrain type from their recent outdoor rides. */
 export async function GET(req: NextRequest) {
   const athleteId = resolveAthleteId(req.nextUrl.searchParams.get("athleteId"));
   if (!athleteId) return missingAthlete();
@@ -23,7 +22,7 @@ export async function GET(req: NextRequest) {
     if (!summary) {
       return NextResponse.json(
         { error: `Not enough outdoor rides in the last ${LOOKBACK_DAYS} days to tell.` },
-        { status: 422 }
+        { status: 422 },
       );
     }
     return NextResponse.json({ ...summary, days: LOOKBACK_DAYS });

@@ -8,13 +8,11 @@ import { CardStat, SessionCardShell, SessionCardStatus, formatDay, type WorkoutC
 interface GymCardProps {
   input: Partial<GymSessionInput>;
   status: WorkoutCardStatus;
-  /** Tool result once written: Intervals.icu and Hevy report separately. */
   output?: GymSessionResult;
   errorText?: string;
   onDecide?: (approved: boolean) => void;
 }
 
-/** Outcome line for a written session: both targets can succeed or fail independently. */
 function describeOutcome(output: GymSessionResult | undefined): {
   failed?: string;
   added?: string;
@@ -22,7 +20,8 @@ function describeOutcome(output: GymSessionResult | undefined): {
 } {
   if (!output) return {};
   const icuSkipped = output.intervals === "skipped";
-  const icuError = typeof output.intervals === "object" && "error" in output.intervals ? output.intervals.error : undefined;
+  const icuError =
+    typeof output.intervals === "object" && "error" in output.intervals ? output.intervals.error : undefined;
   const hevy = output.hevy;
   const hevyError = typeof hevy === "object" && "error" in hevy ? hevy.error : undefined;
   const hevyOk = typeof hevy === "object" && "routine_id" in hevy ? hevy : undefined;
@@ -50,7 +49,6 @@ function describeOutcome(output: GymSessionResult | undefined): {
   return { added: "Added to your Intervals.icu calendar" };
 }
 
-/** A strength session the coach proposed for, or put on, Intervals.icu (and Hevy). */
 export function GymCard({ input, status, output, errorText, onDecide }: GymCardProps) {
   const exercises = (input.exercises ?? []).filter((e) => e?.name);
   const outcome = describeOutcome(status === "added" ? output : undefined);
@@ -58,35 +56,38 @@ export function GymCard({ input, status, output, errorText, onDecide }: GymCardP
 
   return (
     <SessionCardShell status={shownStatus}>
-      <div className="flex flex-wrap justify-between items-start gap-4">
-        <div className="flex flex-col gap-1 min-w-0">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="flex min-w-0 flex-col gap-1">
           <span className="flex items-center gap-2 font-mono text-[11px] text-fg-muted">
-            <span className="w-2 h-2 rounded-[2px]" style={{ background: STRENGTH_COLOR }} />
+            <span className="h-2 w-2 rounded-[2px]" style={{ background: STRENGTH_COLOR }} />
             {[formatDay(input.start_date_local), "STRENGTH", input.hevy_only ? "HEVY ONLY" : null]
               .filter(Boolean)
               .join(" · ")}
           </span>
-          <span className="font-display font-bold text-[26px] leading-none break-words">{input.name ?? "Gym"}</span>
+          <span className="break-words font-display text-[26px] font-bold leading-none">{input.name ?? "Gym"}</span>
         </div>
         <div className="flex gap-5 font-mono">
           <CardStat label="time" value={formatDuration(input.moving_time)} />
-          <CardStat label="load" value={input.icu_training_load != null ? Math.round(input.icu_training_load).toString() : "—"} />
+          <CardStat
+            label="load"
+            value={input.icu_training_load != null ? Math.round(input.icu_training_load).toString() : "—"}
+          />
           <CardStat label="exercises" value={exercises.length ? exercises.length.toString() : "—"} />
         </div>
       </div>
 
-      {input.notes && <p className="text-[13px] leading-relaxed text-fg-subtle whitespace-pre-line">{input.notes}</p>}
+      {input.notes && <p className="whitespace-pre-line text-[13px] leading-relaxed text-fg-subtle">{input.notes}</p>}
 
       {exercises.length > 0 && (
-        <div className="overflow-x-auto -mx-1">
+        <div className="-mx-1 overflow-x-auto">
           <table className="w-full min-w-[420px] font-mono text-xs">
             <thead>
-              <tr className="text-[11px] text-fg-muted text-left">
-                <th className="font-normal px-1 pb-1.5">exercise</th>
-                <th className="font-normal px-1 pb-1.5 text-right">sets</th>
-                <th className="font-normal px-1 pb-1.5 text-right">load</th>
-                <th className="font-normal px-1 pb-1.5 text-right">RPE</th>
-                <th className="font-normal px-1 pb-1.5 text-right">rest</th>
+              <tr className="text-left text-[11px] text-fg-muted">
+                <th className="px-1 pb-1.5 font-normal">exercise</th>
+                <th className="px-1 pb-1.5 text-right font-normal">sets</th>
+                <th className="px-1 pb-1.5 text-right font-normal">load</th>
+                <th className="px-1 pb-1.5 text-right font-normal">RPE</th>
+                <th className="px-1 pb-1.5 text-right font-normal">rest</th>
               </tr>
             </thead>
             <tbody>
@@ -95,13 +96,15 @@ export function GymCard({ input, status, output, errorText, onDecide }: GymCardP
                   <td className="px-1 py-2 text-fg">
                     <span className="font-sans text-[13px]">{e.name}</span>
                     {(e.warmup_sets || e.notes) && (
-                      <span className="block text-[11px] text-fg-muted mt-0.5">
+                      <span className="mt-0.5 block text-[11px] text-fg-muted">
                         {[e.warmup_sets ? `+${e.warmup_sets} warm-up` : null, e.notes].filter(Boolean).join(" · ")}
                       </span>
                     )}
                   </td>
-                  <td className="px-1 py-2 text-right whitespace-nowrap">{formatSetsReps(e)}</td>
-                  <td className="px-1 py-2 text-right whitespace-nowrap">{e.weight_kg != null ? `${e.weight_kg} kg` : "—"}</td>
+                  <td className="whitespace-nowrap px-1 py-2 text-right">{formatSetsReps(e)}</td>
+                  <td className="whitespace-nowrap px-1 py-2 text-right">
+                    {e.weight_kg != null ? `${e.weight_kg} kg` : "—"}
+                  </td>
                   <td className="px-1 py-2 text-right">{e.rpe ?? "—"}</td>
                   <td className="px-1 py-2 text-right">{formatRest(e.rest_seconds) ?? "—"}</td>
                 </tr>

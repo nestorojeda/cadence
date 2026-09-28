@@ -16,7 +16,6 @@ interface HistoryModalProps {
   onDelete: (id: string) => Promise<void>;
 }
 
-/** Every saved chat for the athlete, with search, rename and delete. */
 export function HistoryModal({ isOpen, ...props }: HistoryModalProps) {
   // Mounted only while open so search and edit state reset each time.
   return isOpen ? <HistoryDialog {...props} /> : null;
@@ -70,7 +69,7 @@ function HistoryDialog({
       }
     >
       <div className="relative">
-        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-fg-muted pointer-events-none" />
+        <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-fg-muted" />
         <label htmlFor="chat-search" className="sr-only">
           Search chats
         </label>
@@ -85,11 +84,11 @@ function HistoryDialog({
       </div>
 
       {visible.length === 0 ? (
-        <p className="text-sm text-fg-muted py-6 text-center">
+        <p className="py-6 text-center text-sm text-fg-muted">
           {chats.length === 0 ? "No saved chats yet — ask the coach something to start one." : "No chats match."}
         </p>
       ) : (
-        <ul className="flex flex-col -mx-2">
+        <ul className="-mx-2 flex flex-col">
           {visible.map((chat) => {
             const isActive = chat.id === activeChatId;
             if (editingId === chat.id) {
@@ -103,7 +102,7 @@ function HistoryDialog({
                     value={draft}
                     onChange={(e) => setDraft(e.target.value)}
                     onKeyDown={(e) => {
-                      if (e.key === "Enter") saveRename(chat.id);
+                      if (e.key === "Enter") void saveRename(chat.id);
                       if (e.key === "Escape") {
                         e.stopPropagation();
                         setEditingId(null);
@@ -114,18 +113,18 @@ function HistoryDialog({
                     autoFocus
                   />
                   <RowButton label="Save title" onClick={() => saveRename(chat.id)}>
-                    <Check className="w-4 h-4" />
+                    <Check className="h-4 w-4" />
                   </RowButton>
                   <RowButton label="Cancel" onClick={() => setEditingId(null)}>
-                    <X className="w-4 h-4" />
+                    <X className="h-4 w-4" />
                   </RowButton>
                 </li>
               );
             }
             if (confirmingId === chat.id) {
               return (
-                <li key={chat.id} className="flex items-center gap-3 px-3 py-2 rounded-lg bg-ink-raised">
-                  <span className="flex-1 min-w-0 text-[13px] truncate">
+                <li key={chat.id} className="flex items-center gap-3 rounded-lg bg-ink-raised px-3 py-2">
+                  <span className="min-w-0 flex-1 truncate text-[13px]">
                     Delete “{chat.title}”? <span className="text-fg-muted">This can’t be undone.</span>
                   </span>
                   <GhostButton onClick={() => setConfirmingId(null)}>Keep</GhostButton>
@@ -135,7 +134,7 @@ function HistoryDialog({
                       await onDelete(chat.id);
                       setConfirmingId(null);
                     }}
-                    className="h-10 px-4 rounded-lg border border-signal-warn/50 text-[13px] text-signal-warn transition hover:bg-signal-warn/10"
+                    className="h-10 rounded-lg border border-signal-warn/50 px-4 text-[13px] text-signal-warn transition hover:bg-signal-warn/10"
                   >
                     Delete
                   </button>
@@ -143,7 +142,7 @@ function HistoryDialog({
               );
             }
             return (
-              <li key={chat.id} className="group flex items-center gap-1 rounded-lg hover:bg-ink-raised transition">
+              <li key={chat.id} className="group flex items-center gap-1 rounded-lg transition hover:bg-ink-raised">
                 <button
                   type="button"
                   onClick={() => {
@@ -151,16 +150,16 @@ function HistoryDialog({
                     onClose();
                   }}
                   aria-current={isActive ? "true" : undefined}
-                  className="flex-1 min-w-0 flex items-center gap-3 h-11 px-3 text-left"
+                  className="flex h-11 min-w-0 flex-1 items-center gap-3 px-3 text-left"
                 >
-                  <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isActive ? "bg-signal" : "bg-transparent"}`} />
-                  <span className="flex-1 min-w-0 truncate text-[13px]">{chat.title}</span>
-                  <span className="font-mono text-[11px] text-fg-muted shrink-0">
+                  <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${isActive ? "bg-signal" : "bg-transparent"}`} />
+                  <span className="min-w-0 flex-1 truncate text-[13px]">{chat.title}</span>
+                  <span className="shrink-0 font-mono text-[11px] text-fg-muted">
                     {formatChatDate(chat.updatedAt)}
                     {chat.usage.inputTokens + chat.usage.outputTokens > 0 && ` · ${formatTokens(chat.usage)}`}
                   </span>
                 </button>
-                <div className="flex items-center pr-1 sm:opacity-0 sm:group-hover:opacity-100 sm:focus-within:opacity-100 transition">
+                <div className="flex items-center pr-1 transition sm:opacity-0 sm:focus-within:opacity-100 sm:group-hover:opacity-100">
                   <RowButton
                     label="Rename"
                     onClick={() => {
@@ -168,10 +167,10 @@ function HistoryDialog({
                       setEditingId(chat.id);
                     }}
                   >
-                    <Pencil className="w-3.5 h-3.5" />
+                    <Pencil className="h-3.5 w-3.5" />
                   </RowButton>
                   <RowButton label="Delete" onClick={() => setConfirmingId(chat.id)}>
-                    <Trash2 className="w-3.5 h-3.5" />
+                    <Trash2 className="h-3.5 w-3.5" />
                   </RowButton>
                 </div>
               </li>
@@ -190,7 +189,7 @@ function RowButton({ label, onClick, children }: { label: string; onClick: () =>
       onClick={onClick}
       aria-label={label}
       title={label}
-      className="w-9 h-9 shrink-0 flex items-center justify-center rounded-lg text-fg-muted hover:text-fg hover:bg-ink-line transition"
+      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-fg-muted transition hover:bg-ink-line hover:text-fg"
     >
       {children}
     </button>

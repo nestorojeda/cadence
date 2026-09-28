@@ -40,7 +40,13 @@ describe("preferences store", () => {
     await fs.mkdir(path.dirname(file("i1")), { recursive: true });
     await fs.writeFile(
       file("i1"),
-      JSON.stringify({ athleteId: "i1", sundayRoutine: "long", terrainNotes: "hills", weeklyVolumeMaxHours: 20, gym: { sessionMinutes: 30 } })
+      JSON.stringify({
+        athleteId: "i1",
+        sundayRoutine: "long",
+        terrainNotes: "hills",
+        weeklyVolumeMaxHours: 20,
+        gym: { sessionMinutes: 30 },
+      }),
     );
     const prefs = await store.getPreferences("i1");
     expect(prefs).not.toHaveProperty("sundayRoutine");

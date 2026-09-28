@@ -12,7 +12,8 @@ const PROMPTS = [
   {
     title: "Am I ready to train hard?",
     sub: "Fitness, fatigue, form and recent HRV",
-    prompt: "Assess my current fitness (CTL), fatigue (ATL), form (TSB), and readiness to train based on my Intervals.icu data.",
+    prompt:
+      "Assess my current fitness (CTL), fatigue (ATL), form (TSB), and readiness to train based on my Intervals.icu data.",
   },
   {
     title: "Plan this week",
@@ -33,11 +34,11 @@ const PROMPTS = [
   {
     title: "Prepare my long ride",
     sub: "Pacing and fueling for your terrain",
-    prompt: "What structure, pacing and fueling strategy should I target for my next long ride, given my local terrain?",
+    prompt:
+      "What structure, pacing and fueling strategy should I target for my next long ride, given my local terrain?",
   },
 ];
 
-/** Short follow-ups offered under the composer once a conversation is going. */
 export const COMPOSER_CHIPS = [
   { label: "Readiness", prompt: "How ready am I to train today?" },
   { label: "Last ride", prompt: "Review my most recent ride." },
@@ -52,14 +53,14 @@ export function QuickPrompts({ onSelectPrompt, disabled }: QuickPromptsProps) {
           key={item.title}
           disabled={disabled}
           onClick={() => onSelectPrompt(item.prompt)}
-          className="group flex items-center gap-4 min-h-14 py-2 px-1 border-b border-ink-hair text-left transition hover:bg-ink-rail disabled:opacity-50"
+          className="group flex min-h-14 items-center gap-4 border-b border-ink-hair px-1 py-2 text-left transition hover:bg-ink-rail disabled:opacity-50"
         >
           <span className="w-5 font-mono text-xs text-fg-muted">{(idx + 1).toString().padStart(2, "0")}</span>
-          <span className="flex-1 flex flex-col gap-0.5">
+          <span className="flex flex-1 flex-col gap-0.5">
             <span className="text-[15px] font-medium">{item.title}</span>
             <span className="text-[13px] text-fg-muted">{item.sub}</span>
           </span>
-          <ArrowRight className="w-4 h-4 text-fg-muted transition group-hover:text-signal group-hover:translate-x-0.5" />
+          <ArrowRight className="h-4 w-4 text-fg-muted transition group-hover:translate-x-0.5 group-hover:text-signal" />
         </button>
       ))}
     </div>

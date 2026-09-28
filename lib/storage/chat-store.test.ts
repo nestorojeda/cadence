@@ -22,7 +22,12 @@ afterEach(async () => {
 
 const user = (id: string, text: string) => ({ id, role: "user", parts: [{ type: "text", text }] }) as UIMessage;
 const coach = (id: string, inputTokens: number, outputTokens: number) =>
-  ({ id, role: "assistant", parts: [{ type: "text", text: "ok" }], metadata: { usage: { inputTokens, outputTokens } } }) as UIMessage;
+  ({
+    id,
+    role: "assistant",
+    parts: [{ type: "text", text: "ok" }],
+    metadata: { usage: { inputTokens, outputTokens } },
+  }) as UIMessage;
 
 describe("chat store", () => {
   it("creates the chat file and index with derived meta", async () => {
@@ -50,8 +55,10 @@ describe("chat store", () => {
   it("serializes concurrent writes to the same chat", async () => {
     await Promise.all(
       Array.from({ length: 10 }, (_, i) =>
-        store.updateChat("i1", "c1", (current) => ({ messages: [...(current?.messages ?? []), user(`u${i}`, `m${i}`)] }))
-      )
+        store.updateChat("i1", "c1", (current) => ({
+          messages: [...(current?.messages ?? []), user(`u${i}`, `m${i}`)],
+        })),
+      ),
     );
     const chat = await store.loadChat("i1", "c1");
     expect(chat?.messages.map((m) => m.id)).toEqual(Array.from({ length: 10 }, (_, i) => `u${i}`));

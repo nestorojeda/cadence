@@ -1,13 +1,9 @@
-/**
- * Cross-site request protection for the API. Cadence has no login, so without this any web page the athlete visits
- * could POST to it (a `text/plain` form or fetch needs no CORS preflight) and rewrite coach rules or spend the
- * server's LLM key. Used by `middleware.ts`; kept free of Next.js imports so it can be unit-tested.
- */
+// No login: without this any page the athlete visits could POST here (`text/plain` needs no CORS preflight).
+// Kept free of Next.js imports so it can be unit-tested.
 
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 const BODY_METHODS = new Set(["POST", "PUT", "PATCH"]);
 
-/** Why an API request must be refused, or null to let it through. */
 export function rejectCrossSite(method: string, headers: Headers): string | null {
   const verb = method.toUpperCase();
   if (SAFE_METHODS.has(verb)) return null;
@@ -24,9 +20,7 @@ export function rejectCrossSite(method: string, headers: Headers): string | null
     let originHost: string | null = null;
     try {
       originHost = new URL(origin).host;
-    } catch {
-      // "null" (sandboxed frames, file://) or malformed: treated as cross-site.
-    }
+    } catch {}
     if (!host || originHost !== host) return "Cross-site requests are not allowed.";
   }
 

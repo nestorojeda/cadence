@@ -2,10 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/*
- * Color tokens as RGB channels, so Tailwind opacity modifiers work (`bg-ink/95`).
- * Light values on :root, dark on .dark; the class is set before paint by the script in app/layout.tsx.
- */
+/* RGB channels, so Tailwind opacity modifiers work (`bg-ink/95`). */
 :root {
   color-scheme: light;
   --ink: 246 246 241;
@@ -59,7 +56,6 @@ body {
   min-height: 100vh;
 }
 
-/* Custom Scrollbars */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -97,25 +93,41 @@ body {
   line-height: 1.3;
   margin-top: 1.25rem;
 }
-.coach-md h1 { font-size: 1.25rem; }
-.coach-md h2 { font-size: 1.125rem; }
+.coach-md h1 {
+  font-size: 1.25rem;
+}
+.coach-md h2 {
+  font-size: 1.125rem;
+}
 .coach-md h3,
-.coach-md h4 { font-size: 1rem; }
+.coach-md h4 {
+  font-size: 1rem;
+}
 .coach-md ul,
 .coach-md ol {
   padding-left: 1.25rem;
 }
-.coach-md ul { list-style: disc; }
-.coach-md ol { list-style: decimal; }
-.coach-md li + li { margin-top: 0.25rem; }
-.coach-md li::marker { color: rgb(var(--fg-muted)); }
+.coach-md ul {
+  list-style: disc;
+}
+.coach-md ol {
+  list-style: decimal;
+}
+.coach-md li + li {
+  margin-top: 0.25rem;
+}
+.coach-md li::marker {
+  color: rgb(var(--fg-muted));
+}
 .coach-md a {
   color: rgb(var(--fg));
   text-decoration: underline;
   text-decoration-color: rgb(var(--fg-muted));
   text-underline-offset: 3px;
 }
-.coach-md a:hover { text-decoration-color: rgb(var(--signal)); }
+.coach-md a:hover {
+  text-decoration-color: rgb(var(--signal));
+}
 .coach-md code {
   font-family: var(--font-mono), ui-monospace, monospace;
   font-size: 0.85em;
@@ -130,13 +142,18 @@ body {
   padding: 0.75rem 1rem;
   overflow-x: auto;
 }
-.coach-md pre code { background: none; padding: 0; }
+.coach-md pre code {
+  background: none;
+  padding: 0;
+}
 .coach-md blockquote {
   color: rgb(var(--fg-subtle));
   padding-left: 1rem;
   border-left: 2px solid rgb(var(--ink-edge));
 }
-.coach-md hr { border-color: rgb(var(--ink-line)); }
+.coach-md hr {
+  border-color: rgb(var(--ink-line));
+}
 .coach-md table {
   width: 100%;
   border-collapse: collapse;

@@ -7,18 +7,15 @@ import { AlertTriangle, Check, ChevronDown } from "lucide-react";
 import { getToolName, isTextUIPart, isToolUIPart, type UIMessage } from "ai";
 import { RemovedEventCard, WorkoutCard, type WorkoutCardStatus, type WorkoutEventInput } from "./WorkoutCard";
 import { GymCard } from "./GymCard";
-import type { GymSessionInput, GymSessionResult } from "@/lib/coach/gym";
+import type { GymSessionResult } from "@/lib/coach/gym";
 import { CadenceMark } from "@/components/CadenceMark";
 import type { KnownEvent } from "@/lib/chat/known-events";
 import { CREATE_EVENT_TOOL, CREATE_GYM_TOOL, DELETE_EVENT_TOOL, UPDATE_EVENT_TOOL } from "@/lib/intervals/tool-names";
 
 interface ChatMessageProps {
   message: UIMessage;
-  /** True while this (last, assistant) message is still being streamed. */
   isStreaming?: boolean;
-  /** Answers a pending calendar change; only given while the athlete can still decide (last message, idle). */
   onApproval?: (response: { id: string; approved: boolean; reason?: string }) => void;
-  /** For update/delete calls (by toolCallId): the event as it was before, from the chat's calendar reads. */
   eventsBefore?: Map<string, KnownEvent>;
 }
 
@@ -35,7 +32,6 @@ const TOOL_LABELS: Record<string, string> = {
   hevy_get_exercise_history: "lift history",
 };
 
-/** Write tools render as session cards rather than in the read trace. */
 const CARD_TOOLS = new Set([CREATE_EVENT_TOOL, CREATE_GYM_TOOL, UPDATE_EVENT_TOOL, DELETE_EVENT_TOOL]);
 
 function toolLabel(name: string) {
@@ -47,15 +43,13 @@ function isRunning(part: ToolPart) {
 }
 
 function hasFailed(part: ToolPart) {
-  // Our tools report failures as `{ error }` outputs so the model can recover.
   return toolErrorText(part) !== undefined;
 }
 
-/** Error reported by a finished tool call, either thrown or returned as `{ error }`. */
 function toolErrorText(part: ToolPart) {
   if (part.state === "output-error") return part.errorText;
   const output = part.state === "output-available" ? part.output : undefined;
-  return output && typeof output === "object" && "error" in output ? String((output as { error: unknown }).error) : undefined;
+  return output && typeof output === "object" && "error" in output ? String(output.error) : undefined;
 }
 
 function workoutStatus(part: ToolPart): WorkoutCardStatus {
@@ -76,7 +70,7 @@ function workoutStatus(part: ToolPart): WorkoutCardStatus {
 
 export function CoachLabel({ children }: { children?: React.ReactNode }) {
   return (
-    <div className="flex items-center gap-2.5 flex-wrap min-h-7">
+    <div className="flex min-h-7 flex-wrap items-center gap-2.5">
       <span className="text-[13px] font-semibold text-fg">Coach</span>
       {children}
     </div>
@@ -100,7 +94,7 @@ export function ChatMessage({ message, isStreaming = false, onApproval, eventsBe
       .join("\n\n");
     return (
       <div className="flex justify-end">
-        <div className="max-w-[85%] lg:max-w-[520px] px-4 py-3 bg-ink-raised rounded-[14px] rounded-br-[4px] text-[15px] leading-normal whitespace-pre-wrap break-words">
+        <div className="max-w-[85%] whitespace-pre-wrap break-words rounded-[14px] rounded-br-[4px] bg-ink-raised px-4 py-3 text-[15px] leading-normal lg:max-w-[520px]">
           {text}
         </div>
       </div>
@@ -117,7 +111,6 @@ export function ChatMessage({ message, isStreaming = false, onApproval, eventsBe
     for (const part of pending) if (part.approval) onApproval?.({ id: part.approval.id, approved });
   };
   const hasText = message.parts.some((p) => isTextUIPart(p) && p.text.trim());
-  // A finished turn should end in a reply or a session card; say so rather than leave just the read trace.
   const endedSilently = !isStreaming && !hasText && !toolParts.some((p) => CARD_TOOLS.has(getToolName(p)));
 
   let liveText: string | null = null;
@@ -144,7 +137,7 @@ export function ChatMessage({ message, isStreaming = false, onApproval, eventsBe
           );
         }
         if (isToolUIPart(part) && CARD_TOOLS.has(getToolName(part))) {
-          const toolPart = part as ToolPart;
+          const toolPart = part;
           const approvalId = toolPart.state === "approval-requested" ? toolPart.approval.id : undefined;
           const onDecide =
             approvalId && onApproval ? (approved: boolean) => onApproval({ id: approvalId, approved }) : undefined;
@@ -163,7 +156,7 @@ export function ChatMessage({ message, isStreaming = false, onApproval, eventsBe
                 />
               ) : toolName === CREATE_GYM_TOOL ? (
                 <GymCard
-                  input={(toolPart.input ?? {}) as Partial<GymSessionInput>}
+                  input={toolPart.input ?? {}}
                   status={workoutStatus(toolPart)}
                   output={toolPart.state === "output-available" ? (toolPart.output as GymSessionResult) : undefined}
                   errorText={toolErrorText(toolPart)}
@@ -171,7 +164,7 @@ export function ChatMessage({ message, isStreaming = false, onApproval, eventsBe
                 />
               ) : (
                 <WorkoutCard
-                  input={(toolPart.input ?? {}) as Partial<WorkoutEventInput>}
+                  input={toolPart.input ?? {}}
                   previous={toolName === UPDATE_EVENT_TOOL ? before : undefined}
                   eventId={toolName === UPDATE_EVENT_TOOL ? eventId : undefined}
                   kind={toolName === UPDATE_EVENT_TOOL ? "update" : "create"}
@@ -182,13 +175,15 @@ export function ChatMessage({ message, isStreaming = false, onApproval, eventsBe
               )}
               {pending.length > 1 && toolPart.toolCallId === lastPendingId && (
                 <div className="flex flex-wrap items-center justify-between gap-3 px-1">
-                  <span className="font-mono text-xs text-fg-muted">{pending.length} {onlyAdds ? "sessions" : "changes"} to review</span>
+                  <span className="font-mono text-xs text-fg-muted">
+                    {pending.length} {onlyAdds ? "sessions" : "changes"} to review
+                  </span>
                   <div className="flex gap-2">
                     <button
                       type="button"
                       disabled={!onApproval}
                       onClick={() => answerAll(false)}
-                      className="h-8 px-3 rounded-lg border border-ink-edge text-xs text-fg hover:bg-ink-raised transition disabled:opacity-40"
+                      className="h-8 rounded-lg border border-ink-edge px-3 text-xs text-fg transition hover:bg-ink-raised disabled:opacity-40"
                     >
                       Skip all
                     </button>
@@ -196,7 +191,7 @@ export function ChatMessage({ message, isStreaming = false, onApproval, eventsBe
                       type="button"
                       disabled={!onApproval}
                       onClick={() => answerAll(true)}
-                      className="h-8 px-3 rounded-lg bg-signal text-on-signal text-xs font-semibold hover:brightness-95 transition disabled:opacity-40"
+                      className="h-8 rounded-lg bg-signal px-3 text-xs font-semibold text-on-signal transition hover:brightness-95 disabled:opacity-40"
                     >
                       {onlyAdds ? "Add" : "Approve"} all {pending.length}
                     </button>
@@ -211,7 +206,7 @@ export function ChatMessage({ message, isStreaming = false, onApproval, eventsBe
 
       {endedSilently && (
         <div className="flex items-start gap-2 text-xs text-fg-subtle" role="status">
-          <AlertTriangle className="w-3.5 h-3.5 text-signal-warn shrink-0" />
+          <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-signal-warn" />
           <span>The coach stopped before replying. Ask it to continue, or rephrase the request.</span>
         </div>
       )}
@@ -219,7 +214,6 @@ export function ChatMessage({ message, isStreaming = false, onApproval, eventsBe
   );
 }
 
-/** One-line summary of the data the coach read, expandable into the individual calls. */
 function ToolTrace({ parts }: { parts: ToolPart[] }) {
   const [open, setOpen] = useState(false);
   const finished = parts.filter((p) => !isRunning(p));
@@ -231,33 +225,33 @@ function ToolTrace({ parts }: { parts: ToolPart[] }) {
       <button
         onClick={() => setOpen(!open)}
         aria-expanded={open}
-        className="flex items-center gap-2 h-7 px-2.5 border border-ink-line rounded-full font-mono text-[11px] text-fg-subtle hover:text-fg hover:border-ink-edge transition max-w-full"
+        className="flex h-7 max-w-full items-center gap-2 rounded-full border border-ink-line px-2.5 font-mono text-[11px] text-fg-subtle transition hover:border-ink-edge hover:text-fg"
       >
         {failed.length > 0 ? (
-          <AlertTriangle className="w-3 h-3 shrink-0 text-signal-warn" />
+          <AlertTriangle className="h-3 w-3 shrink-0 text-signal-warn" />
         ) : (
-          <Check className="w-3 h-3 shrink-0 text-signal" strokeWidth={2.5} />
+          <Check className="h-3 w-3 shrink-0 text-signal" strokeWidth={2.5} />
         )}
         <span className="truncate">
           {labels.length > 0 && `read ${labels.join(" · ")}`}
           {labels.length > 0 && failed.length > 0 && " · "}
           {failed.length > 0 && `${failed.length} failed`}
         </span>
-        <ChevronDown className={`w-3 h-3 shrink-0 transition ${open ? "rotate-180" : ""}`} />
+        <ChevronDown className={`h-3 w-3 shrink-0 transition ${open ? "rotate-180" : ""}`} />
       </button>
 
       {open && (
-        <div className="basis-full border border-ink-line rounded-[10px] overflow-hidden font-mono text-xs">
+        <div className="basis-full overflow-hidden rounded-[10px] border border-ink-line font-mono text-xs">
           {parts.map((part, i) => (
             <details key={part.toolCallId} className={`group ${i > 0 ? "border-t border-ink-hair" : ""}`}>
-              <summary className="grid grid-cols-[minmax(0,200px)_minmax(0,1fr)_56px] gap-3 items-center px-3.5 py-2 cursor-pointer list-none hover:bg-ink-rail">
+              <summary className="grid cursor-pointer list-none grid-cols-[minmax(0,200px)_minmax(0,1fr)_56px] items-center gap-3 px-3.5 py-2 hover:bg-ink-rail">
                 <span className="truncate text-fg">{getToolName(part)}</span>
                 <span className="truncate text-fg-muted">{part.input != null ? JSON.stringify(part.input) : ""}</span>
                 <span className={`text-right ${hasFailed(part) ? "text-signal-warn" : "text-fg-muted"}`}>
                   {isRunning(part) ? "…" : hasFailed(part) ? "failed" : "ok"}
                 </span>
               </summary>
-              <pre className="px-3.5 pb-3 pt-1 max-h-48 overflow-auto text-[11px] leading-relaxed text-fg-muted whitespace-pre-wrap break-all">
+              <pre className="max-h-48 overflow-auto whitespace-pre-wrap break-all px-3.5 pb-3 pt-1 text-[11px] leading-relaxed text-fg-muted">
                 {part.state === "output-error"
                   ? part.errorText
                   : part.state === "output-available"

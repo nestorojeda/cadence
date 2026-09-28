@@ -49,22 +49,22 @@ describe("zone colours", () => {
 
   it("estimates a planned session's zone from load per hour", () => {
     // 1 h at 81 TSS → IF 0.9 → Z4.
-    expect(eventZoneColor({ date: "2026-09-26", name: "Threshold", category: "WORKOUT", load: 81, movingTime: 3600 })).toBe(
-      POWER_ZONE_COLORS[3]
-    );
+    expect(
+      eventZoneColor({ date: "2026-09-26", name: "Threshold", category: "WORKOUT", load: 81, movingTime: 3600 }),
+    ).toBe(POWER_ZONE_COLORS[3]);
     expect(eventZoneColor({ date: "2026-09-26", name: "Ride", category: "WORKOUT" })).toBe(NO_ZONE_COLOR);
   });
 
   it("colours strength work purple", () => {
     expect(eventZoneColor({ date: "2026-09-26", name: "Legs", type: "WeightTraining", category: "WORKOUT" })).toBe(
-      STRENGTH_COLOR
+      STRENGTH_COLOR,
     );
     expect(activityZoneColor({ date: "2026-09-26", name: "Gym session" })).toBe(STRENGTH_COLOR);
   });
 
   it("prefers an activity's measured intensity", () => {
     expect(activityZoneColor({ date: "2026-09-26", name: "Ride", intensity: 0.7, load: 200, movingTime: 3600 })).toBe(
-      POWER_ZONE_COLORS[1]
+      POWER_ZONE_COLORS[1],
     );
     expect(activityZoneColor({ date: "2026-09-26", name: "Ride" })).toBe(NO_ZONE_COLOR);
   });

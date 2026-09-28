@@ -39,11 +39,8 @@ import { resolveAthleteId } from "@/lib/api/athlete";
 
 export const maxDuration = 60;
 
-/**
- * Model steps per turn. Planning with Hevy lookups can take many read rounds, so the last steps are reserved: reads
- * are switched off for the final two (the coach can still schedule), and the final step answers without tools, so a
- * turn never ends on a tool result with no reply.
- */
+// The last steps are reserved: reads are switched off for the final two and the final step answers without tools,
+// so a turn never ends on a tool result with no reply.
 const MAX_STEPS = 12;
 
 const optionalString = z.string().max(4096).optional();
@@ -58,7 +55,7 @@ const requestSchema = z.object({
   modelName: optionalString,
   // A stale stored level shouldn't fail the request: unknown values fall back to the model's default.
   thinkingLevel: optionalString.transform((v) =>
-    THINKING_LEVELS.includes(v as ThinkingLevel) ? (v as ThinkingLevel) : undefined
+    THINKING_LEVELS.includes(v as ThinkingLevel) ? (v as ThinkingLevel) : undefined,
   ),
   apiKey: optionalString,
   intervalsApiKey: optionalString,
@@ -78,8 +75,6 @@ function errorMessage(error: unknown) {
 
 export async function POST(req: NextRequest) {
   try {
-    // The client sends only the new message (or, to answer tool approvals, the paused assistant message); history is
-    // loaded from disk so it isn't re-uploaded every turn.
     const body = requestSchema.safeParse(await req.json().catch(() => null));
     if (!body.success) {
       return jsonError("Expected a chat `id` and a user or assistant `message`.", 400);
@@ -97,14 +92,14 @@ export async function POST(req: NextRequest) {
     const message = body.data.message as unknown as UIMessage;
     const athleteId = resolveAthleteId(body.data.athleteId);
     if (!athleteId) {
-      return jsonError("No valid Intervals.icu athlete ID. Set it in Settings or INTERVALS_ICU_ATHLETE_ID in .env.local.", 400);
+      return jsonError(
+        "No valid Intervals.icu athlete ID. Set it in Settings or INTERVALS_ICU_ATHLETE_ID in .env.local.",
+        400,
+      );
     }
 
-    // Initialize Intervals.icu client and AI tools
-    const intervalsApiKey =
-      clientIntervalsKey || process.env.INTERVALS_ICU_API_KEY || "";
+    const intervalsApiKey = clientIntervalsKey || process.env.INTERVALS_ICU_API_KEY || "";
     const intervalsClient = new IntervalsClient(intervalsApiKey, athleteId);
-    // Hevy is optional: with a key, gym sessions also become Hevy routines and the coach can read past lifts.
     const hevyKey = clientHevyKey || process.env.HEVY_API_KEY;
     const hevyClient = hevyKey ? new HevyClient(hevyKey) : null;
     const tools = {
@@ -112,7 +107,6 @@ export async function POST(req: NextRequest) {
       ...(hevyClient ? getHevyTools(hevyClient) : {}),
     };
 
-    // Persistent preferences plus upcoming races and time off, which are usually beyond the calendar tool's window.
     const [preferences, keyEvents] = await Promise.all([
       getPreferences(athleteId),
       getKeyEvents(intervalsClient, athleteId).catch((error) => {
@@ -122,17 +116,15 @@ export async function POST(req: NextRequest) {
     ]);
     const systemPrompt = buildCoachSystemPrompt(preferences, new Date(), keyEvents, { hevyConnected: !!hevyClient });
 
-    // Resolve Language Model Provider
     let model: LanguageModel;
     let providerOptions: Parameters<typeof streamText>[0]["providerOptions"];
-    // Turns a stream error into the message shown in the chat; providers can override it with a friendlier hint.
     let describeError = errorMessage;
     if (modelProvider === "google") {
       const key = clientApiKey || process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY;
       if (!key) {
         return jsonError(
           "Google Gemini API key not found. Please add GEMINI_API_KEY in .env.local or enter it in the app Settings.",
-          400
+          400,
         );
       }
       const google = createGoogle({ apiKey: key });
@@ -152,7 +144,7 @@ export async function POST(req: NextRequest) {
       if (!key) {
         return jsonError(
           "OpenAI API key not found. Please add OPENAI_API_KEY in .env.local or enter it in the app Settings.",
-          400
+          400,
         );
       }
       const openai = createOpenAI({ apiKey: key });
@@ -162,7 +154,7 @@ export async function POST(req: NextRequest) {
       if (!key) {
         return jsonError(
           "Anthropic API key not found. Please add ANTHROPIC_API_KEY in .env.local or enter it in the app Settings.",
-          400
+          400,
         );
       }
       const anthropic = createAnthropic({ apiKey: key });
@@ -174,7 +166,6 @@ export async function POST(req: NextRequest) {
       const ollama = createOpenAICompatible({
         name: "ollama",
         baseURL,
-        // Optional: only needed behind an authenticating proxy or for ollama.com.
         apiKey: clientApiKey || process.env.OLLAMA_API_KEY,
         // OpenAI-compatible streams omit token counts unless asked; the chat history shows usage per chat.
         includeUsage: true,
@@ -182,7 +173,7 @@ export async function POST(req: NextRequest) {
       model = ollama(ollamaModel);
       describeError = (error) => {
         const message = errorMessage(error);
-        const detail = `${message} ${error instanceof Error && error.cause ? String(error.cause) : ""}`;
+        const detail = `${message} ${error instanceof Error && error.cause ? errorMessage(error.cause) : ""}`;
         if (/ECONNREFUSED|Cannot connect|fetch failed/i.test(detail)) {
           return `Ollama isn't reachable at ${baseURL}. Is \`ollama serve\` running? (${message})`;
         }
@@ -199,7 +190,6 @@ export async function POST(req: NextRequest) {
     const history = stored?.messages ?? [];
     let messages: UIMessage[];
     if (message.role === "assistant") {
-      // Approval continuation: merge the athlete's decisions into the stored message and resume that turn.
       const last = history[history.length - 1];
       const answered = last?.id === message.id ? applyApprovalResponses(last, message) : null;
       if (!answered) {
@@ -207,10 +197,9 @@ export async function POST(req: NextRequest) {
       }
       messages = [...history.slice(0, -1), answered];
     } else {
-      // Replace rather than append when the client resends a message it already sent (e.g. a retry). Approvals left
-      // unanswered are declined: the athlete moved on without adding those sessions.
+      // Replace rather than append on a resend (e.g. a retry). Unanswered approvals are declined.
       messages = [...history.filter((m) => m.id !== message.id), message].map((m) =>
-        m.role === "assistant" ? expirePendingApprovals(m) : m
+        m.role === "assistant" ? expirePendingApprovals(m) : m,
       );
     }
 
@@ -223,12 +212,12 @@ export async function POST(req: NextRequest) {
     }
     const modelMessages = await buildModelMessages(
       validated.success ? validated.data : messages.slice(message.role === "user" ? -1 : -2),
-      tools
+      tools,
     );
     if (process.env.NODE_ENV !== "production") {
       console.log(
         `[POST /api/chat] chat ${chatId}: ${messages.length} stored, ${modelMessages.length} sent to model ` +
-          `(~${JSON.stringify(modelMessages).length} chars)${stored?.summary ? ", with summary" : ""}`
+          `(~${JSON.stringify(modelMessages).length} chars)${stored?.summary ? ", with summary" : ""}`,
       );
     }
 
@@ -238,7 +227,6 @@ export async function POST(req: NextRequest) {
       messages: modelMessages,
       tools,
       providerOptions,
-      // Calendar writes wait for the athlete: the stream ends with a preview card to approve or skip.
       toolApproval: Object.fromEntries(WRITE_TOOL_NAMES.map((name) => [name, "user-approval" as const])),
       stopWhen: isStepCount(MAX_STEPS),
       prepareStep: ({ stepNumber }) => {
@@ -271,7 +259,6 @@ export async function POST(req: NextRequest) {
               messages: finished,
               summary: current?.summary,
             }));
-            // Fold older turns into the summary in the background so the reply isn't held open.
             void summarize(athleteId, model, chat);
           } catch (error) {
             console.error(`[POST /api/chat] Could not save chat ${chatId}:`, error);
@@ -299,9 +286,14 @@ async function summarize(athleteId: string, model: LanguageModel, chat: StoredCh
   try {
     const summary = await foldSummary(model, chat);
     if (!summary) return;
-    await updateChat(athleteId, chat.meta.id, (current) => ({ messages: current?.messages ?? chat.messages, summary }), {
-      touch: false,
-    });
+    await updateChat(
+      athleteId,
+      chat.meta.id,
+      (current) => ({ messages: current?.messages ?? chat.messages, summary }),
+      {
+        touch: false,
+      },
+    );
   } catch (error) {
     console.error(`[POST /api/chat] Could not summarize chat ${chat.meta.id}:`, errorMessage(error));
   } finally {

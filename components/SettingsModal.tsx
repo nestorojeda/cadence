@@ -43,7 +43,6 @@ const isListedGoogleModel = (id: string) => GOOGLE_MODELS.some((m) => m.id === i
 export function SettingsModal({ isOpen, onClose, onSettingsChanged }: SettingsModalProps) {
   const [provider, setProvider] = useState<ModelProvider>(DEFAULT_PROVIDER);
   const [modelName, setModelName] = useState(DEFAULT_MODELS[DEFAULT_PROVIDER]);
-  // Google models come from a dropdown; "custom" reveals a text field for IDs not in GOOGLE_MODELS.
   const [customModel, setCustomModel] = useState(false);
   const [thinkingLevel, setThinkingLevel] = useState<ThinkingLevel>(DEFAULT_THINKING_LEVEL);
   const [geminiKey, setGeminiKey] = useState("");
@@ -65,8 +64,8 @@ export function SettingsModal({ isOpen, onClose, onSettingsChanged }: SettingsMo
       setThinkingLevel(
         resolveThinkingLevel(
           storedModel,
-          storedLevel && THINKING_LEVELS.includes(storedLevel) ? storedLevel : DEFAULT_THINKING_LEVEL
-        )
+          storedLevel && THINKING_LEVELS.includes(storedLevel) ? storedLevel : DEFAULT_THINKING_LEVEL,
+        ),
       );
       setGeminiKey(localStorage.getItem("apex_gemini_key") || "");
       setOpenAiKey(localStorage.getItem("apex_openai_key") || "");
@@ -110,7 +109,6 @@ export function SettingsModal({ isOpen, onClose, onSettingsChanged }: SettingsMo
 
   const selectModel = (id: string) => {
     setModelName(id);
-    // Keep the chosen effort if the new model accepts it, else move to its closest level.
     setThinkingLevel((level) => resolveThinkingLevel(id, level));
   };
 
@@ -130,7 +128,7 @@ export function SettingsModal({ isOpen, onClose, onSettingsChanged }: SettingsMo
       }
     >
       <ModalSection label="Model provider">
-        <div role="radiogroup" aria-label="Model provider" className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        <div role="radiogroup" aria-label="Model provider" className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           {PROVIDERS.map((p) => {
             const selected = provider === p.id;
             return (
@@ -144,12 +142,14 @@ export function SettingsModal({ isOpen, onClose, onSettingsChanged }: SettingsMo
                   selectModel(DEFAULT_MODELS[p.id]);
                   setCustomModel(false);
                 }}
-                className={`flex flex-col items-start gap-0.5 px-3 py-2.5 rounded-[10px] border text-left transition ${
-                  selected ? "border-fg-muted bg-ink-raised" : "border-ink-line hover:border-ink-edge hover:bg-ink-surface"
+                className={`flex flex-col items-start gap-0.5 rounded-[10px] border px-3 py-2.5 text-left transition ${
+                  selected
+                    ? "border-fg-muted bg-ink-raised"
+                    : "border-ink-line hover:border-ink-edge hover:bg-ink-surface"
                 }`}
               >
                 <span className="flex items-center gap-1.5 text-[13px] font-medium">
-                  {selected && <span className="w-1.5 h-1.5 rounded-full bg-signal" />}
+                  {selected && <span className="h-1.5 w-1.5 rounded-full bg-signal" />}
                   {p.label}
                 </span>
                 <span className="text-[11px] text-fg-muted">{p.sub}</span>
@@ -175,7 +175,7 @@ export function SettingsModal({ isOpen, onClose, onSettingsChanged }: SettingsMo
                   selectModel(e.target.value);
                 }
               }}
-              className={`${inputClass} appearance-none pr-10 cursor-pointer`}
+              className={`${inputClass} cursor-pointer appearance-none pr-10`}
             >
               {GOOGLE_MODELS.map((m) => (
                 <option key={m.id} value={m.id}>
@@ -208,7 +208,7 @@ export function SettingsModal({ isOpen, onClose, onSettingsChanged }: SettingsMo
           label="Thinking effort"
           hint="Higher effort reasons longer before answering. Thinking tokens are billed as output, so it costs more and replies take longer."
         >
-          <div role="radiogroup" aria-label="Thinking effort" className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <div role="radiogroup" aria-label="Thinking effort" className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             {THINKING_LEVELS.map((level) => {
               const available = thinkingOptions.includes(level);
               const selected = thinkingLevel === level;
@@ -221,14 +221,14 @@ export function SettingsModal({ isOpen, onClose, onSettingsChanged }: SettingsMo
                   disabled={!available}
                   title={available ? undefined : "Not supported by this model"}
                   onClick={() => setThinkingLevel(level)}
-                  className={`flex flex-col items-start gap-0.5 px-3 py-2.5 rounded-[10px] border text-left transition disabled:opacity-40 disabled:cursor-not-allowed ${
+                  className={`flex flex-col items-start gap-0.5 rounded-[10px] border px-3 py-2.5 text-left transition disabled:cursor-not-allowed disabled:opacity-40 ${
                     selected
                       ? "border-fg-muted bg-ink-raised"
                       : "border-ink-line enabled:hover:border-ink-edge enabled:hover:bg-ink-surface"
                   }`}
                 >
                   <span className="flex items-center gap-1.5 text-[13px] font-medium">
-                    {selected && <span className="w-1.5 h-1.5 rounded-full bg-signal" />}
+                    {selected && <span className="h-1.5 w-1.5 rounded-full bg-signal" />}
                     {THINKING_LABELS[level].label}
                   </span>
                   <span className="text-[11px] text-fg-muted">{THINKING_LABELS[level].sub}</span>
@@ -263,12 +263,12 @@ export function SettingsModal({ isOpen, onClose, onSettingsChanged }: SettingsMo
       )}
 
       {provider === "ollama" && (
-        <p className="text-xs leading-relaxed text-fg-subtle border border-ink-line rounded-[10px] px-3.5 py-3">
+        <p className="rounded-[10px] border border-ink-line px-3.5 py-3 text-xs leading-relaxed text-fg-subtle">
           Runs against your local Ollama server (<code className="font-mono text-fg">OLLAMA_BASE_URL</code> in
           .env.local, default <code className="font-mono text-fg">http://localhost:11434/v1</code>). No API key needed.
           Pull the model first with{" "}
-          <code className="font-mono text-fg">ollama pull {modelName || DEFAULT_MODELS.ollama}</code>; the coach needs
-          a tool-capable model such as qwen3.
+          <code className="font-mono text-fg">ollama pull {modelName || DEFAULT_MODELS.ollama}</code>; the coach needs a
+          tool-capable model such as qwen3.
         </p>
       )}
 

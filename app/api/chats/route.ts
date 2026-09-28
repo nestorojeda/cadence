@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { listChats } from "@/lib/storage/chat-store";
 import { missingAthlete, resolveAthleteId } from "@/lib/api/athlete";
 
-/** History list for an athlete: index metadata only, never transcripts. */
 export async function GET(req: NextRequest) {
   const athleteId = resolveAthleteId(req.nextUrl.searchParams.get("athleteId"));
   if (!athleteId) return missingAthlete();

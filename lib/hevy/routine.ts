@@ -1,21 +1,33 @@
 import { formatExerciseLine, formatRpe, type GymExercise, type GymSessionInput } from "@/lib/coach/gym";
-import type { HevyExerciseHistoryEntry, HevyExerciseTemplate, HevyRoutineInput, HevyRoutineSet, HevyWorkout } from "./client";
+import type {
+  HevyExerciseHistoryEntry,
+  HevyExerciseTemplate,
+  HevyRoutineInput,
+  HevyRoutineSet,
+  HevyWorkout,
+} from "./client";
 
-const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+const normalize = (s: string) =>
+  s
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
 
-/** Exercise templates matching every word of `query`, closest titles first. */
 export function searchExerciseTemplates(
   templates: HevyExerciseTemplate[],
   { query, muscle, equipment }: { query?: string; muscle?: string; equipment?: string },
-  limit = 15
+  limit = 15,
 ) {
-  const words = normalize(query ?? "").split(" ").filter(Boolean);
+  const words = normalize(query ?? "")
+    .split(" ")
+    .filter(Boolean);
   const muscleKey = muscle ? normalize(muscle).replace(/ /g, "_") : undefined;
   return templates
     .filter((t) => {
       const title = normalize(t.title);
       if (!words.every((w) => title.includes(w))) return false;
-      if (muscleKey && t.primary_muscle_group !== muscleKey && !t.secondary_muscle_groups?.includes(muscleKey)) return false;
+      if (muscleKey && t.primary_muscle_group !== muscleKey && !t.secondary_muscle_groups?.includes(muscleKey))
+        return false;
       if (equipment && t.equipment !== equipment) return false;
       return true;
     })
@@ -56,7 +68,6 @@ function routineSets(e: GymExercise, template: HevyExerciseTemplate): HevyRoutin
   const warmup: HevyRoutineSet = {
     ...working,
     type: "warmup",
-    // Warm-ups ramp up to the working weight; leave the load for the athlete to pick.
     weight_kg: null,
   };
   return [
@@ -65,15 +76,11 @@ function routineSets(e: GymExercise, template: HevyExerciseTemplate): HevyRoutin
   ];
 }
 
-/**
- * Builds a Hevy routine for a gym session. Hevy routine sets have no RPE, so the target goes into the exercise notes.
- * Exercises that match no Hevy template are left out of the routine and listed in its notes instead.
- */
 export function toHevyRoutine(
   input: GymSessionInput,
   templates: HevyExerciseTemplate[],
   folderId: number | null,
-  title: string
+  title: string,
 ): { routine: HevyRoutineInput; unmatched: string[] } {
   const unmatched: GymExercise[] = [];
   const exercises: HevyRoutineInput["exercises"] = [];
@@ -93,7 +100,9 @@ export function toHevyRoutine(
   }
   const notes = [
     input.notes?.trim(),
-    unmatched.length ? `Not in your Hevy library, add them yourself:\n${unmatched.map(formatExerciseLine).join("\n")}` : null,
+    unmatched.length
+      ? `Not in your Hevy library, add them yourself:\n${unmatched.map(formatExerciseLine).join("\n")}`
+      : null,
   ]
     .filter(Boolean)
     .join("\n\n");
@@ -103,7 +112,6 @@ export function toHevyRoutine(
   };
 }
 
-/** "Gym · Tue 29 Sep" from the session name and date. */
 export function routineTitle(input: GymSessionInput): string {
   const d = new Date(input.start_date_local);
   if (Number.isNaN(d.getTime())) return input.name;
@@ -111,7 +119,12 @@ export function routineTitle(input: GymSessionInput): string {
   return `${input.name} · ${day}`;
 }
 
-const setLabel = (s: { weight_kg?: number | null; reps?: number | null; duration_seconds?: number | null; rpe?: number | null }) =>
+const setLabel = (s: {
+  weight_kg?: number | null;
+  reps?: number | null;
+  duration_seconds?: number | null;
+  rpe?: number | null;
+}) =>
   [
     s.weight_kg != null ? `${s.weight_kg}kg` : null,
     s.reps != null ? `×${s.reps}` : s.duration_seconds != null ? `${s.duration_seconds}s` : null,
@@ -120,10 +133,7 @@ const setLabel = (s: { weight_kg?: number | null; reps?: number | null; duration
     .filter(Boolean)
     .join("");
 
-/**
- * Recent workouts trimmed to what the coach needs to set loads: each exercise's working sets as "80kg×5@8". Workout
- * titles are in the athlete's app language while the library is English, so the library title is added when it differs.
- */
+// Workout titles are in the athlete's app language while the library is English, so the library title is added.
 export function compactWorkouts(workouts: HevyWorkout[], templates: HevyExerciseTemplate[] = []) {
   const libraryTitle = new Map(templates.map((t) => [t.id, t.title]));
   return workouts.map((w) => ({
@@ -136,13 +146,15 @@ export function compactWorkouts(workouts: HevyWorkout[], templates: HevyExercise
         title: e.title,
         id: e.exercise_template_id,
         ...(library && library !== e.title ? { library_title: library } : {}),
-        sets: e.sets.filter((s) => s.type !== "warmup").map(setLabel).join(", "),
+        sets: e.sets
+          .filter((s) => s.type !== "warmup")
+          .map(setLabel)
+          .join(", "),
       };
     }),
   }));
 }
 
-/** Exercise history grouped per workout, newest first. */
 export function compactExerciseHistory(entries: HevyExerciseHistoryEntry[], limit = 10) {
   const byWorkout = new Map<string, { date: string; sets: string[] }>();
   for (const e of entries) {

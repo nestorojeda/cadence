@@ -1,7 +1,3 @@
-/**
- * Direct TypeScript client for Intervals.icu REST API.
- */
-
 import { upstreamError } from "@/lib/api/upstream";
 
 export interface AthleteProfile {
@@ -53,7 +49,6 @@ export interface ActivitySummary {
   max_heartrate?: number;
   icu_intensity?: number;
   icu_training_load?: number; // TSS
-  /** Planned event this activity was matched to by Intervals.icu. */
   paired_event_id?: number;
 }
 
@@ -63,7 +58,6 @@ export interface CalendarEvent {
   start_date_local: string;
   /** Exclusive end; midnight after the last day for all-day events. */
   end_date_local?: string;
-  /** WORKOUT, NOTE, RACE_A/B/C, HOLIDAY, SICK, INJURED, … */
   category: string;
   description?: string;
   moving_time?: number;
@@ -71,9 +65,7 @@ export interface CalendarEvent {
   distance?: number;
   icu_training_load?: number;
   type?: string;
-  /** NORMAL, LIMITED or UNAVAILABLE. */
   training_availability?: string;
-  /** Set once a ride has been done against this plan. */
   paired_activity_id?: string | null;
 }
 
@@ -90,7 +82,6 @@ export interface FitnessSummary {
   hrv?: number | null;
 }
 
-/** Intervals.icu can stall; without a limit a hung request holds the chat turn until the route times out. */
 const REQUEST_TIMEOUT_MS = 30_000;
 
 export class IntervalsClient {
@@ -113,10 +104,7 @@ export class IntervalsClient {
     };
   }
 
-  /**
-   * `/athlete/{id}` for the athlete this client is bound to; the ID is encoded so it can't change the path. There is
-   * deliberately no per-call override: the chat tools must not reach another athlete.
-   */
+  /** The ID is encoded so it can't change the path. No per-call override: tools must not reach another athlete. */
   private athletePath(): string {
     return `/athlete/${encodeURIComponent(this.defaultAthleteId)}`;
   }
@@ -146,7 +134,6 @@ export class IntervalsClient {
 
   async getFitnessSummary(): Promise<FitnessSummary> {
     const today = new Date();
-    // Fetch last 14 days of wellness to get recent CTL/ATL/TSB trends
     const fourteenDaysAgo = new Date(today);
     fourteenDaysAgo.setDate(today.getDate() - 14);
     const oldest = fourteenDaysAgo.toISOString().split("T")[0];
@@ -202,7 +189,6 @@ export class IntervalsClient {
     const params = new URLSearchParams();
     params.set("limit", limit.toString());
 
-    // Default oldest to 30 days ago if not provided
     if (!oldest) {
       const d = new Date();
       d.setDate(d.getDate() - 30);
@@ -239,18 +225,24 @@ export class IntervalsClient {
   }
 
   async getEvent(eventId: string): Promise<CalendarEvent> {
-    return this.request(`${this.athletePath()}/events/${encodeURIComponent(eventId)}`, `fetch calendar event ${eventId}`);
+    return this.request(
+      `${this.athletePath()}/events/${encodeURIComponent(eventId)}`,
+      `fetch calendar event ${eventId}`,
+    );
   }
 
-  /** Partial update: fields left out of `changes` keep their current values. */
   async updateEvent(eventId: string, changes: Record<string, unknown>): Promise<CalendarEvent> {
-    return this.request(`${this.athletePath()}/events/${encodeURIComponent(eventId)}`, `update calendar event ${eventId}`, {
-      method: "PUT",
-      body: JSON.stringify(changes),
-    });
+    return this.request(
+      `${this.athletePath()}/events/${encodeURIComponent(eventId)}`,
+      `update calendar event ${eventId}`,
+      {
+        method: "PUT",
+        body: JSON.stringify(changes),
+      },
+    );
   }
 
-  /** Deletes this one event only (not other events of the same plan). The response body isn't used. */
+  /** Only this event, not other events of the same plan. */
   async deleteEvent(eventId: string): Promise<void> {
     const res = await fetch(`${this.baseUrl}${this.athletePath()}/events/${encodeURIComponent(eventId)}`, {
       method: "DELETE",

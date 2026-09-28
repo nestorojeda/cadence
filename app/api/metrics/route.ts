@@ -55,8 +55,6 @@ export async function GET(req: NextRequest) {
       return tsb == null ? [] : [{ date: r.id, tsb: Math.round(tsb * 10) / 10 }];
     });
 
-    // Pair each planned session with the activity that fulfilled it: Intervals.icu's own match first, then the
-    // first unused activity of the same sport on the same day.
     const unused = new Set(activities);
     const take = (match: (a: ActivitySummary) => boolean) => {
       const found = [...unused].find(match);
@@ -64,7 +62,6 @@ export async function GET(req: NextRequest) {
       return found;
     };
     const planned = events
-      // Sessions and races; notes and time off (HOLIDAY, SICK, …) aren't something to ride.
       .filter((e) => e.category === "WORKOUT" || RACE_CATEGORIES.includes(e.category))
       .sort((a, b) => a.start_date_local.localeCompare(b.start_date_local));
     const paired = new Map(planned.map((e) => [e.id, take((a) => a.paired_event_id === e.id)]));

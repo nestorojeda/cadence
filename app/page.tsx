@@ -11,12 +11,10 @@ import type { ChatMeta, StoredChat } from "@/lib/chat/types";
 import { DEFAULT_MODELS, DEFAULT_PROVIDER, type ModelProvider } from "@/lib/llm/models";
 import type { MetricsResponse } from "@/lib/intervals/metrics";
 
-/** Athlete ID from Settings; empty means the server's INTERVALS_ICU_ATHLETE_ID. */
 function storedAthleteId() {
   return localStorage.getItem("apex_athlete_id") || "";
 }
 
-/** Keeps the open chat in `?chat=` so a reload reopens it. */
 function setChatParam(id: string | null) {
   const url = new URL(window.location.href);
   if (id) url.searchParams.set("chat", id);
@@ -43,11 +41,9 @@ export default function Home() {
   const [modelLabel, setModelLabel] = useState("");
   const [metrics, setMetrics] = useState<MetricsResponse | null>(null);
   const [metricsLoading, setMetricsLoading] = useState(false);
-  // Bumped when settings are saved so the metrics reload with a new key or athlete.
   const [settingsVersion, setSettingsVersion] = useState(0);
   const [sidebarCompact, setSidebarCompact] = useState(false);
   const [chats, setChats] = useState<ChatMeta[]>([]);
-  // Null until the first chat (from the URL or a fresh one) is resolved on mount.
   const [chat, setChat] = useState<OpenChat | null>(null);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
@@ -59,7 +55,7 @@ export default function Home() {
     setModelLabel(readModelLabel());
   };
 
-  // Compact sidebar is a per-browser preference; storage can be unavailable (private mode), so never let it throw.
+  // Storage can be unavailable (private mode), so never let it throw.
   useEffect(() => {
     try {
       setSidebarCompact(localStorage.getItem("apex_sidebar_compact") === "true");
@@ -80,14 +76,14 @@ export default function Home() {
   const fetchChats = useCallback(async () => {
     try {
       const res = await fetch(`/api/chats?athleteId=${encodeURIComponent(athleteId)}`);
-      if (res.ok) setChats(await res.json());
+      if (res.ok) setChats((await res.json()) as ChatMeta[]);
     } catch (e) {
       console.warn("Could not load chats:", e);
     }
   }, [athleteId]);
 
   useEffect(() => {
-    fetchChats();
+    void fetchChats();
   }, [fetchChats]);
 
   const newChat = useCallback((forAthlete: string) => {
@@ -100,7 +96,7 @@ export default function Home() {
       try {
         const res = await fetch(`/api/chats/${encodeURIComponent(id)}?athleteId=${encodeURIComponent(forAthlete)}`);
         if (res.ok) {
-          const stored: StoredChat = await res.json();
+          const stored = (await res.json()) as StoredChat;
           setChat({ id, athleteId: forAthlete, messages: stored.messages });
           setChatParam(id);
           return;
@@ -110,17 +106,16 @@ export default function Home() {
       }
       newChat(forAthlete);
     },
-    [newChat]
+    [newChat],
   );
 
   // Resolve the first chat once; the athlete comes straight from storage because state hasn't caught up yet.
   useEffect(() => {
     const id = new URLSearchParams(window.location.search).get("chat");
-    if (id) openChat(id, storedAthleteId());
+    if (id) void openChat(id, storedAthleteId());
     else newChat(storedAthleteId());
   }, [openChat, newChat]);
 
-  // Switching athlete in Settings starts a fresh chat for that athlete.
   useEffect(() => {
     if (chat && chat.athleteId !== athleteId) newChat(athleteId);
   }, [athleteId, chat, newChat]);
@@ -135,7 +130,9 @@ export default function Home() {
   };
 
   const deleteChat = async (id: string) => {
-    await fetch(`/api/chats/${encodeURIComponent(id)}?athleteId=${encodeURIComponent(athleteId)}`, { method: "DELETE" });
+    await fetch(`/api/chats/${encodeURIComponent(id)}?athleteId=${encodeURIComponent(athleteId)}`, {
+      method: "DELETE",
+    });
     if (chat?.id === id) newChat(athleteId);
     await fetchChats();
   };
@@ -148,7 +145,7 @@ export default function Home() {
         headers: intervalsKey ? { "x-intervals-api-key": intervalsKey } : undefined,
       });
       if (res.ok) {
-        setMetrics(await res.json());
+        setMetrics((await res.json()) as MetricsResponse);
       }
     } catch (e) {
       console.warn("Could not load metrics:", e);
@@ -159,21 +156,20 @@ export default function Home() {
   }, [athleteId, settingsVersion]);
 
   useEffect(() => {
-    fetchMetrics();
+    void fetchMetrics();
   }, [fetchMetrics]);
 
   const onTurnEnd = useCallback(
     (changedCalendar: boolean) => {
       if (chat) setChatParam(chat.id);
-      fetchChats();
-      // The sidebar's week shows planned sessions; refresh it after the coach adds, moves or removes one.
-      if (changedCalendar) fetchMetrics();
+      void fetchChats();
+      if (changedCalendar) void fetchMetrics();
     },
-    [chat, fetchChats, fetchMetrics]
+    [chat, fetchChats, fetchMetrics],
   );
 
   return (
-    <main className="flex-1 flex bg-ink">
+    <main className="flex flex-1 bg-ink">
       <Sidebar
         athleteId={athleteId || metrics?.athlete?.id || ""}
         metrics={metrics}
@@ -191,7 +187,7 @@ export default function Home() {
         onOpenHistory={() => setIsHistoryOpen(true)}
       />
 
-      <div className="flex-1 min-w-0 flex flex-col">
+      <div className="flex min-w-0 flex-1 flex-col">
         <MobileBar
           metrics={metrics}
           onOpenRules={() => setIsRulesOpen(true)}
@@ -223,14 +219,8 @@ export default function Home() {
         onDelete={deleteChat}
       />
 
-      {/* Coach Rules & Schedule Modal */}
-      <CoachPreferencesModal
-        isOpen={isRulesOpen}
-        onClose={() => setIsRulesOpen(false)}
-        athleteId={athleteId}
-      />
+      <CoachPreferencesModal isOpen={isRulesOpen} onClose={() => setIsRulesOpen(false)} athleteId={athleteId} />
 
-      {/* Settings Modal */}
       <SettingsModal
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}

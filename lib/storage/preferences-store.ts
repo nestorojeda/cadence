@@ -3,7 +3,7 @@ import path from "path";
 import { CoachPreferences, createDefaultPreferences } from "../types/preferences";
 import { writeJsonAtomic } from "./json-file";
 
-// Read-through cache; also keeps preferences working when the disk isn't writable. One entry per athlete.
+// Read-through cache; also keeps preferences working when the disk isn't writable.
 const memoryCache = new Map<string, CoachPreferences>();
 
 function getDataDirectory(): string {
@@ -17,14 +17,9 @@ function getFilePath(athleteId: string): string {
   return path.join(getDataDirectory(), `${sanitized}.json`);
 }
 
-/**
- * Retrieves preferences for a given athlete ID.
- * If none exist on disk, creates and returns defaults.
- */
 export async function getPreferences(athleteId: string): Promise<CoachPreferences> {
   const cleanId = athleteId.trim();
 
-  // Check memory cache first
   if (memoryCache.has(cleanId)) {
     return memoryCache.get(cleanId)!;
   }
@@ -66,9 +61,6 @@ export async function getPreferences(athleteId: string): Promise<CoachPreference
   }
 }
 
-/**
- * Persistently saves athlete preferences to disk.
- */
 export async function savePreferences(preferences: CoachPreferences): Promise<void> {
   const cleanId = preferences.athleteId.trim();
   const updatedPrefs: CoachPreferences = {

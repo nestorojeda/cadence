@@ -7,7 +7,6 @@ import { POWER_ZONE_COLORS, powerZone, type WorkoutStep } from "@/lib/intervals/
 
 const WIDTH = 1000;
 const HEIGHT = 96;
-/** Height given to steps without a power target (e.g. HR-only), as %FTP. */
 const UNTARGETED = 40;
 
 function stepTitle(step: WorkoutStep) {
@@ -21,7 +20,6 @@ function stepTitle(step: WorkoutStep) {
   return `${minutes}${target}${step.label ? ` · ${step.label}` : ""}`;
 }
 
-/** Power profile of a planned workout: one block per step, width by duration, height by %FTP, coloured by zone. */
 export function WorkoutChart({ steps }: { steps: WorkoutStep[] }) {
   const total = steps.reduce((sum, s) => sum + s.duration, 0);
   if (!total) return null;
@@ -38,7 +36,6 @@ export function WorkoutChart({ steps }: { steps: WorkoutStep[] }) {
     return (
       <polygon
         key={i}
-        // A hairline gap keeps consecutive blocks of the same zone distinguishable.
         points={`${x0},${HEIGHT} ${x0},${y(from)} ${Math.max(x0, x1 - 1.5)},${y(to)} ${Math.max(x0, x1 - 1.5)},${HEIGHT}`}
         // Inline style, not the fill attribute: NO_ZONE_COLOR is a CSS variable.
         style={{ fill: color }}
@@ -50,7 +47,7 @@ export function WorkoutChart({ steps }: { steps: WorkoutStep[] }) {
 
   return (
     <figure className="flex flex-col gap-1.5" aria-label={`Workout profile, ${steps.length} steps`}>
-      <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} preserveAspectRatio="none" className="w-full h-24 block">
+      <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} preserveAspectRatio="none" className="block h-24 w-full">
         {blocks}
         <line
           x1={0}

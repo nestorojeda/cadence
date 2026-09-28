@@ -17,8 +17,8 @@
 
 ---
 
-Cadence is a coach you talk to. Ask *"Am I fresh enough for intervals today?"* or *"Plan my next week around a
-Saturday group ride"* and it looks up your fitness, fatigue, sleep, HRV and recent rides on
+Cadence is a coach you talk to. Ask _"Am I fresh enough for intervals today?"_ or _"Plan my next week around a
+Saturday group ride"_ and it looks up your fitness, fatigue, sleep, HRV and recent rides on
 [Intervals.icu](https://intervals.icu), then answers with a plan. It puts sessions on your calendar only after you
 approve them.
 
@@ -29,15 +29,15 @@ approve them.
 
 ## ✨ What it does
 
-| | |
-|---|---|
-| 💬 **Coaching chat** | Readiness checks, weekly plans, ride analysis and periodisation advice. Answers stream in live, with a status line showing what the coach is reading. |
-| 📈 **Form at a glance** | A sidebar with today's form (TSB), a six-week trend, fitness (CTL) and fatigue (ATL), and this week's planned sessions. |
-| 🗓️ **Workouts you approve** | When the coach proposes a session, you see a card with its power profile, duration, TSS and IF. Tap **Add** to put it on your Intervals.icu calendar, or **Skip**. |
-| 📐 **Your coach rules** | A week grid of interval, long-ride, gym and rest days, plus weekly volume, local terrain (Cadence can suggest it from your recent rides) and temporary constraints like travel or injury. |
-| 🗂️ **Chat history** | Conversations are saved, so you can pick one up later, rename it or delete it. Long chats are summarised automatically to keep AI costs down. |
-| 🌗 **Light and dark** | A calm "cockpit" interface in light, dark or system mode. Works on phones too. |
-| 🔌 **Any AI provider** | Google Gemini, OpenAI, Anthropic Claude, or a free local model through Ollama. You can switch in Settings at any time. |
+|                             |                                                                                                                                                                                           |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 💬 **Coaching chat**        | Readiness checks, weekly plans, ride analysis and periodisation advice. Answers stream in live, with a status line showing what the coach is reading.                                     |
+| 📈 **Form at a glance**     | A sidebar with today's form (TSB), a six-week trend, fitness (CTL) and fatigue (ATL), and this week's planned sessions.                                                                   |
+| 🗓️ **Workouts you approve** | When the coach proposes a session, you see a card with its power profile, duration, TSS and IF. Tap **Add** to put it on your Intervals.icu calendar, or **Skip**.                        |
+| 📐 **Your coach rules**     | A week grid of interval, long-ride, gym and rest days, plus weekly volume, local terrain (Cadence can suggest it from your recent rides) and temporary constraints like travel or injury. |
+| 🗂️ **Chat history**         | Conversations are saved, so you can pick one up later, rename it or delete it. Long chats are summarised automatically to keep AI costs down.                                             |
+| 🌗 **Light and dark**       | A calm "cockpit" interface in light, dark or system mode. Works on phones too.                                                                                                            |
+| 🔌 **Any AI provider**      | Google Gemini, OpenAI, Anthropic Claude, or a free local model through Ollama. You can switch in Settings at any time.                                                                    |
 
 ---
 
@@ -53,7 +53,7 @@ Cadence runs on [Node.js](https://nodejs.org) version **22 or newer** (24 LTS re
 - **macOS / Windows:** download the **LTS** installer from [nodejs.org](https://nodejs.org/en/download) and run it.
 - **Linux:** use your package manager or [nvm](https://github.com/nvm-sh/nvm): `nvm install --lts`.
 
-Open a terminal (macOS: *Terminal*; Windows: *PowerShell*) and check that it worked:
+Open a terminal (macOS: _Terminal_; Windows: _PowerShell_) and check that it worked:
 
 ```bash
 node --version
@@ -139,7 +139,7 @@ pnpm build
 pnpm start
 ```
 
-Open **[http://localhost:3000](http://localhost:3000)** in your browser. Try *"How's my form today?"* to check that
+Open **[http://localhost:3000](http://localhost:3000)** in your browser. Try _"How's my form today?"_ to check that
 everything is connected.
 
 To stop Cadence, press `Ctrl + C` in the terminal. Next time you only need to run `pnpm start` from the Cadence
@@ -152,12 +152,12 @@ folder (run `pnpm build` again after updating).
 Pick a provider in **Settings** (the gear in the sidebar). Keys can live in `.env.local` on the server or be typed
 into Settings, where they're kept in your browser and used only for your requests.
 
-| Provider | Get a key | Default model | Good to know |
-|---|---|---|---|
-| **Google Gemini** | [AI Studio](https://aistudio.google.com/apikey) | `gemini-3.8-flash` | Free tier available. The default. |
-| **OpenAI** | [platform.openai.com](https://platform.openai.com/api-keys) | `gpt-4o` | Any chat model with tool calling. |
-| **Anthropic Claude** | [console.anthropic.com](https://console.anthropic.com/settings/keys) | `claude-sonnet-5` | Any Claude model. |
-| **Ollama** (local) | No key | `qwen3:1.7b` | Free and private. Coaching quality depends on the model you run. |
+| Provider             | Get a key                                                            | Default model      | Good to know                                                     |
+| -------------------- | -------------------------------------------------------------------- | ------------------ | ---------------------------------------------------------------- |
+| **Google Gemini**    | [AI Studio](https://aistudio.google.com/apikey)                      | `gemini-3.8-flash` | Free tier available. The default.                                |
+| **OpenAI**           | [platform.openai.com](https://platform.openai.com/api-keys)          | `gpt-4o`           | Any chat model with tool calling.                                |
+| **Anthropic Claude** | [console.anthropic.com](https://console.anthropic.com/settings/keys) | `claude-sonnet-5`  | Any Claude model.                                                |
+| **Ollama** (local)   | No key                                                               | `qwen3:1.7b`       | Free and private. Coaching quality depends on the model you run. |
 
 You can type any model ID into Settings.
 
@@ -205,15 +205,15 @@ if you care about your history. It's never committed to Git.
 
 ### All settings (`.env.local`)
 
-| Variable | Required | Description |
-|---|---|---|
-| `INTERVALS_ICU_API_KEY` | yes* | From intervals.icu → Settings → Developer Settings. |
-| `INTERVALS_ICU_ATHLETE_ID` | yes* | Your athlete ID, e.g. `i123456`. |
-| `GEMINI_API_KEY` | one AI key* | Google AI Studio key. |
-| `OPENAI_API_KEY` | one AI key* | OpenAI key. |
-| `ANTHROPIC_API_KEY` | one AI key* | Anthropic key. |
-| `OLLAMA_BASE_URL` | no | Ollama's OpenAI-compatible endpoint (default `http://localhost:11434/v1`). |
-| `OLLAMA_API_KEY` | no | Only for an authenticating proxy in front of Ollama. |
+| Variable                   | Required    | Description                                                                |
+| -------------------------- | ----------- | -------------------------------------------------------------------------- |
+| `INTERVALS_ICU_API_KEY`    | yes*        | From intervals.icu → Settings → Developer Settings.                        |
+| `INTERVALS_ICU_ATHLETE_ID` | yes*        | Your athlete ID, e.g. `i123456`.                                           |
+| `GEMINI_API_KEY`           | one AI key* | Google AI Studio key.                                                      |
+| `OPENAI_API_KEY`           | one AI key* | OpenAI key.                                                                |
+| `ANTHROPIC_API_KEY`        | one AI key* | Anthropic key.                                                             |
+| `OLLAMA_BASE_URL`          | no          | Ollama's OpenAI-compatible endpoint (default `http://localhost:11434/v1`). |
+| `OLLAMA_API_KEY`           | no          | Only for an authenticating proxy in front of Ollama.                       |
 
 \* Or enter it in the app's Settings dialog instead. Not needed for Ollama.
 
@@ -239,6 +239,7 @@ and anyone who isn't on your Tailscale network can't reach it at all.
 
    It's only used the first time. After that the login is kept in the `tailscale-state` volume, and you can delete
    the line.
+
 4. **Add your keys** to `.env.local` (the same file as [step 6](#6-add-your-keys)), or enter them later in Settings.
 5. **Start it:**
 
@@ -269,15 +270,15 @@ as user 1000. On Linux, if chats don't save, run `sudo chown -R 1000:1000 data`.
 
 ## 🩺 Troubleshooting
 
-| Problem | Fix |
-|---|---|
-| `pnpm: command not found` | Run `corepack enable pnpm` (step 2), then open a new terminal. |
-| `node` is older than v22 | Install the current LTS from [nodejs.org](https://nodejs.org). |
-| Sidebar shows no data / "401" errors | Check your Intervals.icu API key and athlete ID in `.env.local` or Settings. |
-| "Model not available" | The provider retired that model. Pick a newer one in Settings. |
-| The coach ignores instructions or never looks up data on Ollama | Start Ollama with `OLLAMA_CONTEXT_LENGTH=16384` and use a model that supports tools. |
-| `Port 3000 is already in use` | Another app is on that port. Use `pnpm start -p 3001`. |
-| Page loads without styling or shows `ENOENT` errors | Stop every running Cadence process, delete the `.next` folder, then build and start again. |
+| Problem                                                         | Fix                                                                                        |
+| --------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `pnpm: command not found`                                       | Run `corepack enable pnpm` (step 2), then open a new terminal.                             |
+| `node` is older than v22                                        | Install the current LTS from [nodejs.org](https://nodejs.org).                             |
+| Sidebar shows no data / "401" errors                            | Check your Intervals.icu API key and athlete ID in `.env.local` or Settings.               |
+| "Model not available"                                           | The provider retired that model. Pick a newer one in Settings.                             |
+| The coach ignores instructions or never looks up data on Ollama | Start Ollama with `OLLAMA_CONTEXT_LENGTH=16384` and use a model that supports tools.       |
+| `Port 3000 is already in use`                                   | Another app is on that port. Use `pnpm start -p 3001`.                                     |
+| Page loads without styling or shows `ENOENT` errors             | Stop every running Cadence process, delete the `.next` folder, then build and start again. |
 
 ---
 

@@ -17,9 +17,7 @@ import {
   wellnessRange,
 } from "./compact";
 
-// Read tools return trimmed records (see ./compact) with bounded default date ranges: raw Intervals.icu responses are
-// large and every result is re-sent to the model on each later step of the turn.
-// Tools take no athlete ID: the client is bound to the athlete the route resolved, so the model can't act on another.
+// No athlete ID in tool inputs: the client is bound to the athlete the route resolved.
 type Row = Record<string, unknown>;
 
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD");
@@ -33,24 +31,28 @@ const EVENT_DESCRIPTION_HINT =
 const gymExerciseSchema = z.object({
   name: z
     .string()
-    .describe("Exercise name. With Hevy connected, its exact Hevy title from hevy_search_exercises (e.g. 'Squat (Barbell)')"),
+    .describe(
+      "Exercise name. With Hevy connected, its exact Hevy title from hevy_search_exercises (e.g. 'Squat (Barbell)')",
+    ),
   hevy_exercise_id: z.string().optional().describe("Hevy exercise template id from hevy_search_exercises, when known"),
   sets: z.number().int().min(1).max(10).describe("Working sets"),
   warmup_sets: z.number().int().min(0).max(5).optional().describe("Ramp-up sets before the working sets"),
   reps: z.number().int().min(1).max(50).optional().describe("Reps per working set (fixed target)"),
   rep_min: z.number().int().min(1).max(50).optional().describe("Bottom of a rep range, with rep_max (instead of reps)"),
   rep_max: z.number().int().min(1).max(50).optional().describe("Top of a rep range"),
-  duration_seconds: z.number().int().min(5).max(600).optional().describe("Seconds per set for holds/carries (planks, carries)"),
+  duration_seconds: z
+    .number()
+    .int()
+    .min(5)
+    .max(600)
+    .optional()
+    .describe("Seconds per set for holds/carries (planks, carries)"),
   weight_kg: z.number().min(0).optional().describe("Working load in kg, from the athlete's recent lifts when known"),
   rpe: z.number().min(5).max(10).optional().describe("Target RPE for the working sets (e.g. 7, 8, 8.5)"),
   rest_seconds: z.number().int().min(0).max(600).optional().describe("Rest between sets"),
   notes: z.string().optional().describe("Short cue (tempo, form, side-to-side)"),
 });
 
-/**
- * Creates Vercel AI SDK tools bound to an IntervalsClient instance. With a Hevy client, gym sessions are also created
- * as Hevy routines.
- */
 export function getIntervalsTools(client: IntervalsClient, hevy: HevyClient | null = null) {
   return {
     icu_get_fitness_summary: tool({
@@ -86,10 +88,16 @@ export function getIntervalsTools(client: IntervalsClient, hevy: HevyClient | nu
     }),
 
     icu_get_recent_activities: tool({
-      description:
-        "List recent training activities, rides, distances, normalized power, TSS, and elevation gain.",
+      description: "List recent training activities, rides, distances, normalized power, TSS, and elevation gain.",
       inputSchema: z.object({
-        limit: z.number().int().min(1).max(30).optional().default(10).describe("Max activities to return (default 10, max 30)"),
+        limit: z
+          .number()
+          .int()
+          .min(1)
+          .max(30)
+          .optional()
+          .default(10)
+          .describe("Max activities to return (default 10, max 30)"),
         oldest: date.optional().describe("Oldest date in YYYY-MM-DD format (defaults to 30 days ago)"),
         newest: date.optional().describe("Newest date in YYYY-MM-DD format"),
       }),
@@ -140,17 +148,13 @@ export function getIntervalsTools(client: IntervalsClient, hevy: HevyClient | nu
     }),
 
     icu_create_calendar_event: tool({
-      description:
-        "Create a scheduled workout or note event directly on the Intervals.icu calendar.",
+      description: "Create a scheduled workout or note event directly on the Intervals.icu calendar.",
       inputSchema: z.object({
         name: z.string().describe("Short workout name (e.g. 'VO2', 'OU', 'Endurance')"),
         start_date_local: z.string().describe("Date/time in ISO-8601 format (e.g. '2026-09-25T09:00:00')"),
         type: z.string().default("Ride").describe("Activity type (Ride, VirtualRide, Workout, Note)"),
         category: z.enum(["WORKOUT", "NOTE"]).default("WORKOUT").describe("Event category"),
-        description: z
-          .string()
-          .optional()
-          .describe(EVENT_DESCRIPTION_HINT),
+        description: z.string().optional().describe(EVENT_DESCRIPTION_HINT),
         moving_time: z.number().optional().describe("Target duration in seconds"),
         icu_training_load: z.number().optional().describe("Target TSS"),
       }),
@@ -158,7 +162,15 @@ export function getIntervalsTools(client: IntervalsClient, hevy: HevyClient | nu
         try {
           // Fields are listed rather than passed through: approved calls run with the input stored in the chat, which
           // in older chats may carry extra keys (e.g. an `athlete_id` from before tools were bound to the athlete).
-          return await client.createEvent({ name, start_date_local, type, category, description, moving_time, icu_training_load });
+          return await client.createEvent({
+            name,
+            start_date_local,
+            type,
+            category,
+            description,
+            moving_time,
+            icu_training_load,
+          });
         } catch (error) {
           return { error: (error as Error).message };
         }
@@ -173,7 +185,10 @@ export function getIntervalsTools(client: IntervalsClient, hevy: HevyClient | nu
       inputSchema: z.object({
         event_id: z.string().describe("Intervals.icu event ID, from icu_get_calendar_events"),
         name: z.string().optional().describe("New short name"),
-        start_date_local: z.string().optional().describe("New date/time in ISO-8601 format (e.g. '2026-09-25T09:00:00')"),
+        start_date_local: z
+          .string()
+          .optional()
+          .describe("New date/time in ISO-8601 format (e.g. '2026-09-25T09:00:00')"),
         type: z.string().optional().describe("New activity type (Ride, VirtualRide, Workout, Note)"),
         description: z.string().optional().describe(EVENT_DESCRIPTION_HINT),
         moving_time: z.number().optional().describe("New target duration in seconds"),
@@ -239,7 +254,7 @@ export function getIntervalsTools(client: IntervalsClient, hevy: HevyClient | nu
                 .boolean()
                 .optional()
                 .describe(
-                  "Only create the Hevy routine, for a session already on the Intervals.icu calendar (e.g. retrying a failed Hevy sync). Never set it for new sessions."
+                  "Only create the Hevy routine, for a session already on the Intervals.icu calendar (e.g. retrying a failed Hevy sync). Never set it for new sessions.",
                 ),
             }
           : {}),

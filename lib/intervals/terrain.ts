@@ -2,7 +2,6 @@ import type { ActivitySummary } from "@/lib/intervals/client";
 
 export type Terrain = "flat" | "rolling" | "hilly" | "mountainous";
 
-/** Terrain types in picker order, with the long-ride guidance the coach follows for each. */
 export const TERRAINS: Array<{ id: Terrain; label: string; sub: string; guidance: string }> = [
   {
     id: "flat",
@@ -49,7 +48,6 @@ export interface TerrainSummary {
   terrain: Terrain;
   metersPerKm: number;
   rides: number;
-  /** Median of the longest quarter of rides — what a typical long ride looks like. */
   longRide: { distanceKm: number; elevationM: number } | null;
 }
 
@@ -57,13 +55,9 @@ const OUTDOOR_RIDE_TYPES = new Set(["Ride", "GravelRide", "MountainBikeRide"]);
 const MIN_RIDE_METERS = 20_000;
 const MIN_RIDES = 3;
 
-/** Classifies the athlete's local terrain from their outdoor rides; null when there are too few to judge. */
 export function summarizeTerrain(activities: ActivitySummary[]): TerrainSummary | null {
   const rides = activities.filter(
-    (a) =>
-      OUTDOOR_RIDE_TYPES.has(a.type) &&
-      (a.distance ?? 0) >= MIN_RIDE_METERS &&
-      a.total_elevation_gain != null
+    (a) => OUTDOOR_RIDE_TYPES.has(a.type) && (a.distance ?? 0) >= MIN_RIDE_METERS && a.total_elevation_gain != null,
   );
   if (rides.length < MIN_RIDES) return null;
 

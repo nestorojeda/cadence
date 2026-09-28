@@ -33,7 +33,7 @@ describe("summarizeTerrain", () => {
         ride(50, 500, "VirtualRide"),
         ride(10, 100),
         ride(80, undefined),
-      ])
+      ]),
     ).toBeNull();
   });
 

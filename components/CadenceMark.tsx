@@ -1,17 +1,11 @@
 import React from "react";
 
 interface CadenceMarkProps {
-  /** Rendered width and height in px. */
   size?: number;
-  /** Turn like a crank while the coach is working (still under prefers-reduced-motion). */
   spinning?: boolean;
   className?: string;
 }
 
-/**
- * The Cadence logo: a chainring with a lit lead pedal and a muted trailing one.
- * Spins at 90 rpm (one turn per pedal stroke) via the `animate-pedal` Tailwind animation.
- */
 export function CadenceMark({ size = 20, spinning = false, className = "" }: CadenceMarkProps) {
   return (
     <svg

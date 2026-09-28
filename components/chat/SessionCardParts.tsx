@@ -4,7 +4,6 @@ import React from "react";
 import { AlertTriangle, CalendarCog, CalendarMinus, CalendarPlus, Check, X } from "lucide-react";
 import { CadenceMark } from "@/components/CadenceMark";
 
-/** `pending`: proposed by the coach, waiting for the athlete; `declined`: skipped, never written. */
 export type WorkoutCardStatus = "pending" | "adding" | "added" | "declined" | "failed";
 
 export function formatDay(iso?: string) {
@@ -17,12 +16,19 @@ export function formatDay(iso?: string) {
     .toUpperCase();
 }
 
-/** What a card proposes to do to the calendar; picks the card's wording. */
 export type SessionCardKind = "create" | "update" | "delete";
 
 const COPY: Record<
   SessionCardKind,
-  { icon: typeof CalendarPlus; pending: string; approve: string; declined: string; working: string; done: string; failed: string }
+  {
+    icon: typeof CalendarPlus;
+    pending: string;
+    approve: string;
+    declined: string;
+    working: string;
+    done: string;
+    failed: string;
+  }
 > = {
   create: {
     icon: CalendarPlus,
@@ -53,12 +59,11 @@ const COPY: Record<
   },
 };
 
-/** Outer shell of a session card; dashed while it waits for the athlete. */
 export function SessionCardShell({ status, children }: { status: WorkoutCardStatus; children: React.ReactNode }) {
   return (
     <div
-      className={`border rounded-[14px] bg-ink-card px-5 py-4 flex flex-col gap-4 transition ${
-        status === "pending" ? "border-ink-edge border-dashed" : "border-ink-line"
+      className={`flex flex-col gap-4 rounded-[14px] border bg-ink-card px-5 py-4 transition ${
+        status === "pending" ? "border-dashed border-ink-edge" : "border-ink-line"
       } ${status === "declined" ? "opacity-50" : ""}`}
     >
       {children}
@@ -75,7 +80,6 @@ export function CardStat({ label, value }: { label: string; value: string }) {
   );
 }
 
-/** Status row with Add/Skip while pending. `added` may carry a note (e.g. a partial Hevy failure). */
 export function SessionCardStatus({
   status,
   kind = "create",
@@ -87,11 +91,8 @@ export function SessionCardStatus({
   status: WorkoutCardStatus;
   kind?: SessionCardKind;
   errorText?: string;
-  /** Replaces the kind's default "done" text. */
   addedText?: string;
-  /** Shown with a warning icon next to `addedText` when part of the write failed. */
   addedWarning?: string;
-  /** Approves (true) or skips (false) a pending change; omitted when the athlete can't decide right now. */
   onDecide?: (approved: boolean) => void;
 }) {
   const copy = COPY[kind];
@@ -100,13 +101,13 @@ export function SessionCardStatus({
     <div className="flex flex-wrap items-center gap-2 text-xs" role="status">
       {status === "pending" && (
         <>
-          <Icon className="w-3.5 h-3.5 text-fg-muted" />
-          <span className="text-fg-subtle mr-auto">{copy.pending}</span>
+          <Icon className="h-3.5 w-3.5 text-fg-muted" />
+          <span className="mr-auto text-fg-subtle">{copy.pending}</span>
           <button
             type="button"
             disabled={!onDecide}
             onClick={() => onDecide?.(false)}
-            className="h-8 px-3 rounded-lg border border-ink-edge text-fg hover:bg-ink-raised transition disabled:opacity-40"
+            className="h-8 rounded-lg border border-ink-edge px-3 text-fg transition hover:bg-ink-raised disabled:opacity-40"
           >
             Skip
           </button>
@@ -114,7 +115,7 @@ export function SessionCardStatus({
             type="button"
             disabled={!onDecide}
             onClick={() => onDecide?.(true)}
-            className="h-8 px-3 rounded-lg bg-signal text-on-signal font-semibold hover:brightness-95 transition disabled:opacity-40"
+            className="h-8 rounded-lg bg-signal px-3 font-semibold text-on-signal transition hover:brightness-95 disabled:opacity-40"
           >
             {copy.approve}
           </button>
@@ -122,17 +123,17 @@ export function SessionCardStatus({
       )}
       {status === "declined" && (
         <>
-          <X className="w-3.5 h-3.5 text-fg-muted" />
+          <X className="h-3.5 w-3.5 text-fg-muted" />
           <span className="text-fg-subtle">{copy.declined}</span>
         </>
       )}
       {status === "added" && (
         <>
-          <Check className="w-3.5 h-3.5 text-signal" strokeWidth={2.5} />
+          <Check className="h-3.5 w-3.5 text-signal" strokeWidth={2.5} />
           <span className="text-fg-subtle">{addedText ?? copy.done}</span>
           {addedWarning && (
-            <span className="basis-full flex items-start gap-2 text-fg-subtle break-words">
-              <AlertTriangle className="w-3.5 h-3.5 text-signal-warn shrink-0" />
+            <span className="flex basis-full items-start gap-2 break-words text-fg-subtle">
+              <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-signal-warn" />
               {addedWarning}
             </span>
           )}
@@ -146,8 +147,11 @@ export function SessionCardStatus({
       )}
       {status === "failed" && (
         <>
-          <AlertTriangle className="w-3.5 h-3.5 text-signal-warn shrink-0" />
-          <span className="text-fg-subtle break-words">{copy.failed}{errorText ? `: ${errorText}` : ""}</span>
+          <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-signal-warn" />
+          <span className="break-words text-fg-subtle">
+            {copy.failed}
+            {errorText ? `: ${errorText}` : ""}
+          </span>
         </>
       )}
     </div>

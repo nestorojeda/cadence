@@ -2,24 +2,15 @@ import type { CalendarEvent, IntervalsClient } from "./client";
 import { daysFromToday } from "./compact";
 import { toLocalDate, type KeyEvent } from "./metrics";
 
-/**
- * Races and time off from the Intervals.icu calendar. They sit weeks or months out, beyond the calendar tool's default
- * window, so the chat route puts them in the system prompt and the sidebar shows the next ones.
- */
-
 export const RACE_CATEGORIES = ["RACE_A", "RACE_B", "RACE_C"];
 export const BLOCK_CATEGORIES = ["HOLIDAY", "SICK", "INJURED"];
 
 /** Categories the coach may change or remove (with the athlete's approval). Races and time off stay the athlete's. */
 export const EDITABLE_CATEGORIES = ["WORKOUT", "NOTE"];
 
-/**
- * Why the coach may not change or delete `event`, or null when it may. `today` is YYYY-MM-DD. Past and completed
- * sessions are the training record, so only upcoming planned workouts and notes can be edited.
- */
 export function editBlockReason(
   event: Pick<CalendarEvent, "category" | "start_date_local" | "paired_activity_id">,
-  today: string
+  today: string,
 ): string | null {
   if (!EDITABLE_CATEGORIES.includes(event.category)) {
     return `This is a ${event.category} event; races and time off can only be changed by the athlete in Intervals.icu.`;
@@ -29,9 +20,7 @@ export function editBlockReason(
   return null;
 }
 
-/** How far ahead key events are read: about half a season. */
 const HORIZON_DAYS = 182;
-/** Blocks that started up to this long ago may still be under way. */
 const LOOKBACK_DAYS = 30;
 const CACHE_TTL_MS = 5 * 60 * 1000;
 
@@ -72,7 +61,6 @@ function toKeyEvent(e: CalendarEvent, today: string): KeyEvent | null {
   };
 }
 
-/** Upcoming races and current/upcoming blocks, soonest first. Cached briefly per athlete. */
 export async function getKeyEvents(client: IntervalsClient, athleteId: string): Promise<KeyEvent[]> {
   const hit = cache.get(athleteId);
   if (hit && Date.now() - hit.at < CACHE_TTL_MS) return hit.events;

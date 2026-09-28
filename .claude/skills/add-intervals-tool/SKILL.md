@@ -19,6 +19,6 @@ description: Add a new Intervals.icu capability for the coach (e.g. power curves
    - `execute` wraps the call in try/catch and returns `{ error: message }` on failure — never throw.
    - Write tools (create/update/delete on the athlete's calendar or data) must say so in the description, and
      the coach prompt should require confirming with the athlete first.
-4. **Prompt**: if the coach needs to know *when* to use it, add a line to `lib/coach/prompt.ts`.
+4. **Prompt**: if the coach needs to know _when_ to use it, add a line to `lib/coach/prompt.ts`.
 5. **UI**: tool calls render generically in `components/chat/ChatMessage.tsx`; only add custom rendering if asked.
 6. Run the `verify` skill, using a prompt that should trigger the new tool.

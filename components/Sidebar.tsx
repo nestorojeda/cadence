@@ -1,7 +1,16 @@
 "use client";
 
 import React from "react";
-import { Flag, History, PanelLeftClose, PanelLeftOpen, RefreshCw, Settings, SlidersHorizontal, SquarePen } from "lucide-react";
+import {
+  Flag,
+  History,
+  PanelLeftClose,
+  PanelLeftOpen,
+  RefreshCw,
+  Settings,
+  SlidersHorizontal,
+  SquarePen,
+} from "lucide-react";
 import { APP_NAME } from "@/lib/brand";
 import { CadenceMark } from "@/components/CadenceMark";
 import { ThemeCycleButton, ThemeToggle } from "@/components/ThemeToggle";
@@ -24,7 +33,6 @@ interface SidebarProps {
   metrics: MetricsResponse | null;
   loading: boolean;
   modelLabel: string;
-  /** Narrow icon rail instead of the full sidebar. */
   compact: boolean;
   onToggleCompact: () => void;
   onRefresh: () => void;
@@ -37,7 +45,6 @@ interface SidebarProps {
   onOpenHistory: () => void;
 }
 
-/** Recent chats listed in the full sidebar; the rest are in the history modal. */
 const RECENT_CHATS = 5;
 
 const DAY_LABELS = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
@@ -51,25 +58,21 @@ export function Wordmark({ size = "md" }: { size?: "sm" | "md" }) {
   );
 }
 
-/** Upcoming races listed in the full sidebar. */
 const MAX_RACES = 3;
 
 function upcomingRaces(metrics: MetricsResponse | null): KeyEvent[] {
   return (metrics?.keyEvents ?? []).filter((e) => e.kind === "race");
 }
 
-/** The race to count down to in tight spaces: the next A race, else the next race. */
 function focusRace(metrics: MetricsResponse | null): KeyEvent | undefined {
   const races = upcomingRaces(metrics);
   return races.find((e) => e.priority === "A") ?? races[0];
 }
 
-/** "Nov 29" */
 function shortDate(date: string): string {
   return new Date(`${date}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-/** True when form is in a range worth flagging rather than celebrating. */
 function isFormWarning(metrics: MetricsResponse | null) {
   const status = metrics?.fitness?.form_status;
   return status === "fatigued" || status === "very_fatigued";
@@ -109,34 +112,32 @@ export function Sidebar({
         }, ATL ${fitness.atl != null ? Math.round(fitness.atl) : "—"}`
       : "Form";
     return (
-      <aside className="hidden lg:flex w-[68px] shrink-0 flex-col items-center gap-6 border-r border-ink-line bg-ink-rail pt-5 pb-5 h-screen sticky top-0 overflow-y-auto">
+      <aside className="sticky top-0 hidden h-screen w-[68px] shrink-0 flex-col items-center gap-6 overflow-y-auto border-r border-ink-line bg-ink-rail pb-5 pt-5 lg:flex">
         <div className="flex flex-col items-center gap-3">
           <CadenceMark size={20} />
           <IconButton label="Expand sidebar" onClick={onToggleCompact}>
-            <PanelLeftOpen className="w-4 h-4" />
+            <PanelLeftOpen className="h-4 w-4" />
           </IconButton>
           <IconButton label="New chat" onClick={onNewChat}>
-            <SquarePen className="w-4 h-4" />
+            <SquarePen className="h-4 w-4" />
           </IconButton>
           <IconButton label="Chats" onClick={onOpenHistory}>
-            <History className="w-4 h-4" />
+            <History className="h-4 w-4" />
           </IconButton>
         </div>
 
-        {/* Form */}
         <div className="flex flex-col items-center gap-1" title={tsbTitle}>
-          <span className="font-display font-bold text-[28px] leading-none">
+          <span className="font-display text-[28px] font-bold leading-none">
             {fitness?.tsb != null ? formatSigned(fitness.tsb) : "—"}
           </span>
           <span className="flex items-center gap-1 font-mono text-[10px] text-fg-muted">
             {fitness && (
-              <span className={`w-1.5 h-1.5 rounded-full ${isFormWarning(metrics) ? "bg-signal-warn" : "bg-signal"}`} />
+              <span className={`h-1.5 w-1.5 rounded-full ${isFormWarning(metrics) ? "bg-signal-warn" : "bg-signal"}`} />
             )}
             TSB
           </span>
         </div>
 
-        {/* Next race */}
         {(() => {
           const race = focusRace(metrics);
           return race ? (
@@ -144,13 +145,12 @@ export function Sidebar({
               className="flex flex-col items-center gap-1"
               title={`${race.name} (${race.priority} race) — ${shortDate(race.date)}, ${formatCountdown(race.daysOut)}`}
             >
-              <Flag className={`w-3.5 h-3.5 ${race.priority === "A" ? "text-signal" : "text-fg-muted"}`} />
+              <Flag className={`h-3.5 w-3.5 ${race.priority === "A" ? "text-signal" : "text-fg-muted"}`} />
               <span className="font-mono text-[10px] text-fg-muted">{formatCountdown(race.daysOut)}</span>
             </div>
           ) : null;
         })()}
 
-        {/* Week */}
         {metrics && (
           <div className="flex flex-col items-center gap-0.5" aria-label="This week">
             {weekDays(metrics).map((day) => (
@@ -164,10 +164,10 @@ export function Sidebar({
                       : "Rest"
                 }`}
                 aria-current={day.isToday ? "date" : undefined}
-                className={`flex items-center gap-2 h-7 px-2 rounded-md ${day.isToday ? "bg-ink-raised" : ""}`}
+                className={`flex h-7 items-center gap-2 rounded-md px-2 ${day.isToday ? "bg-ink-raised" : ""}`}
               >
                 <span className="w-2.5 font-mono text-[10px] text-fg-muted">{day.label[0]}</span>
-                {day.first ? <SessionMark session={day.first} /> : <span className="w-[9px] h-[9px]" />}
+                {day.first ? <SessionMark session={day.first} /> : <span className="h-[9px] w-[9px]" />}
               </div>
             ))}
           </div>
@@ -182,20 +182,20 @@ export function Sidebar({
             rel="noopener noreferrer"
             aria-label="Open Intervals.icu"
             title="Open Intervals.icu"
-            className="w-10 h-10 flex items-center justify-center rounded-lg text-fg-muted hover:text-fg hover:bg-ink-raised transition"
+            className="flex h-10 w-10 items-center justify-center rounded-lg text-fg-muted transition hover:bg-ink-raised hover:text-fg"
           >
             <IntervalsIcon />
           </a>
           <IconButton label="Coach rules" onClick={onOpenRules}>
-            <SlidersHorizontal className="w-4 h-4" />
+            <SlidersHorizontal className="h-4 w-4" />
           </IconButton>
           <IconButton label={`Settings (${modelLabel})`} onClick={onOpenSettings}>
-            <Settings className="w-4 h-4" />
+            <Settings className="h-4 w-4" />
           </IconButton>
           <ThemeCycleButton />
           <div
             title={`${athleteName} · ${athleteId}`}
-            className="mt-2 w-7 h-7 rounded-full bg-ink-line flex items-center justify-center text-[11px] font-semibold"
+            className="mt-2 flex h-7 w-7 items-center justify-center rounded-full bg-ink-line text-[11px] font-semibold"
           >
             {initials}
           </div>
@@ -205,27 +205,26 @@ export function Sidebar({
   }
 
   return (
-    <aside className="hidden lg:flex w-[300px] shrink-0 flex-col gap-7 border-r border-ink-line bg-ink-rail px-6 pt-6 pb-5 h-screen sticky top-0 overflow-y-auto">
+    <aside className="sticky top-0 hidden h-screen w-[300px] shrink-0 flex-col gap-7 overflow-y-auto border-r border-ink-line bg-ink-rail px-6 pb-5 pt-6 lg:flex">
       <div className="flex items-center justify-between">
         <Wordmark />
-        <div className="flex items-center gap-0.5 -mr-2">
+        <div className="-mr-2 flex items-center gap-0.5">
           <a
             href={intervalsHref}
             target="_blank"
             rel="noopener noreferrer"
             aria-label="Open Intervals.icu"
             title="Open Intervals.icu"
-            className="w-8 h-8 flex items-center justify-center rounded-lg text-fg-muted hover:text-fg hover:bg-ink-raised transition"
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-fg-muted transition hover:bg-ink-raised hover:text-fg"
           >
             <IntervalsIcon />
           </a>
           <IconButton label="Collapse sidebar" onClick={onToggleCompact} size="sm">
-            <PanelLeftClose className="w-4 h-4" />
+            <PanelLeftClose className="h-4 w-4" />
           </IconButton>
         </div>
       </div>
 
-      {/* Form */}
       <section className="flex flex-col gap-3.5">
         <div className="flex items-baseline justify-between">
           <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-fg-muted">Form today</span>
@@ -233,14 +232,14 @@ export function Sidebar({
             onClick={onRefresh}
             disabled={loading}
             title="Refresh from Intervals.icu"
-            className="flex items-center gap-1.5 font-mono text-[11px] text-fg-muted hover:text-fg transition"
+            className="flex items-center gap-1.5 font-mono text-[11px] text-fg-muted transition hover:text-fg"
           >
-            <RefreshCw className={`w-3 h-3 ${loading ? "animate-spin" : ""}`} />
+            <RefreshCw className={`h-3 w-3 ${loading ? "animate-spin" : ""}`} />
             {fitness?.date ? fitness.date.slice(5).replace("-", "/") : "sync"}
           </button>
         </div>
         <div className="flex items-end gap-3">
-          <span className="font-display font-bold text-[72px] leading-[0.85]">
+          <span className="font-display text-[72px] font-bold leading-[0.85]">
             {fitness?.tsb != null ? formatSigned(fitness.tsb) : "—"}
           </span>
           {fitness && (
@@ -259,7 +258,6 @@ export function Sidebar({
         </div>
       </section>
 
-      {/* Races */}
       {upcomingRaces(metrics).length > 0 && (
         <section className="flex flex-col gap-2.5">
           <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-fg-muted">Next races</span>
@@ -267,7 +265,6 @@ export function Sidebar({
         </section>
       )}
 
-      {/* Week */}
       <section className="flex flex-col gap-2.5">
         <div className="flex items-center justify-between">
           <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-fg-muted">This week</span>
@@ -276,16 +273,15 @@ export function Sidebar({
         <WeekList metrics={metrics} />
       </section>
 
-      {/* Chats */}
       <section className="flex flex-col gap-2.5">
         <div className="flex items-center justify-between">
           <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-fg-muted">Chats</span>
           <button
             onClick={onNewChat}
             title="New chat"
-            className="flex items-center gap-1.5 -mr-1 px-1 font-mono text-[11px] text-fg-muted hover:text-fg transition"
+            className="-mr-1 flex items-center gap-1.5 px-1 font-mono text-[11px] text-fg-muted transition hover:text-fg"
           >
-            <SquarePen className="w-3 h-3" />
+            <SquarePen className="h-3 w-3" />
             new
           </button>
         </div>
@@ -300,12 +296,12 @@ export function Sidebar({
         <div className="mt-1">
           <ThemeToggle />
         </div>
-        <div className="flex items-center gap-2.5 px-2.5 pt-3 mt-1.5 border-t border-ink-line">
-          <div className="w-7 h-7 rounded-full bg-ink-line flex items-center justify-center text-[11px] font-semibold">
+        <div className="mt-1.5 flex items-center gap-2.5 border-t border-ink-line px-2.5 pt-3">
+          <div className="flex h-7 w-7 items-center justify-center rounded-full bg-ink-line text-[11px] font-semibold">
             {initials}
           </div>
-          <div className="flex flex-col min-w-0">
-            <span className="text-[13px] truncate">{athleteName}</span>
+          <div className="flex min-w-0 flex-col">
+            <span className="truncate text-[13px]">{athleteName}</span>
             <span className="font-mono text-[11px] text-fg-muted">{athleteId}</span>
           </div>
         </div>
@@ -314,7 +310,6 @@ export function Sidebar({
   );
 }
 
-/** Compact top bar for screens without the rail. */
 export function MobileBar({
   metrics,
   onOpenRules,
@@ -323,43 +318,42 @@ export function MobileBar({
 }: Pick<SidebarProps, "metrics" | "onOpenRules" | "onOpenSettings" | "onOpenHistory">) {
   const tsb = metrics?.fitness?.tsb;
   return (
-    <header className="lg:hidden sticky top-0 z-30 h-[60px] flex items-center justify-between px-4 border-b border-ink-hair bg-ink/95 backdrop-blur">
+    <header className="sticky top-0 z-30 flex h-[60px] items-center justify-between border-b border-ink-hair bg-ink/95 px-4 backdrop-blur lg:hidden">
       <Wordmark size="sm" />
       <div className="flex items-center gap-1">
         {tsb != null && (
-          <span className="h-9 flex items-center gap-2 px-3 mr-1 border border-ink-line rounded-full font-mono text-xs">
+          <span className="mr-1 flex h-9 items-center gap-2 rounded-full border border-ink-line px-3 font-mono text-xs">
             <span className="text-fg-muted">TSB</span>
             <span>{formatSigned(tsb)}</span>
-            <span className={`w-1.5 h-1.5 rounded-full ${isFormWarning(metrics) ? "bg-signal-warn" : "bg-signal"}`} />
+            <span className={`h-1.5 w-1.5 rounded-full ${isFormWarning(metrics) ? "bg-signal-warn" : "bg-signal"}`} />
           </span>
         )}
         <button
           onClick={onOpenHistory}
           aria-label="Chats"
-          className="w-11 h-11 flex items-center justify-center rounded-lg text-fg-muted hover:text-fg"
+          className="flex h-11 w-11 items-center justify-center rounded-lg text-fg-muted hover:text-fg"
         >
-          <History className="w-4 h-4" />
+          <History className="h-4 w-4" />
         </button>
         <button
           onClick={onOpenRules}
           aria-label="Coach rules"
-          className="w-11 h-11 flex items-center justify-center rounded-lg text-fg-muted hover:text-fg"
+          className="flex h-11 w-11 items-center justify-center rounded-lg text-fg-muted hover:text-fg"
         >
-          <SlidersHorizontal className="w-4 h-4" />
+          <SlidersHorizontal className="h-4 w-4" />
         </button>
         <button
           onClick={onOpenSettings}
           aria-label="Settings"
-          className="w-11 h-11 flex items-center justify-center rounded-lg text-fg-muted hover:text-fg"
+          className="flex h-11 w-11 items-center justify-center rounded-lg text-fg-muted hover:text-fg"
         >
-          <Settings className="w-4 h-4" />
+          <Settings className="h-4 w-4" />
         </button>
       </div>
     </header>
   );
 }
 
-/** The pulse line from the Intervals.icu app icon, for the link to the athlete's calendar. */
 function IntervalsIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 20 20" aria-hidden="true">
@@ -391,7 +385,7 @@ function IconButton({
       onClick={onClick}
       aria-label={label}
       title={label}
-      className={`${size === "sm" ? "w-8 h-8" : "w-10 h-10"} flex items-center justify-center rounded-lg text-fg-muted hover:text-fg hover:bg-ink-raised transition`}
+      className={`${size === "sm" ? "h-8 w-8" : "h-10 w-10"} flex items-center justify-center rounded-lg text-fg-muted transition hover:bg-ink-raised hover:text-fg`}
     >
       {children}
     </button>
@@ -400,7 +394,7 @@ function IconButton({
 
 function Stat({ label, value }: { label: string; value: number | null | undefined }) {
   return (
-    <div className="px-3 py-2.5 border border-ink-line rounded-[10px] flex flex-col gap-0.5">
+    <div className="flex flex-col gap-0.5 rounded-[10px] border border-ink-line px-3 py-2.5">
       <span className="text-[11px] text-fg-muted">{label}</span>
       <span className="font-mono text-lg font-medium">{value != null ? Math.round(value) : "—"}</span>
     </div>
@@ -421,11 +415,11 @@ function RailButton({
   return (
     <button
       onClick={onClick}
-      className="flex items-center gap-2.5 h-10 px-2.5 rounded-lg text-[13px] text-left hover:bg-ink-raised transition"
+      className="flex h-10 items-center gap-2.5 rounded-lg px-2.5 text-left text-[13px] transition hover:bg-ink-raised"
     >
-      <Icon className="w-4 h-4 text-fg-muted" />
+      <Icon className="h-4 w-4 text-fg-muted" />
       <span className="flex-1">{label}</span>
-      {detail && <span className="font-mono text-[11px] text-fg-muted truncate max-w-[130px]">{detail}</span>}
+      {detail && <span className="max-w-[130px] truncate font-mono text-[11px] text-fg-muted">{detail}</span>}
     </button>
   );
 }
@@ -446,7 +440,15 @@ function FormSparkline({ points }: { points: Array<{ tsb: number }> }) {
   const last = values[values.length - 1];
 
   return (
-    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} fill="none" role="img" aria-label="Form, last 6 weeks" className="overflow-visible">
+    <svg
+      width={width}
+      height={height}
+      viewBox={`0 0 ${width} ${height}`}
+      fill="none"
+      role="img"
+      aria-label="Form, last 6 weeks"
+      className="overflow-visible"
+    >
       <line x1="0" y1={y(0)} x2={width} y2={y(0)} className="stroke-ink-edge" strokeDasharray="2 4" />
       <polyline points={line} className="stroke-fg-muted" strokeWidth="1.5" strokeLinejoin="round" />
       <circle cx={width} cy={y(last)} r="3.5" className="fill-signal" />
@@ -460,14 +462,12 @@ interface Session {
   name: string;
   status: SessionStatus;
   color: string;
-  /** Race priority, when the session is a race. */
   race?: KeyEvent["priority"];
-  /** Ridden time when done, otherwise planned time; seconds. */
+  /** Ridden time when done, otherwise planned; seconds. */
   duration?: number;
   planned?: number;
 }
 
-/** The current Monday–Sunday week, one entry per day with its planned and ridden sessions. */
 function weekDays(metrics: MetricsResponse) {
   const today = toLocalDate(new Date());
   const start = new Date(`${metrics.weekStart}T00:00:00`);
@@ -495,14 +495,19 @@ function weekDays(metrics: MetricsResponse) {
                 race: racePriority(e.category),
                 duration: e.movingTime,
                 planned: e.movingTime,
-              }
+              },
         ),
       ...(metrics.unplanned ?? [])
         .filter((a) => a.date === date)
-        .map((a): Session => ({ name: a.name, status: "unplanned", color: activityZoneColor(a), duration: a.movingTime })),
+        .map((a): Session => ({
+          name: a.name,
+          status: "unplanned",
+          color: activityZoneColor(a),
+          duration: a.movingTime,
+        })),
     ];
     const away = (metrics.keyEvents ?? []).find(
-      (e) => e.kind === "block" && e.unavailable && e.date <= date && (e.lastDate ?? e.date) >= date
+      (e) => e.kind === "block" && e.unavailable && e.date <= date && (e.lastDate ?? e.date) >= date,
     );
     return { label, sessions, first: sessions[0], isToday: date === today, away };
   });
@@ -513,27 +518,28 @@ function racePriority(category: string): KeyEvent["priority"] {
   return match ? (match[1] as KeyEvent["priority"]) : undefined;
 }
 
-/** Upcoming races: priority, name, date and distance, countdown. */
 function RaceList({ races }: { races: KeyEvent[] }) {
   return (
     <div className="flex flex-col gap-1">
       {races.map((race) => (
-        <div key={race.id} className="flex items-center gap-3 py-1 px-2" title={`${race.name} — ${race.priority} race`}>
+        <div key={race.id} className="flex items-center gap-3 px-2 py-1" title={`${race.name} — ${race.priority} race`}>
           <span
-            className={`w-5 h-5 shrink-0 flex items-center justify-center rounded font-mono text-[11px] font-semibold ${
+            className={`flex h-5 w-5 shrink-0 items-center justify-center rounded font-mono text-[11px] font-semibold ${
               race.priority === "A" ? "bg-signal text-on-signal" : "border border-ink-edge text-fg-muted"
             }`}
           >
             {race.priority}
           </span>
-          <span className="flex-1 min-w-0 flex flex-col">
-            <span className={`truncate text-[13px] ${race.priority === "A" ? "text-fg" : "text-fg-soft"}`}>{race.name}</span>
+          <span className="flex min-w-0 flex-1 flex-col">
+            <span className={`truncate text-[13px] ${race.priority === "A" ? "text-fg" : "text-fg-soft"}`}>
+              {race.name}
+            </span>
             <span className="font-mono text-[11px] text-fg-muted">
               {shortDate(race.date)}
               {race.distanceKm ? ` · ${race.distanceKm} km` : ""}
             </span>
           </span>
-          <span className="font-mono text-[11px] text-fg-muted shrink-0">{formatCountdown(race.daysOut)}</span>
+          <span className="shrink-0 font-mono text-[11px] text-fg-muted">{formatCountdown(race.daysOut)}</span>
         </div>
       ))}
     </div>
@@ -545,7 +551,7 @@ function SessionMark({ session }: { session: Pick<Session, "status" | "color" | 
   if (session.race) {
     return (
       <Flag
-        className={`w-[11px] h-[11px] -mx-px shrink-0 ${
+        className={`-mx-px h-[11px] w-[11px] shrink-0 ${
           status === "missed" ? "text-ink-edge" : session.race === "A" ? "text-signal" : "text-fg-soft"
         }`}
       />
@@ -554,7 +560,7 @@ function SessionMark({ session }: { session: Pick<Session, "status" | "color" | 
   const filled = status === "done" || status === "unplanned";
   return (
     <span
-      className={`w-[9px] h-[9px] rounded-full shrink-0 box-border ${status === "missed" ? "border-[1.5px] border-ink-edge" : ""} ${
+      className={`box-border h-[9px] w-[9px] shrink-0 rounded-full ${status === "missed" ? "border-[1.5px] border-ink-edge" : ""} ${
         status === "unplanned" ? "outline-dashed outline-1 outline-offset-2 outline-fg-muted" : ""
       }`}
       style={filled ? { background: color } : status === "planned" ? { border: `1.5px solid ${color}` } : undefined}
@@ -567,7 +573,6 @@ function sessionDuration(session: Session): string {
   return formatDuration(session.duration);
 }
 
-/** Ridden / planned hours for the week. */
 function WeekTotals({ metrics }: { metrics: MetricsResponse }) {
   const done =
     metrics.week.reduce((sum, e) => sum + (e.completed?.movingTime ?? 0), 0) +
@@ -583,7 +588,7 @@ function WeekTotals({ metrics }: { metrics: MetricsResponse }) {
 
 function WeekList({ metrics }: { metrics: MetricsResponse | null }) {
   if (!metrics) {
-    return <div className="text-xs text-fg-muted px-2">Loading calendar…</div>;
+    return <div className="px-2 text-xs text-fg-muted">Loading calendar…</div>;
   }
 
   return (
@@ -591,18 +596,14 @@ function WeekList({ metrics }: { metrics: MetricsResponse | null }) {
       {weekDays(metrics).map(({ label, sessions, first, isToday, away }) => (
         <div
           key={label}
-          className={`flex items-center gap-3 h-[34px] px-2 rounded-lg ${isToday ? "bg-ink-raised" : ""}`}
+          className={`flex h-[34px] items-center gap-3 rounded-lg px-2 ${isToday ? "bg-ink-raised" : ""}`}
           aria-current={isToday ? "date" : undefined}
         >
           <span className="w-7 font-mono text-[11px] text-fg-muted">{label}</span>
           {first ? <SessionMark session={first} /> : <span className="w-[9px] shrink-0" />}
           <span
-            className={`flex-1 min-w-0 truncate text-[13px] ${
-              !first || first.status === "missed"
-                ? "text-fg-muted"
-                : isToday
-                  ? "text-fg"
-                  : "text-fg-soft"
+            className={`min-w-0 flex-1 truncate text-[13px] ${
+              !first || first.status === "missed" ? "text-fg-muted" : isToday ? "text-fg" : "text-fg-soft"
             }`}
             title={first ? `${first.name} — ${first.status}` : undefined}
           >
@@ -611,7 +612,7 @@ function WeekList({ metrics }: { metrics: MetricsResponse | null }) {
             </span>
             {sessions.length > 1 && <span className="text-fg-muted"> +{sessions.length - 1}</span>}
           </span>
-          <span className="font-mono text-[11px] text-fg-muted shrink-0">{first ? sessionDuration(first) : ""}</span>
+          <span className="shrink-0 font-mono text-[11px] text-fg-muted">{first ? sessionDuration(first) : ""}</span>
         </div>
       ))}
       <WeekLegend />
@@ -621,26 +622,26 @@ function WeekList({ metrics }: { metrics: MetricsResponse | null }) {
 
 function WeekLegend() {
   return (
-    <div className="flex flex-col gap-1.5 mt-2 pt-2.5 px-2 border-t border-ink-line text-[11px] text-fg-muted">
+    <div className="mt-2 flex flex-col gap-1.5 border-t border-ink-line px-2 pt-2.5 text-[11px] text-fg-muted">
       <div className="flex flex-wrap gap-x-2.5 gap-y-1">
         {ZONE_LEGEND.map(({ label, color }) => (
           <span key={label} className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full" style={{ background: color }} />
+            <span className="h-2 w-2 rounded-full" style={{ background: color }} />
             {label}
           </span>
         ))}
       </div>
       <div className="flex flex-wrap gap-x-2.5 gap-y-1">
         <span className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full border-[1.5px] border-fg-muted box-border" />
+          <span className="box-border h-2 w-2 rounded-full border-[1.5px] border-fg-muted" />
           planned
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full bg-fg-muted" />
+          <span className="h-2 w-2 rounded-full bg-fg-muted" />
           done
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="w-2 h-2 rounded-full border-[1.5px] border-ink-edge box-border" />
+          <span className="box-border h-2 w-2 rounded-full border-[1.5px] border-ink-edge" />
           missed
         </span>
         <span className="flex items-center gap-1.5">
@@ -648,7 +649,7 @@ function WeekLegend() {
           unplanned
         </span>
         <span className="flex items-center gap-1.5">
-          <Flag className="w-2.5 h-2.5" />
+          <Flag className="h-2.5 w-2.5" />
           race
         </span>
       </div>
@@ -663,7 +664,7 @@ function RecentChats({
   onOpenHistory,
 }: Pick<SidebarProps, "chats" | "activeChatId" | "onOpenChat" | "onOpenHistory">) {
   if (chats.length === 0) {
-    return <div className="text-xs text-fg-muted px-2">Past conversations will appear here.</div>;
+    return <div className="px-2 text-xs text-fg-muted">Past conversations will appear here.</div>;
   }
 
   return (
@@ -676,18 +677,20 @@ function RecentChats({
             onClick={() => onOpenChat(chat.id)}
             aria-current={isActive ? "true" : undefined}
             title={chat.title}
-            className={`flex items-center gap-3 h-[34px] px-2 rounded-lg text-left transition ${
+            className={`flex h-[34px] items-center gap-3 rounded-lg px-2 text-left transition ${
               isActive ? "bg-ink-raised" : "hover:bg-ink-raised"
             }`}
           >
-            <span className={`flex-1 min-w-0 truncate text-[13px] ${isActive ? "text-fg" : "text-fg-soft"}`}>{chat.title}</span>
-            <span className="font-mono text-[11px] text-fg-muted shrink-0">{formatChatDate(chat.updatedAt)}</span>
+            <span className={`min-w-0 flex-1 truncate text-[13px] ${isActive ? "text-fg" : "text-fg-soft"}`}>
+              {chat.title}
+            </span>
+            <span className="shrink-0 font-mono text-[11px] text-fg-muted">{formatChatDate(chat.updatedAt)}</span>
           </button>
         );
       })}
       <button
         onClick={onOpenHistory}
-        className="flex items-center gap-2 h-[30px] px-2 font-mono text-[11px] text-fg-muted hover:text-fg transition"
+        className="flex h-[30px] items-center gap-2 px-2 font-mono text-[11px] text-fg-muted transition hover:text-fg"
       >
         {chats.length > RECENT_CHATS ? `All ${chats.length} chats →` : "Manage chats →"}
       </button>
