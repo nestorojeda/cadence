@@ -1,0 +1,14 @@
+.git
+.github
+.claude
+.next
+node_modules
+coverage
+data
+docs
+*.tsbuildinfo
+next-env.d.ts
+.DS_Store
+.env
+.env.*
+!.env.example

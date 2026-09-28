@@ -193,8 +193,8 @@ pnpm start -H 0.0.0.0
 
 Then open `http://<your-computer's-IP>:3000` on your phone.
 
-> ⚠️ Cadence has **no login** yet. Only expose it on a network you trust, or put it behind a reverse proxy
-> that adds authentication. Never open it directly to the internet.
+> ⚠️ Cadence has **no login** yet. Only expose it on a network you trust, or run it behind Tailscale
+> (see [Run it with Docker](#-run-it-with-docker-private-via-tailscale)). Never open it directly to the internet.
 
 **Change the port:** `pnpm start -p 8080`.
 
@@ -216,6 +216,54 @@ if you care about your history. It's never committed to Git.
 | `OLLAMA_API_KEY` | no | Only for an authenticating proxy in front of Ollama. |
 
 \* Or enter it in the app's Settings dialog instead. Not needed for Ollama.
+
+---
+
+## 🐳 Run it with Docker (private, via Tailscale)
+
+This runs Cadence in Docker on an always-on machine (home server, NAS, VPS or your Mac). You reach it at
+`https://cadence.<your-tailnet>.ts.net` from your own devices, wherever you are. No port is opened on the machine,
+and anyone who isn't on your Tailscale network can't reach it at all.
+
+1. **Install [Docker](https://docs.docker.com/get-docker/)** on the server, and
+   **[Tailscale](https://tailscale.com/download)** on the phone and laptop you'll use Cadence from, all signed in to
+   the same Tailscale account.
+2. **Turn on HTTPS.** In the [Tailscale admin console → DNS](https://login.tailscale.com/admin/dns), enable
+   MagicDNS and HTTPS Certificates.
+3. **Create an auth key** in [Settings → Keys](https://login.tailscale.com/admin/settings/keys). A one-off key is
+   fine. Put it in a file named `.env` next to `compose.yaml`:
+
+   ```bash
+   TS_AUTHKEY=tskey-auth-...
+   ```
+
+   It's only used the first time. After that the login is kept in the `tailscale-state` volume, and you can delete
+   the line.
+4. **Add your keys** to `.env.local` (the same file as [step 6](#6-add-your-keys)), or enter them later in Settings.
+5. **Start it:**
+
+   ```bash
+   docker compose up -d --build
+   ```
+
+6. Open `https://cadence.<your-tailnet>.ts.net`. The first load can take a few seconds while the certificate is
+   issued.
+
+In the admin console's **Machines** page, choose **Disable key expiry** for `cadence`. Otherwise the device drops
+off your network after 180 days.
+
+**Your data** is in `data/` next to `compose.yaml`, the same folder a plain `pnpm start` uses. The container runs
+as user 1000. On Linux, if chats don't save, run `sudo chown -R 1000:1000 data`.
+
+**Updating:** `git pull`, then `docker compose up -d --build`.
+
+**Logs:** `docker compose logs -f cadence`.
+
+**Ollama** on the same machine is reached at `http://host.docker.internal:11434/v1`. On Linux, start Ollama with
+`OLLAMA_HOST=0.0.0.0` so the container can reach it. For Ollama on another machine, set `OLLAMA_BASE_URL` in `.env`.
+
+**Only you, even inside your tailnet:** if you share the tailnet with others, add an
+[access rule](https://login.tailscale.com/admin/acls) that allows only your user to reach `cadence`.
 
 ---
 
@@ -277,7 +325,6 @@ logo is a chainring with a lit lead pedal that turns at 90 rpm whenever the coac
 
 ## 🗺️ Roadmap
 
-- Docker image for one-command self-hosting
 - More OpenAI-compatible providers (LM Studio, OpenRouter)
 - More Intervals.icu tools (power curves, activity intervals, wellness updates)
 - Optional login
