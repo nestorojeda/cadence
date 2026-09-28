@@ -42,6 +42,11 @@ report; its `scan.sh` collects the mechanical signals.
 `process.cwd()` at a temp dir and `vi.resetModules()` to clear their in-memory caches. Add or update tests with every
 change to `lib/`; there are no React component or route handler tests yet.
 
+**Docker:** `docker compose up -d --build` runs the app behind a Tailscale sidecar (`compose.yaml`,
+`deploy/tailscale/serve.json`); the app shares the sidecar's network, so no host port is published. The image builds
+with `NEXT_OUTPUT=standalone` (`next.config.ts`), which keeps its own `.next` inside the container and doesn't clash
+with a local dev server. `data/` is bind-mounted.
+
 `pnpm lint` (`next lint`) is deprecated in Next 15.5 and has no ESLint config; prefer `tsc`.
 
 ## Architecture

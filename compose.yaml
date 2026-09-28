@@ -1,0 +1,32 @@
+services:
+  tailscale:
+    image: tailscale/tailscale:stable
+    hostname: cadence
+    environment:
+      TS_AUTHKEY: ${TS_AUTHKEY:-}
+      TS_STATE_DIR: /var/lib/tailscale
+      TS_SERVE_CONFIG: /config/serve.json
+    volumes:
+      - tailscale-state:/var/lib/tailscale
+      - ./deploy/tailscale/serve.json:/config/serve.json:ro
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    restart: unless-stopped
+
+  cadence:
+    build: .
+    image: cadence:latest
+    network_mode: service:tailscale
+    depends_on:
+      - tailscale
+    env_file:
+      - path: .env.local
+        required: false
+    environment:
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434/v1}
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
+
+volumes:
+  tailscale-state:
