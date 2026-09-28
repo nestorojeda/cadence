@@ -57,10 +57,7 @@ const MIN_RIDES = 3;
 
 export function summarizeTerrain(activities: ActivitySummary[]): TerrainSummary | null {
   const rides = activities.filter(
-    (a) =>
-      OUTDOOR_RIDE_TYPES.has(a.type) &&
-      (a.distance ?? 0) >= MIN_RIDE_METERS &&
-      a.total_elevation_gain != null
+    (a) => OUTDOOR_RIDE_TYPES.has(a.type) && (a.distance ?? 0) >= MIN_RIDE_METERS && a.total_elevation_gain != null,
   );
   if (rides.length < MIN_RIDES) return null;
 

@@ -5,7 +5,8 @@ import { z } from "zod";
 import { buildModelMessages, foldSummary, historyInstructions, messagesAfterSummary } from "./context";
 import type { StoredChat } from "./types";
 
-const user = (id: string, text = `question ${id}`) => ({ id, role: "user", parts: [{ type: "text", text }] }) as UIMessage;
+const user = (id: string, text = `question ${id}`) =>
+  ({ id, role: "user", parts: [{ type: "text", text }] }) as UIMessage;
 const coach = (id: string, text = `answer ${id}`) =>
   ({ id, role: "assistant", parts: [{ type: "text", text, state: "done" }] }) as UIMessage;
 
@@ -13,7 +14,14 @@ const conversation = (n: number) => Array.from({ length: n }, (_, i) => (i % 2 ?
 
 function chat(messages: UIMessage[], summary?: StoredChat["summary"]): StoredChat {
   return {
-    meta: { id: "c1", title: "", createdAt: "2026-09-20T10:00:00.000Z", updatedAt: "", messageCount: 0, usage: { inputTokens: 0, outputTokens: 0 } },
+    meta: {
+      id: "c1",
+      title: "",
+      createdAt: "2026-09-20T10:00:00.000Z",
+      updatedAt: "",
+      messageCount: 0,
+      usage: { inputTokens: 0, outputTokens: 0 },
+    },
     messages,
     summary,
   };
@@ -52,8 +60,20 @@ describe("buildModelMessages", () => {
       parts: [
         { type: "step-start" },
         { type: "reasoning", text: "thinking", state: "done" },
-        { type: "tool-icu_get_wellness", toolCallId: "read-1", state: "output-available", input: {}, output: { hrv: 60 } },
-        { type: "tool-icu_create_calendar_event", toolCallId: "write-1", state: "output-available", input: { name: "Z2" }, output: { id: 1 } },
+        {
+          type: "tool-icu_get_wellness",
+          toolCallId: "read-1",
+          state: "output-available",
+          input: {},
+          output: { hrv: 60 },
+        },
+        {
+          type: "tool-icu_create_calendar_event",
+          toolCallId: "write-1",
+          state: "output-available",
+          input: { name: "Z2" },
+          output: { id: 1 },
+        },
         { type: "text", text: "Scheduled", state: "done" },
       ],
     },
@@ -77,7 +97,12 @@ describe("buildModelMessages", () => {
 
   it("prunes reasoning and read-tool calls from earlier turns but keeps write tools", async () => {
     const result = await buildModelMessages(messages, tools);
-    const earlier = JSON.stringify(result.slice(0, result.findLastIndex((m) => m.role === "user")));
+    const earlier = JSON.stringify(
+      result.slice(
+        0,
+        result.findLastIndex((m) => m.role === "user"),
+      ),
+    );
     expect(earlier).not.toContain("read-1");
     expect(earlier).not.toContain("thinking");
     expect(earlier).toContain("write-1");
@@ -107,7 +132,11 @@ describe("historyInstructions", () => {
 
   it("includes the start date and the summary", () => {
     const text = historyInstructions(
-      chat(conversation(2), { text: "- Goal: gran fondo", coversThroughMessageId: "m0", usage: { inputTokens: 0, outputTokens: 0 } })
+      chat(conversation(2), {
+        text: "- Goal: gran fondo",
+        coversThroughMessageId: "m0",
+        usage: { inputTokens: 0, outputTokens: 0 },
+      }),
     );
     expect(text).toContain("started on 2026-09-20");
     expect(text).toContain("- Goal: gran fondo");
@@ -144,12 +173,20 @@ describe("foldSummary", () => {
     const { model } = mockModel();
     // 15 messages: the last 6 start at m9 (assistant), so the cut moves back to m8.
     const summary = await foldSummary(model, chat(conversation(15)));
-    expect(summary).toEqual({ text: "- new summary", coversThroughMessageId: "m7", usage: { inputTokens: 100, outputTokens: 20 } });
+    expect(summary).toEqual({
+      text: "- new summary",
+      coversThroughMessageId: "m7",
+      usage: { inputTokens: 100, outputTokens: 20 },
+    });
   });
 
   it("merges with the previous summary and accumulates its usage", async () => {
     const { model, prompts } = mockModel();
-    const previous = { text: "- old summary", coversThroughMessageId: "m1", usage: { inputTokens: 50, outputTokens: 5 } };
+    const previous = {
+      text: "- old summary",
+      coversThroughMessageId: "m1",
+      usage: { inputTokens: 50, outputTokens: 5 },
+    };
     const summary = await foldSummary(model, chat(conversation(16), previous));
     // 14 messages after m1; the cut lands at m10, so m2–m9 are folded.
     expect(summary?.coversThroughMessageId).toBe("m9");
@@ -163,7 +200,13 @@ describe("foldSummary", () => {
   it("labels each kind of calendar write in the transcript", async () => {
     const { model, prompts } = mockModel();
     const write = (toolName: string, input: object) =>
-      ({ type: `tool-${toolName}`, toolCallId: toolName, state: "output-available", input, output: {} }) as UIMessage["parts"][number];
+      ({
+        type: `tool-${toolName}`,
+        toolCallId: toolName,
+        state: "output-available",
+        input,
+        output: {},
+      }) as UIMessage["parts"][number];
     const messages = conversation(15);
     messages[1] = {
       ...messages[1],

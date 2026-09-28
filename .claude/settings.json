@@ -16,10 +16,6 @@
       "Read(./node_modules/ai/docs/**)",
       "Read(./node_modules/@ai-sdk/**)"
     ],
-    "deny": [
-      "Read(./.env)",
-      "Read(./.env.local)",
-      "Read(./.env.*.local)"
-    ]
+    "deny": ["Read(./.env)", "Read(./.env.local)", "Read(./.env.*.local)"]
   }
 }

@@ -96,7 +96,10 @@ export function parseWorkout(description: string | undefined): WorkoutStep[] {
     const inline = body.match(/^(\d+)\s*x\s+(.+)$/i);
     if (inline) {
       closeRepeat();
-      const inner = inline[2].split(/,|;/).map(parseStep).filter((s): s is WorkoutStep => s !== null);
+      const inner = inline[2]
+        .split(/,|;/)
+        .map(parseStep)
+        .filter((s): s is WorkoutStep => s !== null);
       for (let i = 0; i < Number(inline[1]); i++) steps.push(...inner);
       continue;
     }

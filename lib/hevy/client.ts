@@ -116,7 +116,7 @@ export class HevyClient {
     for (let page = 1; ; page++) {
       const data = await this.request<{ page_count?: number; exercise_templates?: HevyExerciseTemplate[] }>(
         `/exercise_templates?page=${page}&pageSize=100`,
-        "fetch Hevy exercises"
+        "fetch Hevy exercises",
       );
       const templates = data.exercise_templates ?? [];
       all.push(...templates);
@@ -129,19 +129,23 @@ export class HevyClient {
   async getWorkouts(pageSize = 5): Promise<HevyWorkout[]> {
     const data = await this.request<{ workouts?: HevyWorkout[] }>(
       `/workouts?page=1&pageSize=${Math.min(10, Math.max(1, pageSize))}`,
-      "fetch Hevy workouts"
+      "fetch Hevy workouts",
     );
     return data.workouts ?? [];
   }
 
-  async getExerciseHistory(templateId: string, startDate?: string, endDate?: string): Promise<HevyExerciseHistoryEntry[]> {
+  async getExerciseHistory(
+    templateId: string,
+    startDate?: string,
+    endDate?: string,
+  ): Promise<HevyExerciseHistoryEntry[]> {
     const params = new URLSearchParams();
     if (startDate) params.set("start_date", new Date(`${startDate}T00:00:00Z`).toISOString());
     if (endDate) params.set("end_date", new Date(`${endDate}T23:59:59Z`).toISOString());
     const qs = params.toString() ? `?${params}` : "";
     const data = await this.request<{ exercise_history?: HevyExerciseHistoryEntry[] }>(
       `/exercise_history/${encodeURIComponent(templateId)}${qs}`,
-      "fetch Hevy exercise history"
+      "fetch Hevy exercise history",
     );
     return data.exercise_history ?? [];
   }
@@ -164,7 +168,7 @@ export class HevyClient {
     for (let page = 1; page <= 10; page++) {
       const data = await this.request<{ page_count?: number; routine_folders?: Folder[] }>(
         `/routine_folders?page=${page}&pageSize=10`,
-        "fetch Hevy routine folders"
+        "fetch Hevy routine folders",
       ).catch((error: Error) => {
         // Hevy answers 404 past the last page, and for accounts without folders.
         if (/\(404\)/.test(error.message)) return { page_count: 0, routine_folders: [] as Folder[] };
@@ -180,7 +184,7 @@ export class HevyClient {
     const created = await this.request<{ routine_folder?: Folder | Folder[] } & Partial<Folder>>(
       "/routine_folders",
       "create the Hevy routine folder",
-      { method: "POST", body: JSON.stringify({ routine_folder: { title } }) }
+      { method: "POST", body: JSON.stringify({ routine_folder: { title } }) },
     );
     const folder = Array.isArray(created.routine_folder) ? created.routine_folder[0] : created.routine_folder;
     const id = folder?.id ?? created.id;
@@ -193,7 +197,7 @@ export class HevyClient {
     const data = await this.request<HevyRoutine | { routine: HevyRoutine | HevyRoutine[] }>(
       "/routines",
       "create the Hevy routine",
-      { method: "POST", body: JSON.stringify({ routine }) }
+      { method: "POST", body: JSON.stringify({ routine }) },
     );
     const created = "routine" in data ? (Array.isArray(data.routine) ? data.routine[0] : data.routine) : data;
     if (!created?.id) throw new Error(`Hevy did not return the new routine (${JSON.stringify(data).slice(0, 300)})`);

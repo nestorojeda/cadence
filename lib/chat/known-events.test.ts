@@ -9,7 +9,13 @@ const read = (id: string, output: unknown): Part =>
 const update = (id: string, input: object, state = "output-available", output?: unknown): Part =>
   ({ type: "tool-icu_update_calendar_event", toolCallId: id, state, input, output }) as Part;
 const remove = (id: string, input: object): Part =>
-  ({ type: "tool-icu_delete_calendar_event", toolCallId: id, state: "approval-requested", input, approval: { id: `a-${id}` } }) as Part;
+  ({
+    type: "tool-icu_delete_calendar_event",
+    toolCallId: id,
+    state: "approval-requested",
+    input,
+    approval: { id: `a-${id}` },
+  }) as Part;
 const coach = (id: string, parts: Part[]) => ({ id, role: "assistant", parts }) as UIMessage;
 
 const vo2 = { id: 7, name: "VO2", start_date_local: "2026-09-29T09:00:00", category: "WORKOUT" };
@@ -25,12 +31,19 @@ describe("eventsBeforeWrites", () => {
           start_date_local: "2026-09-30T09:00:00",
         }),
       ]),
-      coach("m2", [update("u2", { event_id: "7", name: "Endurance" }, "approval-requested"), remove("d1", { event_id: "8" })]),
+      coach("m2", [
+        update("u2", { event_id: "7", name: "Endurance" }, "approval-requested"),
+        remove("d1", { event_id: "8" }),
+      ]),
     ];
     const before = eventsBeforeWrites(messages);
     expect(before.get("u1")).toEqual(vo2);
     // The second change starts from the first one's result.
-    expect(before.get("u2")).toMatchObject({ name: "VO2", start_date_local: "2026-09-30T09:00:00", category: "WORKOUT" });
+    expect(before.get("u2")).toMatchObject({
+      name: "VO2",
+      start_date_local: "2026-09-30T09:00:00",
+      category: "WORKOUT",
+    });
     expect(before.get("d1")).toMatchObject({ name: "Long ride" });
   });
 
@@ -53,7 +66,9 @@ describe("eventsBeforeWrites", () => {
 describe("wroteToCalendar", () => {
   it("is true only for a write that went through", () => {
     expect(wroteToCalendar(coach("m1", [update("u1", { event_id: "7" }, "output-available", vo2)]))).toBe(true);
-    expect(wroteToCalendar(coach("m1", [update("u1", { event_id: "7" }, "output-available", { error: "past" })]))).toBe(false);
+    expect(wroteToCalendar(coach("m1", [update("u1", { event_id: "7" }, "output-available", { error: "past" })]))).toBe(
+      false,
+    );
     expect(wroteToCalendar(coach("m1", [remove("d1", { event_id: "7" })]))).toBe(false);
     expect(wroteToCalendar(coach("m1", [read("r1", [vo2])]))).toBe(false);
   });

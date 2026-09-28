@@ -11,5 +11,5 @@ export function resolveAthleteId(requested?: string | null): string | null {
 export const missingAthlete = () =>
   NextResponse.json(
     { error: "No valid Intervals.icu athlete ID. Set it in Settings or INTERVALS_ICU_ATHLETE_ID in .env.local." },
-    { status: 400 }
+    { status: 400 },
   );

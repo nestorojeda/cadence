@@ -25,10 +25,17 @@ const responded = (id: string, approved: boolean, input: unknown = WORKOUT, reas
 describe("applyApprovalResponses", () => {
   it("merges the decisions into the stored message", () => {
     const stored = assistant([{ type: "text", text: "Here you go" }, pending("x"), pending("y")]);
-    const incoming = assistant([{ type: "text", text: "Here you go" }, responded("x", true), responded("y", false, WORKOUT, "busy")]);
+    const incoming = assistant([
+      { type: "text", text: "Here you go" },
+      responded("x", true),
+      responded("y", false, WORKOUT, "busy"),
+    ]);
     const merged = applyApprovalResponses(stored, incoming)!;
     expect(merged.parts[1]).toMatchObject({ state: "approval-responded", approval: { id: "x", approved: true } });
-    expect(merged.parts[2]).toMatchObject({ state: "approval-responded", approval: { id: "y", approved: false, reason: "busy" } });
+    expect(merged.parts[2]).toMatchObject({
+      state: "approval-responded",
+      approval: { id: "y", approved: false, reason: "busy" },
+    });
   });
 
   it("always takes tool inputs from the stored copy", () => {
@@ -60,7 +67,11 @@ describe("hasPendingApprovals", () => {
 describe("expirePendingApprovals", () => {
   it("denies approvals left unanswered", () => {
     const expired = expirePendingApprovals(assistant([pending("x"), responded("y", true)]));
-    expect(expired.parts[0]).toMatchObject({ state: "output-denied", input: WORKOUT, approval: { id: "x", approved: false } });
+    expect(expired.parts[0]).toMatchObject({
+      state: "output-denied",
+      input: WORKOUT,
+      approval: { id: "x", approved: false },
+    });
     expect((expired.parts[0] as { approval: { reason: string } }).approval.reason).toMatch(/not added/);
     expect(expired.parts[1]).toMatchObject({ state: "approval-responded" });
   });

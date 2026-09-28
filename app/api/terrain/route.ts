@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
     if (!summary) {
       return NextResponse.json(
         { error: `Not enough outdoor rides in the last ${LOOKBACK_DAYS} days to tell.` },
-        { status: 422 }
+        { status: 422 },
       );
     }
     return NextResponse.json({ ...summary, days: LOOKBACK_DAYS });

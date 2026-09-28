@@ -34,15 +34,8 @@ const SESSION_ROWS: Array<{ key: DayListKey; label: string; color: string }> = [
   { key: "restDays", label: "Rest", color: POWER_ZONE_COLORS[0] },
 ];
 
-export function CoachPreferencesModal({
-  isOpen,
-  onClose,
-  athleteId,
-  onSaved,
-}: CoachPreferencesModalProps) {
-  const [preferences, setPreferences] = useState<CoachPreferences>(() =>
-    createDefaultPreferences(athleteId)
-  );
+export function CoachPreferencesModal({ isOpen, onClose, athleteId, onSaved }: CoachPreferencesModalProps) {
+  const [preferences, setPreferences] = useState<CoachPreferences>(() => createDefaultPreferences(athleteId));
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
@@ -144,9 +137,7 @@ export function CoachPreferencesModal({
 
   // Gym on a rest day is fine: the coach reads it as gym only, no bike.
   const restConflicts = preferences.restDays.filter((day) =>
-    SESSION_ROWS.some(
-      (row) => row.key !== "restDays" && row.key !== "gymDays" && preferences[row.key].includes(day)
-    )
+    SESSION_ROWS.some((row) => row.key !== "restDays" && row.key !== "gymDays" && preferences[row.key].includes(day)),
   );
 
   return (
@@ -165,9 +156,9 @@ export function CoachPreferencesModal({
           <button
             type="button"
             onClick={handleResetDefaults}
-            className="flex items-center gap-1.5 h-10 text-xs text-fg-muted hover:text-fg transition"
+            className="flex h-10 items-center gap-1.5 text-xs text-fg-muted transition hover:text-fg"
           >
-            <RotateCcw className="w-3.5 h-3.5" />
+            <RotateCcw className="h-3.5 w-3.5" />
             Reset defaults
           </button>
           <div className="flex items-center gap-3">
@@ -211,14 +202,17 @@ export function CoachPreferencesModal({
               restConflicts.length > 0 ? (
                 <span className="text-signal-warn">
                   {restConflicts.join(", ")}{" "}
-                  {restConflicts.length > 1 ? "are marked as rest but also have rides" : "is marked as rest but also has a ride"}.
+                  {restConflicts.length > 1
+                    ? "are marked as rest but also have rides"
+                    : "is marked as rest but also has a ride"}
+                  .
                 </span>
               ) : (
                 "Preferences, not fixed rules: the coach moves sessions when your form or calendar calls for it. Gym on a rest day means gym only, no bike."
               )
             }
           >
-            <div className="grid grid-cols-[minmax(0,1fr)_repeat(7,32px)] sm:grid-cols-[minmax(0,1fr)_repeat(7,40px)] gap-x-1 gap-y-1.5 items-center">
+            <div className="grid grid-cols-[minmax(0,1fr)_repeat(7,32px)] items-center gap-x-1 gap-y-1.5 sm:grid-cols-[minmax(0,1fr)_repeat(7,40px)]">
               <span />
               {DAYS_OF_WEEK.map((day) => (
                 <span key={day} className="text-center font-mono text-[11px] text-fg-muted">
@@ -227,8 +221,8 @@ export function CoachPreferencesModal({
               ))}
               {SESSION_ROWS.map((row) => (
                 <React.Fragment key={row.key}>
-                  <span className="flex items-center gap-2 text-[13px] text-fg-soft pr-2">
-                    <span className="w-2 h-2 rounded-[2px] shrink-0" style={{ background: row.color }} />
+                  <span className="flex items-center gap-2 pr-2 text-[13px] text-fg-soft">
+                    <span className="h-2 w-2 shrink-0 rounded-[2px]" style={{ background: row.color }} />
                     <span className="truncate">{row.label}</span>
                   </span>
                   {DAYS_OF_WEEK.map((day) => {
@@ -241,7 +235,7 @@ export function CoachPreferencesModal({
                         aria-label={`${row.label} on ${day}`}
                         title={`${row.label} on ${day}`}
                         onClick={() => toggleDay(row.key, day)}
-                        className={`h-8 sm:h-10 rounded-md border transition ${
+                        className={`h-8 rounded-md border transition sm:h-10 ${
                           active ? "border-transparent" : "border-ink-line hover:border-ink-edge hover:bg-ink-surface"
                         }`}
                         style={active ? { background: row.color } : undefined}
@@ -251,7 +245,7 @@ export function CoachPreferencesModal({
                 </React.Fragment>
               ))}
             </div>
-            <label className="flex items-center justify-between gap-4 pt-2 cursor-pointer">
+            <label className="flex cursor-pointer items-center justify-between gap-4 pt-2">
               <span className="flex flex-col gap-0.5">
                 <span className="text-[13px] text-fg-soft">Allow back-to-back interval days</span>
                 <span className="text-xs text-fg-muted">
@@ -267,12 +261,12 @@ export function CoachPreferencesModal({
                 onClick={() =>
                   setPreferences({ ...preferences, backToBackIntervals: !preferences.backToBackIntervals })
                 }
-                className={`relative shrink-0 w-10 h-6 rounded-full border transition ${
-                  preferences.backToBackIntervals ? "bg-signal border-transparent" : "bg-ink-surface border-ink-edge"
+                className={`relative h-6 w-10 shrink-0 rounded-full border transition ${
+                  preferences.backToBackIntervals ? "border-transparent bg-signal" : "border-ink-edge bg-ink-surface"
                 }`}
               >
                 <span
-                  className={`absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full transition-all ${
+                  className={`absolute top-1/2 h-4 w-4 -translate-y-1/2 rounded-full transition-all ${
                     preferences.backToBackIntervals ? "left-5 bg-on-signal" : "left-1 bg-fg-muted"
                   }`}
                 />
@@ -293,13 +287,18 @@ export function CoachPreferencesModal({
                     type="button"
                     aria-pressed={selected}
                     onClick={() => toggleGoal(goal.id)}
-                    className={`h-9 px-3 rounded-full border text-[13px] transition ${
+                    className={`h-9 rounded-full border px-3 text-[13px] transition ${
                       selected
                         ? "border-fg-muted bg-ink-raised text-fg"
                         : "border-ink-line text-fg-subtle hover:border-ink-edge hover:bg-ink-surface"
                     }`}
                   >
-                    {selected && <span className="inline-block w-2 h-2 rounded-[2px] mr-2" style={{ background: STRENGTH_COLOR }} />}
+                    {selected && (
+                      <span
+                        className="mr-2 inline-block h-2 w-2 rounded-[2px]"
+                        style={{ background: STRENGTH_COLOR }}
+                      />
+                    )}
                     {goal.label}
                   </button>
                 );
@@ -328,9 +327,9 @@ export function CoachPreferencesModal({
                   step={5}
                   value={preferences.gym.sessionMinutes}
                   onChange={(e) => setGym({ sessionMinutes: Number(e.target.value) })}
-                  className={`${inputClass} font-mono pr-12`}
+                  className={`${inputClass} pr-12 font-mono`}
                 />
-                <span className="absolute right-3.5 top-1/2 -translate-y-1/2 font-mono text-xs text-fg-muted pointer-events-none">
+                <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 font-mono text-xs text-fg-muted">
                   min
                 </span>
               </div>
@@ -341,7 +340,7 @@ export function CoachPreferencesModal({
               value={preferences.gym.notes}
               onChange={(e) => setGym({ notes: e.target.value })}
               placeholder="e.g. Lower back is sensitive to heavy deadlifts, love kettlebell work, no pull-up bar…"
-              className={`${inputClass} h-auto py-2.5 leading-relaxed resize-none`}
+              className={`${inputClass} h-auto resize-none py-2.5 leading-relaxed`}
             />
           </ModalSection>
 
@@ -355,7 +354,7 @@ export function CoachPreferencesModal({
               )
             }
           >
-            <div role="radiogroup" aria-label="Terrain settings" className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <div role="radiogroup" aria-label="Terrain settings" className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               {TERRAINS.map((t) => {
                 const selected = preferences.terrain === t.id;
                 const Icon = TERRAIN_ICONS[t.id];
@@ -366,12 +365,14 @@ export function CoachPreferencesModal({
                     role="radio"
                     aria-checked={selected}
                     onClick={() => setPreferences({ ...preferences, terrain: t.id })}
-                    className={`flex flex-col items-start gap-0.5 px-3 py-2.5 rounded-[10px] border text-left transition ${
-                      selected ? "border-fg-muted bg-ink-raised" : "border-ink-line hover:border-ink-edge hover:bg-ink-surface"
+                    className={`flex flex-col items-start gap-0.5 rounded-[10px] border px-3 py-2.5 text-left transition ${
+                      selected
+                        ? "border-fg-muted bg-ink-raised"
+                        : "border-ink-line hover:border-ink-edge hover:bg-ink-surface"
                     }`}
                   >
                     <span className="flex items-center gap-1.5 text-[13px] font-medium">
-                      <Icon className={`w-4 h-4 ${selected ? "text-signal" : "text-fg-muted"}`} aria-hidden />
+                      <Icon className={`h-4 w-4 ${selected ? "text-signal" : "text-fg-muted"}`} aria-hidden />
                       {t.label}
                     </span>
                     <span className="font-mono text-[11px] text-fg-muted">{t.sub}</span>
@@ -384,9 +385,9 @@ export function CoachPreferencesModal({
               onClick={handleDetectTerrain}
               disabled={detecting}
               title="Suggest a terrain type from your recent outdoor rides"
-              className="self-start flex items-center gap-1.5 h-9 px-3 rounded-[10px] border border-ink-line text-xs text-fg-soft hover:border-ink-edge hover:bg-ink-surface hover:text-fg transition disabled:opacity-50"
+              className="flex h-9 items-center gap-1.5 self-start rounded-[10px] border border-ink-line px-3 text-xs text-fg-soft transition hover:border-ink-edge hover:bg-ink-surface hover:text-fg disabled:opacity-50"
             >
-              <ScanSearch className="w-3.5 h-3.5" />
+              <ScanSearch className="h-3.5 w-3.5" />
               {detecting ? "Detecting…" : "Detect from my rides"}
             </button>
           </ModalSection>
@@ -398,7 +399,7 @@ export function CoachPreferencesModal({
               value={preferences.customNotes}
               onChange={(e) => setPreferences({ ...preferences, customNotes: e.target.value })}
               placeholder="e.g. Rehabbing left knee, travelling for work on Wednesdays, tapering for a race…"
-              className={`${inputClass} h-auto py-2.5 leading-relaxed resize-none`}
+              className={`${inputClass} h-auto resize-none py-2.5 leading-relaxed`}
             />
           </ModalSection>
         </>
@@ -429,9 +430,11 @@ function HoursInput({
         max={max}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        className={`${inputClass} font-mono pr-8`}
+        className={`${inputClass} pr-8 font-mono`}
       />
-      <span className="absolute right-3.5 top-1/2 -translate-y-1/2 font-mono text-xs text-fg-muted pointer-events-none">h</span>
+      <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 font-mono text-xs text-fg-muted">
+        h
+      </span>
     </div>
   );
 }
@@ -450,7 +453,11 @@ function Segmented<T extends string>({
   return (
     <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
       <span className="text-[13px] text-fg-soft">{label}</span>
-      <div role="radiogroup" aria-label={label} className="flex p-0.5 rounded-[10px] border border-ink-line bg-ink-surface">
+      <div
+        role="radiogroup"
+        aria-label={label}
+        className="flex rounded-[10px] border border-ink-line bg-ink-surface p-0.5"
+      >
         {options.map((o) => (
           <button
             key={o.id}
@@ -458,8 +465,8 @@ function Segmented<T extends string>({
             role="radio"
             aria-checked={value === o.id}
             onClick={() => onChange(o.id)}
-            className={`h-8 px-3 rounded-lg text-xs transition ${
-              value === o.id ? "bg-ink-raised text-fg font-medium" : "text-fg-muted hover:text-fg"
+            className={`h-8 rounded-lg px-3 text-xs transition ${
+              value === o.id ? "bg-ink-raised font-medium text-fg" : "text-fg-muted hover:text-fg"
             }`}
           >
             {o.label}

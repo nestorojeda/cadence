@@ -61,7 +61,11 @@ export const GYM_EXPERIENCE: Array<{ id: GymExperience; label: string }> = [
 
 export const GYM_EQUIPMENT: Array<{ id: GymEquipment; label: string; description: string }> = [
   { id: "full_gym", label: "Full gym", description: "barbells, racks, machines, dumbbells and cables" },
-  { id: "home", label: "Home", description: "dumbbells, kettlebells and resistance bands; no barbell rack or machines" },
+  {
+    id: "home",
+    label: "Home",
+    description: "dumbbells, kettlebells and resistance bands; no barbell rack or machines",
+  },
   { id: "bodyweight", label: "Bodyweight", description: "no equipment; bodyweight and household items only" },
 ];
 
@@ -125,7 +129,9 @@ export function formatRest(seconds?: number): string | null {
 export function formatRpe(rpe?: number): string | null {
   if (rpe == null) return null;
   const rir = Math.max(0, 10 - rpe);
-  const reps = Number.isInteger(rir) ? `${rir} rep${rir === 1 ? "" : "s"}` : `${Math.floor(rir)}–${Math.ceil(rir)} reps`;
+  const reps = Number.isInteger(rir)
+    ? `${rir} rep${rir === 1 ? "" : "s"}`
+    : `${Math.floor(rir)}–${Math.ceil(rir)} reps`;
   return `RPE ${rpe} (${reps} in reserve)`;
 }
 

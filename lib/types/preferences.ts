@@ -5,15 +5,15 @@ export interface CoachPreferences {
   athleteId: string;
   weeklyVolumeMinHours: number; // e.g. 8
   weeklyVolumeMaxHours: number; // e.g. 14
-  longRideDays: string[];       // e.g. ["Saturday"]
-  intervalDays: string[];       // e.g. ["Tuesday", "Thursday"]
-  restDays: string[];           // e.g. ["Monday", "Friday"]
-  gymDays: string[];            // e.g. ["Tuesday", "Thursday"]
-  gym: GymPreferences;          // what the gym work is for and what the athlete has to work with
+  longRideDays: string[]; // e.g. ["Saturday"]
+  intervalDays: string[]; // e.g. ["Tuesday", "Thursday"]
+  restDays: string[]; // e.g. ["Monday", "Friday"]
+  gymDays: string[]; // e.g. ["Tuesday", "Thursday"]
+  gym: GymPreferences; // what the gym work is for and what the athlete has to work with
   backToBackIntervals: boolean; // allow hard interval days on consecutive days
   shortNamingConvention: boolean; // short names like VO2, OU, etc.
-  terrain: Terrain;             // what the athlete's local roads are like; shapes long-ride planning
-  customNotes: string;          // freeform user notes
+  terrain: Terrain; // what the athlete's local roads are like; shapes long-ride planning
+  customNotes: string; // freeform user notes
   updatedAt: string;
 }
 

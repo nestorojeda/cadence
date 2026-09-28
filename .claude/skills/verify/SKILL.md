@@ -27,6 +27,7 @@ Run these in order and stop at the first failure — fix it before continuing.
        "message": {"id":"1","role":"user","parts":[{"type":"text","text":"What is my current form (TSB)? Use your tools."}]}
      }' | tail -20
      ```
+
    - Pass: the stream contains a `tool-input-available` / `tool-output-available` pair **and** later `text-delta` chunks.
      Fail: an `error` chunk (e.g. missing `thought_signature`, invalid schema) or a stream ending right after the tool call.
    - The request needs provider + Intervals keys in `.env.local`. If they're missing, say so rather than skipping silently.

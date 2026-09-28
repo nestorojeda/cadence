@@ -20,8 +20,7 @@ export function rejectCrossSite(method: string, headers: Headers): string | null
     let originHost: string | null = null;
     try {
       originHost = new URL(origin).host;
-    } catch {
-    }
+    } catch {}
     if (!host || originHost !== host) return "Cross-site requests are not allowed.";
   }
 

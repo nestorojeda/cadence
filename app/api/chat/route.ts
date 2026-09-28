@@ -55,7 +55,7 @@ const requestSchema = z.object({
   modelName: optionalString,
   // A stale stored level shouldn't fail the request: unknown values fall back to the model's default.
   thinkingLevel: optionalString.transform((v) =>
-    THINKING_LEVELS.includes(v as ThinkingLevel) ? (v as ThinkingLevel) : undefined
+    THINKING_LEVELS.includes(v as ThinkingLevel) ? (v as ThinkingLevel) : undefined,
   ),
   apiKey: optionalString,
   intervalsApiKey: optionalString,
@@ -92,11 +92,13 @@ export async function POST(req: NextRequest) {
     const message = body.data.message as unknown as UIMessage;
     const athleteId = resolveAthleteId(body.data.athleteId);
     if (!athleteId) {
-      return jsonError("No valid Intervals.icu athlete ID. Set it in Settings or INTERVALS_ICU_ATHLETE_ID in .env.local.", 400);
+      return jsonError(
+        "No valid Intervals.icu athlete ID. Set it in Settings or INTERVALS_ICU_ATHLETE_ID in .env.local.",
+        400,
+      );
     }
 
-    const intervalsApiKey =
-      clientIntervalsKey || process.env.INTERVALS_ICU_API_KEY || "";
+    const intervalsApiKey = clientIntervalsKey || process.env.INTERVALS_ICU_API_KEY || "";
     const intervalsClient = new IntervalsClient(intervalsApiKey, athleteId);
     const hevyKey = clientHevyKey || process.env.HEVY_API_KEY;
     const hevyClient = hevyKey ? new HevyClient(hevyKey) : null;
@@ -122,7 +124,7 @@ export async function POST(req: NextRequest) {
       if (!key) {
         return jsonError(
           "Google Gemini API key not found. Please add GEMINI_API_KEY in .env.local or enter it in the app Settings.",
-          400
+          400,
         );
       }
       const google = createGoogle({ apiKey: key });
@@ -142,7 +144,7 @@ export async function POST(req: NextRequest) {
       if (!key) {
         return jsonError(
           "OpenAI API key not found. Please add OPENAI_API_KEY in .env.local or enter it in the app Settings.",
-          400
+          400,
         );
       }
       const openai = createOpenAI({ apiKey: key });
@@ -152,7 +154,7 @@ export async function POST(req: NextRequest) {
       if (!key) {
         return jsonError(
           "Anthropic API key not found. Please add ANTHROPIC_API_KEY in .env.local or enter it in the app Settings.",
-          400
+          400,
         );
       }
       const anthropic = createAnthropic({ apiKey: key });
@@ -197,7 +199,7 @@ export async function POST(req: NextRequest) {
     } else {
       // Replace rather than append on a resend (e.g. a retry). Unanswered approvals are declined.
       messages = [...history.filter((m) => m.id !== message.id), message].map((m) =>
-        m.role === "assistant" ? expirePendingApprovals(m) : m
+        m.role === "assistant" ? expirePendingApprovals(m) : m,
       );
     }
 
@@ -210,12 +212,12 @@ export async function POST(req: NextRequest) {
     }
     const modelMessages = await buildModelMessages(
       validated.success ? validated.data : messages.slice(message.role === "user" ? -1 : -2),
-      tools
+      tools,
     );
     if (process.env.NODE_ENV !== "production") {
       console.log(
         `[POST /api/chat] chat ${chatId}: ${messages.length} stored, ${modelMessages.length} sent to model ` +
-          `(~${JSON.stringify(modelMessages).length} chars)${stored?.summary ? ", with summary" : ""}`
+          `(~${JSON.stringify(modelMessages).length} chars)${stored?.summary ? ", with summary" : ""}`,
       );
     }
 
@@ -284,9 +286,14 @@ async function summarize(athleteId: string, model: LanguageModel, chat: StoredCh
   try {
     const summary = await foldSummary(model, chat);
     if (!summary) return;
-    await updateChat(athleteId, chat.meta.id, (current) => ({ messages: current?.messages ?? chat.messages, summary }), {
-      touch: false,
-    });
+    await updateChat(
+      athleteId,
+      chat.meta.id,
+      (current) => ({ messages: current?.messages ?? chat.messages, summary }),
+      {
+        touch: false,
+      },
+    );
   } catch (error) {
     console.error(`[POST /api/chat] Could not summarize chat ${chat.meta.id}:`, errorMessage(error));
   } finally {

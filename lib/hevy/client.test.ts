@@ -66,7 +66,10 @@ describe("HevyClient.getOrCreateFolder", () => {
 
   it("retries after a failed lookup instead of caching the failure", async () => {
     const hevy = client();
-    vi.stubGlobal("fetch", vi.fn(async () => new Response("boom", { status: 500 })));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("boom", { status: 500 })),
+    );
     await expect(hevy.getOrCreateFolder()).rejects.toThrow("(500)");
 
     mockFolders([{ id: 3, title: "Cadence" }]);

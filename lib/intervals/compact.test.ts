@@ -71,7 +71,13 @@ describe("compactActivities", () => {
   });
 
   it("flattens power zone times in details", () => {
-    const details = compactActivityDetails({ id: "a1", icu_zone_times: [{ id: "Z1", secs: 60 }, { id: "Z2", secs: 120 }] });
+    const details = compactActivityDetails({
+      id: "a1",
+      icu_zone_times: [
+        { id: "Z1", secs: 60 },
+        { id: "Z2", secs: 120 },
+      ],
+    });
     expect(details).toEqual({ id: "a1", power_zone_secs: { Z1: 60, Z2: 120 } });
   });
 });

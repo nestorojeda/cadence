@@ -225,14 +225,21 @@ export class IntervalsClient {
   }
 
   async getEvent(eventId: string): Promise<CalendarEvent> {
-    return this.request(`${this.athletePath()}/events/${encodeURIComponent(eventId)}`, `fetch calendar event ${eventId}`);
+    return this.request(
+      `${this.athletePath()}/events/${encodeURIComponent(eventId)}`,
+      `fetch calendar event ${eventId}`,
+    );
   }
 
   async updateEvent(eventId: string, changes: Record<string, unknown>): Promise<CalendarEvent> {
-    return this.request(`${this.athletePath()}/events/${encodeURIComponent(eventId)}`, `update calendar event ${eventId}`, {
-      method: "PUT",
-      body: JSON.stringify(changes),
-    });
+    return this.request(
+      `${this.athletePath()}/events/${encodeURIComponent(eventId)}`,
+      `update calendar event ${eventId}`,
+      {
+        method: "PUT",
+        body: JSON.stringify(changes),
+      },
+    );
   }
 
   /** Only this event, not other events of the same plan. */

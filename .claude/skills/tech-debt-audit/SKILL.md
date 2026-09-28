@@ -29,20 +29,20 @@ Treat every scan hit as a lead to verify by reading the code, never as a finding
 
 Check each; these are the rules that are easy to break silently:
 
-| Invariant | How to check |
-|---|---|
-| Provider-agnostic LLM: `@ai-sdk/*` provider packages and provider-specific branches only in the provider-resolution code of `app/api/chat/route.ts` | scan section "provider imports"; grep for `"google"`/`"anthropic"`/`"openai"` string branches elsewhere |
-| Ollama/OpenAI-compatible base URL only from env, never from the request body | read the provider resolution in `app/api/chat/route.ts` |
-| `providerMetadata` / `callProviderMetadata` never stripped when storing or transforming messages | read `lib/chat/context.ts`, `lib/chat/approvals.ts`, `lib/storage/chat-store.ts` for object rebuilding / field picking of parts |
-| Model sees `buildModelMessages` output, not full history; client sends only the new message | `app/api/chat/route.ts`, `components/chat/ChatInterface.tsx` transport body |
-| Every read tool returns compacted, date-bounded data | each `execute` in `lib/intervals/tools.ts`, `lib/hevy/tools.ts` goes through `lib/intervals/compact.ts` (or an equivalent trim) |
-| Tools return `{ error }`, never throw | each `execute` has try/catch |
-| Every write tool is in `WRITE_TOOL_NAMES` (approval + kept by pruning) | compare tool names that create/update/delete with `lib/intervals/tool-names.ts` |
-| Default model IDs only in `lib/llm/models.ts` | scan section "model ids" |
-| No hardcoded hex colors in components (training-zone colors excepted), no gradients, no pulsing dots | scan section "hex colors / gradients / pulse" |
-| API keys never logged, never in URLs, never committed | scan section "logging" + "secrets"; check `console.*` calls don't print request bodies/headers |
-| Self-hosted: no Vercel-only services (KV, Edge Config, Blob) | scan section "vercel" |
-| AI SDK v7 APIs only (`inputSchema`, `instructions`, `stopWhen`) | scan section "legacy AI SDK" |
+| Invariant                                                                                                                                           | How to check                                                                                                                    |
+| --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| Provider-agnostic LLM: `@ai-sdk/*` provider packages and provider-specific branches only in the provider-resolution code of `app/api/chat/route.ts` | scan section "provider imports"; grep for `"google"`/`"anthropic"`/`"openai"` string branches elsewhere                         |
+| Ollama/OpenAI-compatible base URL only from env, never from the request body                                                                        | read the provider resolution in `app/api/chat/route.ts`                                                                         |
+| `providerMetadata` / `callProviderMetadata` never stripped when storing or transforming messages                                                    | read `lib/chat/context.ts`, `lib/chat/approvals.ts`, `lib/storage/chat-store.ts` for object rebuilding / field picking of parts |
+| Model sees `buildModelMessages` output, not full history; client sends only the new message                                                         | `app/api/chat/route.ts`, `components/chat/ChatInterface.tsx` transport body                                                     |
+| Every read tool returns compacted, date-bounded data                                                                                                | each `execute` in `lib/intervals/tools.ts`, `lib/hevy/tools.ts` goes through `lib/intervals/compact.ts` (or an equivalent trim) |
+| Tools return `{ error }`, never throw                                                                                                               | each `execute` has try/catch                                                                                                    |
+| Every write tool is in `WRITE_TOOL_NAMES` (approval + kept by pruning)                                                                              | compare tool names that create/update/delete with `lib/intervals/tool-names.ts`                                                 |
+| Default model IDs only in `lib/llm/models.ts`                                                                                                       | scan section "model ids"                                                                                                        |
+| No hardcoded hex colors in components (training-zone colors excepted), no gradients, no pulsing dots                                                | scan section "hex colors / gradients / pulse"                                                                                   |
+| API keys never logged, never in URLs, never committed                                                                                               | scan section "logging" + "secrets"; check `console.*` calls don't print request bodies/headers                                  |
+| Self-hosted: no Vercel-only services (KV, Edge Config, Blob)                                                                                        | scan section "vercel"                                                                                                           |
+| AI SDK v7 APIs only (`inputSchema`, `instructions`, `stopWhen`)                                                                                     | scan section "legacy AI SDK"                                                                                                    |
 
 ## 3. Technical review areas
 

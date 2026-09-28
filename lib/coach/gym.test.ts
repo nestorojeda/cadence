@@ -41,7 +41,7 @@ describe("formatExerciseLine", () => {
         rest_seconds: 150,
         warmup_sets: 2,
         notes: "Pause at the bottom",
-      })
+      }),
     ).toBe("- Back Squat (Barbell) — 4×5 @ RPE 8 · 80 kg · rest 2:30 · 2 warm-up sets. Pause at the bottom");
   });
 
@@ -52,7 +52,7 @@ describe("formatExerciseLine", () => {
         start_date_local: "2026-09-29T00:00:00",
         notes: " Keep it light ",
         exercises: [{ name: "Plank", sets: 3, duration_seconds: 45 }],
-      })
+      }),
     ).toBe("Keep it light\n\n- Plank — 3×45s");
   });
 });

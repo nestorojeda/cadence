@@ -6,7 +6,10 @@ import { missingAthlete, resolveAthleteId } from "@/lib/api/athlete";
 type Params = { params: Promise<{ id: string }> };
 
 const renameSchema = z.object({
-  title: z.string().transform((t) => t.replace(/\s+/g, " ").trim().slice(0, 120)).pipe(z.string().min(1)),
+  title: z
+    .string()
+    .transform((t) => t.replace(/\s+/g, " ").trim().slice(0, 120))
+    .pipe(z.string().min(1)),
 });
 
 const invalidId = () => NextResponse.json({ error: "Invalid chat ID" }, { status: 400 });

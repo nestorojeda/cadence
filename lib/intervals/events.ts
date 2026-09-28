@@ -10,7 +10,7 @@ export const EDITABLE_CATEGORIES = ["WORKOUT", "NOTE"];
 
 export function editBlockReason(
   event: Pick<CalendarEvent, "category" | "start_date_local" | "paired_activity_id">,
-  today: string
+  today: string,
 ): string | null {
   if (!EDITABLE_CATEGORIES.includes(event.category)) {
     return `This is a ${event.category} event; races and time off can only be changed by the athlete in Intervals.icu.`;

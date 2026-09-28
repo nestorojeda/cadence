@@ -59,7 +59,7 @@ export function useTheme() {
 export function ThemeToggle({ size = "sm" }: { size?: "sm" | "md" }) {
   const { preference, setPreference } = useTheme();
   return (
-    <div role="group" aria-label="Color mode" className="flex gap-0.5 p-[3px] border border-ink-line rounded-[10px]">
+    <div role="group" aria-label="Color mode" className="flex gap-0.5 rounded-[10px] border border-ink-line p-[3px]">
       {THEME_PREFERENCES.map((mode) => {
         const { label, icon: Icon } = MODES[mode];
         const selected = preference === mode;
@@ -69,11 +69,11 @@ export function ThemeToggle({ size = "sm" }: { size?: "sm" | "md" }) {
             type="button"
             aria-pressed={selected}
             onClick={() => setPreference(mode)}
-            className={`flex-1 flex items-center justify-center gap-1.5 rounded-[7px] transition ${
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-[7px] transition ${
               size === "md" ? "h-9 text-[13px]" : "h-8 text-xs"
             } ${selected ? "bg-ink-raised text-fg" : "text-fg-muted hover:text-fg"}`}
           >
-            <Icon className="w-3.5 h-3.5" />
+            <Icon className="h-3.5 w-3.5" />
             {label}
           </button>
         );
@@ -93,9 +93,9 @@ export function ThemeCycleButton() {
       onClick={() => setPreference(next)}
       aria-label={title}
       title={title}
-      className="w-10 h-10 flex items-center justify-center rounded-lg text-fg-muted hover:text-fg hover:bg-ink-raised transition"
+      className="flex h-10 w-10 items-center justify-center rounded-lg text-fg-muted transition hover:bg-ink-raised hover:text-fg"
     >
-      <Icon className="w-4 h-4" />
+      <Icon className="h-4 w-4" />
     </button>
   );
 }

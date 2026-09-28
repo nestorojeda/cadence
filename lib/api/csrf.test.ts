@@ -24,7 +24,9 @@ describe("rejectCrossSite", () => {
     expect(rejectCrossSite("POST", same)).toBeNull();
     const other = new Headers({ ...json, origin: "https://evil.example", host: "localhost:3000" });
     expect(rejectCrossSite("POST", other)).toMatch(/Cross-site/);
-    expect(rejectCrossSite("POST", new Headers({ ...json, origin: "null", host: "localhost:3000" }))).toMatch(/Cross-site/);
+    expect(rejectCrossSite("POST", new Headers({ ...json, origin: "null", host: "localhost:3000" }))).toMatch(
+      /Cross-site/,
+    );
   });
 
   it("uses the forwarded host behind a reverse proxy", () => {

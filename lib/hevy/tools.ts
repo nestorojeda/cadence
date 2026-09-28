@@ -22,9 +22,21 @@ export function getHevyTools(hevy: HevyClient) {
         muscle: z
           .string()
           .optional()
-          .describe("Muscle group, e.g. quadriceps, hamstrings, glutes, abdominals, lower_back, upper_back, chest, shoulders"),
+          .describe(
+            "Muscle group, e.g. quadriceps, hamstrings, glutes, abdominals, lower_back, upper_back, chest, shoulders",
+          ),
         equipment: z
-          .enum(["none", "barbell", "dumbbell", "kettlebell", "machine", "plate", "resistance_band", "suspension", "other"])
+          .enum([
+            "none",
+            "barbell",
+            "dumbbell",
+            "kettlebell",
+            "machine",
+            "plate",
+            "resistance_band",
+            "suspension",
+            "other",
+          ])
           .optional(),
       }),
       execute: async ({ queries, muscle, equipment }) => {
@@ -32,7 +44,7 @@ export function getHevyTools(hevy: HevyClient) {
           const templates = await hevy.getExerciseTemplates();
           // An empty list is an answer, not a failure: the model should try other words.
           return Object.fromEntries(
-            queries.map((query) => [query, searchExerciseTemplates(templates, { query, muscle, equipment }, 8)])
+            queries.map((query) => [query, searchExerciseTemplates(templates, { query, muscle, equipment }, 8)]),
           );
         } catch (error) {
           return { error: (error as Error).message };

@@ -1,20 +1,33 @@
 import { formatExerciseLine, formatRpe, type GymExercise, type GymSessionInput } from "@/lib/coach/gym";
-import type { HevyExerciseHistoryEntry, HevyExerciseTemplate, HevyRoutineInput, HevyRoutineSet, HevyWorkout } from "./client";
+import type {
+  HevyExerciseHistoryEntry,
+  HevyExerciseTemplate,
+  HevyRoutineInput,
+  HevyRoutineSet,
+  HevyWorkout,
+} from "./client";
 
-const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+const normalize = (s: string) =>
+  s
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
 
 export function searchExerciseTemplates(
   templates: HevyExerciseTemplate[],
   { query, muscle, equipment }: { query?: string; muscle?: string; equipment?: string },
-  limit = 15
+  limit = 15,
 ) {
-  const words = normalize(query ?? "").split(" ").filter(Boolean);
+  const words = normalize(query ?? "")
+    .split(" ")
+    .filter(Boolean);
   const muscleKey = muscle ? normalize(muscle).replace(/ /g, "_") : undefined;
   return templates
     .filter((t) => {
       const title = normalize(t.title);
       if (!words.every((w) => title.includes(w))) return false;
-      if (muscleKey && t.primary_muscle_group !== muscleKey && !t.secondary_muscle_groups?.includes(muscleKey)) return false;
+      if (muscleKey && t.primary_muscle_group !== muscleKey && !t.secondary_muscle_groups?.includes(muscleKey))
+        return false;
       if (equipment && t.equipment !== equipment) return false;
       return true;
     })
@@ -67,7 +80,7 @@ export function toHevyRoutine(
   input: GymSessionInput,
   templates: HevyExerciseTemplate[],
   folderId: number | null,
-  title: string
+  title: string,
 ): { routine: HevyRoutineInput; unmatched: string[] } {
   const unmatched: GymExercise[] = [];
   const exercises: HevyRoutineInput["exercises"] = [];
@@ -87,7 +100,9 @@ export function toHevyRoutine(
   }
   const notes = [
     input.notes?.trim(),
-    unmatched.length ? `Not in your Hevy library, add them yourself:\n${unmatched.map(formatExerciseLine).join("\n")}` : null,
+    unmatched.length
+      ? `Not in your Hevy library, add them yourself:\n${unmatched.map(formatExerciseLine).join("\n")}`
+      : null,
   ]
     .filter(Boolean)
     .join("\n\n");
@@ -104,7 +119,12 @@ export function routineTitle(input: GymSessionInput): string {
   return `${input.name} · ${day}`;
 }
 
-const setLabel = (s: { weight_kg?: number | null; reps?: number | null; duration_seconds?: number | null; rpe?: number | null }) =>
+const setLabel = (s: {
+  weight_kg?: number | null;
+  reps?: number | null;
+  duration_seconds?: number | null;
+  rpe?: number | null;
+}) =>
   [
     s.weight_kg != null ? `${s.weight_kg}kg` : null,
     s.reps != null ? `×${s.reps}` : s.duration_seconds != null ? `${s.duration_seconds}s` : null,
@@ -126,7 +146,10 @@ export function compactWorkouts(workouts: HevyWorkout[], templates: HevyExercise
         title: e.title,
         id: e.exercise_template_id,
         ...(library && library !== e.title ? { library_title: library } : {}),
-        sets: e.sets.filter((s) => s.type !== "warmup").map(setLabel).join(", "),
+        sets: e.sets
+          .filter((s) => s.type !== "warmup")
+          .map(setLabel)
+          .join(", "),
       };
     }),
   }));

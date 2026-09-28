@@ -47,7 +47,7 @@ export function expirePendingApprovals(message: UIMessage): UIMessage {
             state: "output-denied",
             approval: { ...part.approval, approved: false, reason: EXPIRED_REASON },
           } as ToolPart)
-        : part
+        : part,
     ),
   };
 }

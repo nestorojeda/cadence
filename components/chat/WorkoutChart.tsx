@@ -47,7 +47,7 @@ export function WorkoutChart({ steps }: { steps: WorkoutStep[] }) {
 
   return (
     <figure className="flex flex-col gap-1.5" aria-label={`Workout profile, ${steps.length} steps`}>
-      <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} preserveAspectRatio="none" className="w-full h-24 block">
+      <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} preserveAspectRatio="none" className="block h-24 w-full">
         {blocks}
         <line
           x1={0}

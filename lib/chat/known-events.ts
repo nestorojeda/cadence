@@ -37,6 +37,6 @@ export function wroteToCalendar(message: UIMessage): boolean {
       isToolUIPart(part) &&
       WRITE_TOOL_NAMES.includes(getToolName(part)) &&
       part.state === "output-available" &&
-      !(part.output && typeof part.output === "object" && "error" in part.output)
+      !(part.output && typeof part.output === "object" && "error" in part.output),
   );
 }

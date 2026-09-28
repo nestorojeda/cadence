@@ -85,7 +85,7 @@ export function buildCoachSystemPrompt(
   now = new Date(),
   /** Upcoming races and time off; null when they couldn't be loaded, undefined to leave the section out. */
   keyEvents?: KeyEvent[] | null,
-  { hevyConnected = false }: { hevyConnected?: boolean } = {}
+  { hevyConnected = false }: { hevyConnected?: boolean } = {},
 ): string {
   const {
     weeklyVolumeMinHours,

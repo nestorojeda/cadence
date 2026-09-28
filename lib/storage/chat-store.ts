@@ -1,14 +1,7 @@
 import fs from "fs/promises";
 import path from "path";
 import { isTextUIPart, type UIMessage } from "ai";
-import {
-  CHAT_ID_PATTERN,
-  EMPTY_USAGE,
-  addUsage,
-  messageUsage,
-  type ChatMeta,
-  type StoredChat,
-} from "@/lib/chat/types";
+import { CHAT_ID_PATTERN, EMPTY_USAGE, addUsage, messageUsage, type ChatMeta, type StoredChat } from "@/lib/chat/types";
 import { writeJsonAtomic } from "./json-file";
 
 function athleteDir(athleteId: string): string {
@@ -97,7 +90,7 @@ export async function updateChat(
   athleteId: string,
   chatId: string,
   update: (chat: StoredChat | null) => Omit<StoredChat, "meta"> & { meta?: Partial<ChatMeta> },
-  { touch = true }: { touch?: boolean } = {}
+  { touch = true }: { touch?: boolean } = {},
 ): Promise<StoredChat> {
   return withLock(athleteId, async () => {
     const file = chatFile(athleteId, chatId);

@@ -106,7 +106,7 @@ export default function Home() {
       }
       newChat(forAthlete);
     },
-    [newChat]
+    [newChat],
   );
 
   // Resolve the first chat once; the athlete comes straight from storage because state hasn't caught up yet.
@@ -130,7 +130,9 @@ export default function Home() {
   };
 
   const deleteChat = async (id: string) => {
-    await fetch(`/api/chats/${encodeURIComponent(id)}?athleteId=${encodeURIComponent(athleteId)}`, { method: "DELETE" });
+    await fetch(`/api/chats/${encodeURIComponent(id)}?athleteId=${encodeURIComponent(athleteId)}`, {
+      method: "DELETE",
+    });
     if (chat?.id === id) newChat(athleteId);
     await fetchChats();
   };
@@ -163,11 +165,11 @@ export default function Home() {
       fetchChats();
       if (changedCalendar) fetchMetrics();
     },
-    [chat, fetchChats, fetchMetrics]
+    [chat, fetchChats, fetchMetrics],
   );
 
   return (
-    <main className="flex-1 flex bg-ink">
+    <main className="flex flex-1 bg-ink">
       <Sidebar
         athleteId={athleteId || metrics?.athlete?.id || ""}
         metrics={metrics}
@@ -185,7 +187,7 @@ export default function Home() {
         onOpenHistory={() => setIsHistoryOpen(true)}
       />
 
-      <div className="flex-1 min-w-0 flex flex-col">
+      <div className="flex min-w-0 flex-1 flex-col">
         <MobileBar
           metrics={metrics}
           onOpenRules={() => setIsRulesOpen(true)}
@@ -217,11 +219,7 @@ export default function Home() {
         onDelete={deleteChat}
       />
 
-      <CoachPreferencesModal
-        isOpen={isRulesOpen}
-        onClose={() => setIsRulesOpen(false)}
-        athleteId={athleteId}
-      />
+      <CoachPreferencesModal isOpen={isRulesOpen} onClose={() => setIsRulesOpen(false)} athleteId={athleteId} />
 
       <SettingsModal
         isOpen={isSettingsOpen}

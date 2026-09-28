@@ -45,7 +45,7 @@ export function resolveThinkingLevel(modelId: string, requested: ThinkingLevel =
   if (!supported || supported.includes(requested)) return requested;
   const rank = THINKING_LEVELS.indexOf(requested);
   return supported.reduce((best, level) =>
-    Math.abs(THINKING_LEVELS.indexOf(level) - rank) < Math.abs(THINKING_LEVELS.indexOf(best) - rank) ? level : best
+    Math.abs(THINKING_LEVELS.indexOf(level) - rank) < Math.abs(THINKING_LEVELS.indexOf(best) - rank) ? level : best,
   );
 }
 

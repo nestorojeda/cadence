@@ -22,7 +22,12 @@ describe("getKeyEvents", () => {
   it("keeps races and time off, drops other categories and past races, sorts by date", async () => {
     const { client } = fakeClient([
       { category: "WORKOUT", start_date_local: "2026-09-27T00:00:00" },
-      { category: "RACE_B", start_date_local: "2026-11-01T00:00:00", end_date_local: "2026-11-02T00:00:00", distance: 123_456 },
+      {
+        category: "RACE_B",
+        start_date_local: "2026-11-01T00:00:00",
+        end_date_local: "2026-11-02T00:00:00",
+        distance: 123_456,
+      },
       { category: "RACE_A", start_date_local: "2026-09-20T00:00:00" },
       { category: "RACE_A", start_date_local: "2026-10-10T00:00:00", type: "Ride", moving_time: 14_400 },
     ]);
@@ -49,12 +54,20 @@ describe("getKeyEvents", () => {
     ]);
     const [block, ...rest] = await getKeyEvents(client, nextAthlete());
     expect(rest).toEqual([]);
-    expect(block).toMatchObject({ kind: "block", date: "2026-09-24", lastDate: "2026-09-28", daysOut: -2, unavailable: true });
+    expect(block).toMatchObject({
+      kind: "block",
+      date: "2026-09-24",
+      lastDate: "2026-09-28",
+      daysOut: -2,
+      unavailable: true,
+    });
     expect(block.priority).toBeUndefined();
   });
 
   it("truncates long descriptions", async () => {
-    const { client } = fakeClient([{ category: "RACE_C", start_date_local: "2026-10-01T00:00:00", description: "x".repeat(250) }]);
+    const { client } = fakeClient([
+      { category: "RACE_C", start_date_local: "2026-10-01T00:00:00", description: "x".repeat(250) },
+    ]);
     const [race] = await getKeyEvents(client, nextAthlete());
     expect(race.description).toBe(`${"x".repeat(200)}…`);
   });
@@ -87,7 +100,10 @@ describe("editBlockReason", () => {
   it("refuses past and completed sessions", () => {
     expect(editBlockReason({ category: "WORKOUT", start_date_local: "2026-09-25T09:00:00" }, today)).toMatch(/past/);
     expect(
-      editBlockReason({ category: "WORKOUT", start_date_local: "2026-09-26T09:00:00", paired_activity_id: "i123" }, today)
+      editBlockReason(
+        { category: "WORKOUT", start_date_local: "2026-09-26T09:00:00", paired_activity_id: "i123" },
+        today,
+      ),
     ).toMatch(/already been done/);
   });
 });

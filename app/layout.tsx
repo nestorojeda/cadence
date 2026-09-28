@@ -24,9 +24,7 @@ export default function RootLayout({
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
-      <body className="antialiased bg-ink text-fg font-sans min-h-screen flex flex-col">
-        {children}
-      </body>
+      <body className="flex min-h-screen flex-col bg-ink font-sans text-fg antialiased">{children}</body>
     </html>
   );
 }

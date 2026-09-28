@@ -25,7 +25,7 @@ export function Modal({ title, description, onClose, footer, children, width = "
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4 bg-black/40 dark:bg-black/70"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 dark:bg-black/70 sm:items-center sm:p-4"
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -34,10 +34,10 @@ export function Modal({ title, description, onClose, footer, children, width = "
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className={`w-full ${width} max-h-[92vh] flex flex-col bg-ink-rail border border-ink-line rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden text-fg`}
+        className={`w-full ${width} flex max-h-[92vh] flex-col overflow-hidden rounded-t-2xl border border-ink-line bg-ink-rail text-fg shadow-2xl sm:rounded-2xl`}
       >
-        <div className="flex items-start justify-between gap-4 px-6 pt-5 pb-4 border-b border-ink-hair">
-          <div className="flex flex-col gap-1 min-w-0">
+        <div className="flex items-start justify-between gap-4 border-b border-ink-hair px-6 pb-4 pt-5">
+          <div className="flex min-w-0 flex-col gap-1">
             <h2 id={titleId} className="text-lg font-semibold tracking-tight">
               {title}
             </h2>
@@ -46,15 +46,15 @@ export function Modal({ title, description, onClose, footer, children, width = "
           <button
             onClick={onClose}
             aria-label="Close"
-            className="w-9 h-9 -mr-2 shrink-0 flex items-center justify-center rounded-lg text-fg-muted hover:text-fg hover:bg-ink-raised transition"
+            className="-mr-2 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-fg-muted transition hover:bg-ink-raised hover:text-fg"
           >
-            <X className="w-4 h-4" />
+            <X className="h-4 w-4" />
           </button>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-6 py-5 flex flex-col gap-6">{children}</div>
+        <div className="flex flex-1 flex-col gap-6 overflow-y-auto px-6 py-5">{children}</div>
 
-        <div className="flex items-center justify-between gap-3 px-6 py-4 border-t border-ink-hair">{footer}</div>
+        <div className="flex items-center justify-between gap-3 border-t border-ink-hair px-6 py-4">{footer}</div>
       </div>
     </div>
   );
@@ -78,7 +78,7 @@ export function ModalSection({
         {label}
       </Label>
       {children}
-      {hint && <p className="text-xs text-fg-muted leading-relaxed">{hint}</p>}
+      {hint && <p className="text-xs leading-relaxed text-fg-muted">{hint}</p>}
     </section>
   );
 }
@@ -91,7 +91,7 @@ export function PrimaryButton(props: React.ButtonHTMLAttributes<HTMLButtonElemen
     <button
       type="button"
       {...props}
-      className="h-10 px-4 rounded-lg bg-signal text-on-signal text-[13px] font-semibold transition hover:brightness-95 disabled:opacity-40"
+      className="h-10 rounded-lg bg-signal px-4 text-[13px] font-semibold text-on-signal transition hover:brightness-95 disabled:opacity-40"
     />
   );
 }
@@ -101,7 +101,7 @@ export function GhostButton(props: React.ButtonHTMLAttributes<HTMLButtonElement>
     <button
       type="button"
       {...props}
-      className="h-10 px-4 rounded-lg border border-ink-edge text-[13px] text-fg transition hover:bg-ink-raised"
+      className="h-10 rounded-lg border border-ink-edge px-4 text-[13px] text-fg transition hover:bg-ink-raised"
     />
   );
 }
@@ -111,7 +111,7 @@ export function SavedNote({ show, children }: { show: boolean; children: React.R
     <span role="status" className="flex items-center gap-1.5 text-xs text-fg-subtle">
       {show && (
         <>
-          <span className="w-1.5 h-1.5 rounded-full bg-signal" />
+          <span className="h-1.5 w-1.5 rounded-full bg-signal" />
           {children}
         </>
       )}

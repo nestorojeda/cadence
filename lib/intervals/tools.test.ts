@@ -132,7 +132,8 @@ describe("athlete binding", () => {
   });
 
   const bound = () => getIntervalsTools(new IntervalsClient("key", ATHLETE));
-  const exec = (t: object, input: unknown) => run(t as { execute?: (input: unknown, options: never) => unknown }, input);
+  const exec = (t: object, input: unknown) =>
+    run(t as { execute?: (input: unknown, options: never) => unknown }, input);
   const paths = () => fetchMock.mock.calls.map(([url]) => new URL(String(url)).pathname);
   const bodies = () => fetchMock.mock.calls.flatMap(([, init]) => (init?.body ? [JSON.parse(String(init.body))] : []));
 
@@ -148,7 +149,7 @@ describe("athlete binding", () => {
       parse: (v: unknown) => Record<string, unknown>;
     };
     expect(schema.parse({ name: "VO2", start_date_local: "2026-09-29T09:00:00", ...INVENTED })).not.toHaveProperty(
-      "athlete_id"
+      "athlete_id",
     );
   });
 
@@ -159,7 +160,13 @@ describe("athlete binding", () => {
     await exec(t.icu_get_wellness_data, { athlete_id: "example_athlete" });
     await exec(t.icu_get_recent_activities, { ...INVENTED, limit: 5 });
     await exec(t.icu_get_calendar_events, INVENTED);
-    await exec(t.icu_create_calendar_event, { ...INVENTED, name: "VO2", start_date_local: "2026-09-29T09:00:00", type: "Ride", category: "WORKOUT" });
+    await exec(t.icu_create_calendar_event, {
+      ...INVENTED,
+      name: "VO2",
+      start_date_local: "2026-09-29T09:00:00",
+      type: "Ride",
+      category: "WORKOUT",
+    });
     await exec(t.icu_update_calendar_event, { ...INVENTED, event_id: "7", name: "Z2" });
     await exec(t.icu_delete_calendar_event, { ...INVENTED, event_id: "7" });
     await exec(t.create_gym_session, {
@@ -192,7 +199,13 @@ describe("athlete binding", () => {
             type: "tool-icu_create_calendar_event",
             toolCallId: "call-write",
             state: "output-available",
-            input: { ...INVENTED, name: "VO2", start_date_local: "2026-09-29T09:00:00", type: "Ride", category: "WORKOUT" },
+            input: {
+              ...INVENTED,
+              name: "VO2",
+              start_date_local: "2026-09-29T09:00:00",
+              type: "Ride",
+              category: "WORKOUT",
+            },
             output: { id: 7 },
           },
         ],

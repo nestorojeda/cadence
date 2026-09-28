@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { HevyExerciseTemplate } from "./client";
-import { compactExerciseHistory, compactWorkouts, routineTitle, searchExerciseTemplates, toHevyRoutine } from "./routine";
+import {
+  compactExerciseHistory,
+  compactWorkouts,
+  routineTitle,
+  searchExerciseTemplates,
+  toHevyRoutine,
+} from "./routine";
 
 const template = (id: string, title: string, type = "weight_reps", extra: Partial<HevyExerciseTemplate> = {}) => ({
   id,
@@ -15,7 +21,10 @@ const template = (id: string, title: string, type = "weight_reps", extra: Partia
 
 const TEMPLATES: HevyExerciseTemplate[] = [
   template("SQ", "Squat (Barbell)"),
-  template("BSS", "Bulgarian Split Squat", "weight_reps", { equipment: "dumbbell", secondary_muscle_groups: ["glutes"] }),
+  template("BSS", "Bulgarian Split Squat", "weight_reps", {
+    equipment: "dumbbell",
+    secondary_muscle_groups: ["glutes"],
+  }),
   template("PL", "Plank", "duration", { primary_muscle_group: "abdominals", equipment: "none" }),
   template("CUSTOM", "Squat Jump", "bodyweight_reps", { is_custom: true, equipment: "none" }),
 ];
@@ -29,7 +38,14 @@ describe("searchExerciseTemplates", () => {
   it("filters by muscle (primary or secondary) and equipment", () => {
     expect(searchExerciseTemplates(TEMPLATES, { muscle: "Glutes" }).map((t) => t.id)).toEqual(["BSS"]);
     expect(searchExerciseTemplates(TEMPLATES, { query: "squat", equipment: "none" })).toEqual([
-      { id: "CUSTOM", title: "Squat Jump", muscle: "quadriceps", equipment: "none", type: "bodyweight_reps", custom: true },
+      {
+        id: "CUSTOM",
+        title: "Squat Jump",
+        muscle: "quadriceps",
+        equipment: "none",
+        type: "bodyweight_reps",
+        custom: true,
+      },
     ]);
   });
 });
@@ -42,14 +58,22 @@ describe("toHevyRoutine", () => {
       notes: "Strength block",
       exercises: [
         { name: "squat (barbell)", sets: 3, warmup_sets: 1, reps: 5, weight_kg: 80, rpe: 8, rest_seconds: 150 },
-        { name: "Split squat", hevy_exercise_id: "BSS", sets: 2, rep_min: 8, rep_max: 10, weight_kg: 12, notes: "Slow" },
+        {
+          name: "Split squat",
+          hevy_exercise_id: "BSS",
+          sets: 2,
+          rep_min: 8,
+          rep_max: 10,
+          weight_kg: 12,
+          notes: "Slow",
+        },
         { name: "Plank", sets: 2, duration_seconds: 45 },
         { name: "Nordic Curl", sets: 3, reps: 5 },
       ],
     },
     TEMPLATES,
     42,
-    "Gym · Tue 29 Sep"
+    "Gym · Tue 29 Sep",
   );
 
   it("matches templates by id, then by normalized name", () => {
@@ -75,17 +99,25 @@ describe("toHevyRoutine", () => {
   it("uses rep ranges and timed sets", () => {
     const [, split, plank] = routine.exercises;
     expect(split.notes).toBe("Slow");
-    expect(split.sets[0]).toEqual({ type: "normal", weight_kg: 12, reps: null, rep_range: { start: 8, end: 10 }, duration_seconds: null });
+    expect(split.sets[0]).toEqual({
+      type: "normal",
+      weight_kg: 12,
+      reps: null,
+      rep_range: { start: 8, end: 10 },
+      duration_seconds: null,
+    });
     expect(plank.notes).toBeNull();
     expect(plank.sets).toEqual(
-      Array(2).fill({ type: "normal", weight_kg: null, reps: null, rep_range: null, duration_seconds: 45 })
+      Array(2).fill({ type: "normal", weight_kg: null, reps: null, rep_range: null, duration_seconds: 45 }),
     );
   });
 });
 
 describe("routineTitle", () => {
   it("appends the day, or keeps the name for a bad date", () => {
-    expect(routineTitle({ name: "Gym", start_date_local: "2026-09-29T00:00:00", exercises: [] })).toMatch(/^Gym · Tue 29 Sep/);
+    expect(routineTitle({ name: "Gym", start_date_local: "2026-09-29T00:00:00", exercises: [] })).toMatch(
+      /^Gym · Tue 29 Sep/,
+    );
     expect(routineTitle({ name: "Gym", start_date_local: "soon", exercises: [] })).toBe("Gym");
   });
 });
@@ -113,7 +145,7 @@ describe("compactWorkouts", () => {
           ],
         },
       ],
-      TEMPLATES
+      TEMPLATES,
     );
     expect(w).toEqual({
       date: "2026-09-20",
@@ -139,9 +171,14 @@ describe("compactExerciseHistory", () => {
     });
     expect(
       compactExerciseHistory(
-        [entry("a", "2026-09-01", 40, "warmup"), entry("a", "2026-09-01", 75), entry("b", "2026-09-08", 80), entry("b", "2026-09-08", 80)],
-        1
-      )
+        [
+          entry("a", "2026-09-01", 40, "warmup"),
+          entry("a", "2026-09-01", 75),
+          entry("b", "2026-09-08", 80),
+          entry("b", "2026-09-08", 80),
+        ],
+        1,
+      ),
     ).toEqual([{ date: "2026-09-08", sets: "80kg×5, 80kg×5" }]);
   });
 });
