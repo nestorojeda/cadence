@@ -1,12 +1,13 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { generateId, type UIMessage } from "ai";
 import { MobileBar, Sidebar } from "@/components/Sidebar";
 import { ChatInterface } from "@/components/chat/ChatInterface";
 import { CoachPreferencesModal } from "@/components/preferences/CoachPreferencesModal";
 import { SettingsModal } from "@/components/SettingsModal";
 import { HistoryModal } from "@/components/chat/HistoryModal";
+import { TodaySheet } from "@/components/TodaySheet";
 import type { ChatMeta, StoredChat } from "@/lib/chat/types";
 import { DEFAULT_MODELS, DEFAULT_PROVIDER, type ModelProvider } from "@/lib/llm/models";
 import type { MetricsResponse } from "@/lib/intervals/metrics";
@@ -28,6 +29,8 @@ interface OpenChat {
   messages: UIMessage[];
 }
 
+const STALE_AFTER_MS = 5 * 60 * 1000;
+
 function readModelLabel() {
   const provider = (localStorage.getItem("apex_model_provider") as ModelProvider) || DEFAULT_PROVIDER;
   const model = localStorage.getItem("apex_model_name") || DEFAULT_MODELS[provider];
@@ -46,6 +49,8 @@ export default function Home() {
   const [chats, setChats] = useState<ChatMeta[]>([]);
   const [chat, setChat] = useState<OpenChat | null>(null);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [isTodayOpen, setIsTodayOpen] = useState(false);
+  const metricsFetchedAt = useRef(0);
 
   const loadStoredSettings = () => {
     const storedId = localStorage.getItem("apex_athlete_id");
@@ -138,6 +143,7 @@ export default function Home() {
   };
 
   const fetchMetrics = useCallback(async () => {
+    metricsFetchedAt.current = Date.now();
     try {
       setMetricsLoading(true);
       const intervalsKey = localStorage.getItem("apex_intervals_key");
@@ -158,6 +164,16 @@ export default function Home() {
   useEffect(() => {
     void fetchMetrics();
   }, [fetchMetrics]);
+
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState !== "visible" || Date.now() - metricsFetchedAt.current < STALE_AFTER_MS) return;
+      void fetchMetrics();
+      void fetchChats();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [fetchMetrics, fetchChats]);
 
   const onTurnEnd = useCallback(
     (changedCalendar: boolean) => {
@@ -190,6 +206,8 @@ export default function Home() {
       <div className="flex min-w-0 flex-1 flex-col">
         <MobileBar
           metrics={metrics}
+          onOpenToday={() => setIsTodayOpen(true)}
+          onNewChat={() => newChat(athleteId)}
           onOpenRules={() => setIsRulesOpen(true)}
           onOpenSettings={() => setIsSettingsOpen(true)}
           onOpenHistory={() => setIsHistoryOpen(true)}
@@ -217,6 +235,15 @@ export default function Home() {
         onNewChat={() => newChat(athleteId)}
         onRename={renameChat}
         onDelete={deleteChat}
+      />
+
+      <TodaySheet
+        isOpen={isTodayOpen}
+        onClose={() => setIsTodayOpen(false)}
+        athleteId={athleteId || metrics?.athlete?.id || ""}
+        metrics={metrics}
+        loading={metricsLoading}
+        onRefresh={fetchMetrics}
       />
 
       <CoachPreferencesModal isOpen={isRulesOpen} onClose={() => setIsRulesOpen(false)} athleteId={athleteId} />

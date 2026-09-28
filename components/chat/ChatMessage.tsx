@@ -183,7 +183,7 @@ export function ChatMessage({ message, isStreaming = false, onApproval, eventsBe
                       type="button"
                       disabled={!onApproval}
                       onClick={() => answerAll(false)}
-                      className="h-8 rounded-lg border border-ink-edge px-3 text-xs text-fg transition hover:bg-ink-raised disabled:opacity-40"
+                      className="h-10 rounded-lg border border-ink-edge px-4 text-xs text-fg transition hover:bg-ink-raised disabled:opacity-40 sm:h-8 sm:px-3"
                     >
                       Skip all
                     </button>
@@ -191,7 +191,7 @@ export function ChatMessage({ message, isStreaming = false, onApproval, eventsBe
                       type="button"
                       disabled={!onApproval}
                       onClick={() => answerAll(true)}
-                      className="h-8 rounded-lg bg-signal px-3 text-xs font-semibold text-on-signal transition hover:brightness-95 disabled:opacity-40"
+                      className="h-10 rounded-lg bg-signal px-4 text-xs font-semibold text-on-signal transition hover:brightness-95 disabled:opacity-40 sm:h-8 sm:px-3"
                     >
                       {onlyAdds ? "Add" : "Approve"} all {pending.length}
                     </button>
@@ -225,7 +225,7 @@ function ToolTrace({ parts }: { parts: ToolPart[] }) {
       <button
         onClick={() => setOpen(!open)}
         aria-expanded={open}
-        className="flex h-7 max-w-full items-center gap-2 rounded-full border border-ink-line px-2.5 font-mono text-[11px] text-fg-subtle transition hover:border-ink-edge hover:text-fg"
+        className="flex h-8 max-w-full items-center gap-2 rounded-full border border-ink-line px-2.5 font-mono text-[11px] text-fg-subtle transition hover:border-ink-edge hover:text-fg sm:h-7"
       >
         {failed.length > 0 ? (
           <AlertTriangle className="h-3 w-3 shrink-0 text-signal-warn" />
@@ -244,10 +244,14 @@ function ToolTrace({ parts }: { parts: ToolPart[] }) {
         <div className="basis-full overflow-hidden rounded-[10px] border border-ink-line font-mono text-xs">
           {parts.map((part, i) => (
             <details key={part.toolCallId} className={`group ${i > 0 ? "border-t border-ink-hair" : ""}`}>
-              <summary className="grid cursor-pointer list-none grid-cols-[minmax(0,200px)_minmax(0,1fr)_56px] items-center gap-3 px-3.5 py-2 hover:bg-ink-rail">
+              <summary className="grid cursor-pointer list-none grid-cols-[minmax(0,1fr)_56px] items-center gap-x-3 gap-y-0.5 px-3.5 py-2 hover:bg-ink-rail sm:grid-cols-[minmax(0,200px)_minmax(0,1fr)_56px]">
                 <span className="truncate text-fg">{getToolName(part)}</span>
-                <span className="truncate text-fg-muted">{part.input != null ? JSON.stringify(part.input) : ""}</span>
-                <span className={`text-right ${hasFailed(part) ? "text-signal-warn" : "text-fg-muted"}`}>
+                <span className="col-span-2 row-start-2 truncate text-fg-muted sm:col-span-1 sm:row-start-auto">
+                  {part.input != null ? JSON.stringify(part.input) : ""}
+                </span>
+                <span
+                  className={`col-start-2 row-start-1 text-right sm:col-start-auto sm:row-start-auto ${hasFailed(part) ? "text-signal-warn" : "text-fg-muted"}`}
+                >
                   {isRunning(part) ? "…" : hasFailed(part) ? "failed" : "ok"}
                 </span>
               </summary>

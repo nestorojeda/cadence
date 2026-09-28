@@ -34,7 +34,7 @@ export function Modal({ title, description, onClose, footer, children, width = "
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className={`w-full ${width} flex max-h-[92vh] flex-col overflow-hidden rounded-t-2xl border border-ink-line bg-ink-rail text-fg shadow-2xl sm:rounded-2xl`}
+        className={`w-full ${width} flex max-h-[92dvh] flex-col overflow-hidden rounded-t-2xl border border-ink-line bg-ink-rail text-fg shadow-2xl sm:rounded-2xl`}
       >
         <div className="flex items-start justify-between gap-4 border-b border-ink-hair px-6 pb-4 pt-5">
           <div className="flex min-w-0 flex-col gap-1">
@@ -46,7 +46,7 @@ export function Modal({ title, description, onClose, footer, children, width = "
           <button
             onClick={onClose}
             aria-label="Close"
-            className="-mr-2 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-fg-muted transition hover:bg-ink-raised hover:text-fg"
+            className="-mr-2.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-fg-muted transition hover:bg-ink-raised hover:text-fg sm:-mr-2 sm:h-9 sm:w-9"
           >
             <X className="h-4 w-4" />
           </button>
@@ -54,7 +54,9 @@ export function Modal({ title, description, onClose, footer, children, width = "
 
         <div className="flex flex-1 flex-col gap-6 overflow-y-auto px-6 py-5">{children}</div>
 
-        <div className="flex items-center justify-between gap-3 border-t border-ink-hair px-6 py-4">{footer}</div>
+        <div className="flex items-center justify-between gap-3 border-t border-ink-hair px-6 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 sm:pb-4">
+          {footer}
+        </div>
       </div>
     </div>
   );
@@ -84,7 +86,7 @@ export function ModalSection({
 }
 
 export const inputClass =
-  "w-full h-11 bg-ink-surface border border-ink-edge rounded-[10px] px-3.5 text-sm text-fg placeholder:text-fg-muted focus:outline-none focus:border-fg-muted transition";
+  "w-full h-11 bg-ink-surface border border-ink-edge rounded-[10px] px-3.5 text-base sm:text-sm text-fg placeholder:text-fg-muted focus:outline-none focus:border-fg-muted transition";
 
 export function PrimaryButton(props: React.ButtonHTMLAttributes<HTMLButtonElement>) {
   return (

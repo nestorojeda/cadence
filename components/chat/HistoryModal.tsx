@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Check, Pencil, Search, Trash2, X } from "lucide-react";
 import { GhostButton, Modal, PrimaryButton, inputClass } from "@/components/ui/Modal";
 import { formatChatDate, formatTokens, type ChatMeta } from "@/lib/chat/types";
@@ -31,6 +31,12 @@ function HistoryDialog({
   onDelete,
 }: Omit<HistoryModalProps, "isOpen">) {
   const [query, setQuery] = useState("");
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  // On phones, focusing would open the keyboard over the list.
+  useEffect(() => {
+    if (window.matchMedia("(pointer: fine)").matches) searchRef.current?.focus();
+  }, []);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
@@ -79,7 +85,7 @@ function HistoryDialog({
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search chats"
           className={`${inputClass} pl-10`}
-          autoFocus
+          ref={searchRef}
         />
       </div>
 
@@ -189,7 +195,7 @@ function RowButton({ label, onClick, children }: { label: string; onClick: () =>
       onClick={onClick}
       aria-label={label}
       title={label}
-      className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-fg-muted transition hover:bg-ink-line hover:text-fg"
+      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-fg-muted transition hover:bg-ink-line hover:text-fg sm:h-9 sm:w-9"
     >
       {children}
     </button>
