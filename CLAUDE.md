@@ -50,7 +50,8 @@ with `NEXT_OUTPUT=standalone` (`next.config.ts`), which keeps its own `.next` in
 with a local dev server. `data/` is bind-mounted.
 
 **Code style** is enforced in CI (`.github/workflows/ci.yml`: `format:check`, `lint`, `tsc`, `test`). Config lives in
-`eslint.config.mjs` and `.prettierrc.json`; don't disable a rule inline without a reason after `--`. The one-time
+`eslint.config.mjs` and `.prettierrc.json`. A husky pre-commit hook runs lint-staged (`.lintstagedrc.json`: `eslint --fix`
+and `prettier --write` on staged files only); don't disable a rule inline without a reason after `--`. The one-time
 Prettier reformat is listed in `.git-blame-ignore-revs` (`git config blame.ignoreRevsFile .git-blame-ignore-revs`).
 
 ## Architecture
