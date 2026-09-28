@@ -1,6 +1,7 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
+import { ChevronDown } from "lucide-react";
 import { eventZoneColor, formatDuration } from "@/lib/intervals/metrics";
 import { parseWorkout } from "@/lib/intervals/workout";
 import { WorkoutChart } from "./WorkoutChart";
@@ -60,6 +61,7 @@ export function WorkoutCard({
   errorText,
   onDecide,
 }: WorkoutCardProps) {
+  const [showSteps, setShowSteps] = useState(false);
   const input: Partial<WorkoutEventInput> = { ...previous, ...changes };
   const was = previous ? previousSummary(previous, changes) : "";
   const steps = parseWorkout(input.description);
@@ -104,8 +106,22 @@ export function WorkoutCard({
 
       {steps.length > 0 && <WorkoutChart steps={steps} />}
 
+      {input.description && steps.length > 0 && (
+        <button
+          type="button"
+          onClick={() => setShowSteps(!showSteps)}
+          aria-expanded={showSteps}
+          className="-my-1 flex h-9 items-center gap-1.5 self-start font-mono text-xs text-fg-muted transition hover:text-fg sm:hidden"
+        >
+          <ChevronDown className={`h-3.5 w-3.5 transition ${showSteps ? "rotate-180" : ""}`} />
+          {showSteps ? "Hide steps" : "Show steps"}
+        </button>
+      )}
+
       {input.description && (
-        <p className="whitespace-pre-line border-t border-ink-hair pt-3 font-mono text-xs leading-relaxed text-fg-subtle">
+        <p
+          className={`${steps.length > 0 && !showSteps ? "hidden sm:block" : ""} whitespace-pre-line border-t border-ink-hair pt-3 font-mono text-xs leading-relaxed text-fg-subtle`}
+        >
           {input.description}
         </p>
       )}

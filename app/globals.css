@@ -54,6 +54,7 @@ body {
   background-color: rgb(var(--ink));
   color: rgb(var(--fg));
   min-height: 100vh;
+  min-height: 100dvh;
 }
 
 ::-webkit-scrollbar {

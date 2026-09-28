@@ -2,6 +2,7 @@
 
 import React from "react";
 import {
+  CalendarDays,
   Flag,
   History,
   PanelLeftClose,
@@ -225,53 +226,9 @@ export function Sidebar({
         </div>
       </div>
 
-      <section className="flex flex-col gap-3.5">
-        <div className="flex items-baseline justify-between">
-          <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-fg-muted">Form today</span>
-          <button
-            onClick={onRefresh}
-            disabled={loading}
-            title="Refresh from Intervals.icu"
-            className="flex items-center gap-1.5 font-mono text-[11px] text-fg-muted transition hover:text-fg"
-          >
-            <RefreshCw className={`h-3 w-3 ${loading ? "animate-spin" : ""}`} />
-            {fitness?.date ? fitness.date.slice(5).replace("-", "/") : "sync"}
-          </button>
-        </div>
-        <div className="flex items-end gap-3">
-          <span className="font-display text-[72px] font-bold leading-[0.85]">
-            {fitness?.tsb != null ? formatSigned(fitness.tsb) : "—"}
-          </span>
-          {fitness && (
-            <div className="flex flex-col gap-0.5 pb-1">
-              <span className={`text-sm font-semibold ${isFormWarning(metrics) ? "text-signal-warn" : "text-signal"}`}>
-                {FORM_LABELS[fitness.form_status]}
-              </span>
-              <span className="text-xs text-fg-muted">TSB · form</span>
-            </div>
-          )}
-        </div>
-        <FormSparkline points={metrics?.formHistory ?? []} />
-        <div className="grid grid-cols-2 gap-2">
-          <Stat label="Fitness · CTL" value={fitness?.ctl} />
-          <Stat label="Fatigue · ATL" value={fitness?.atl} />
-        </div>
-      </section>
-
-      {upcomingRaces(metrics).length > 0 && (
-        <section className="flex flex-col gap-2.5">
-          <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-fg-muted">Next races</span>
-          <RaceList races={upcomingRaces(metrics).slice(0, MAX_RACES)} />
-        </section>
-      )}
-
-      <section className="flex flex-col gap-2.5">
-        <div className="flex items-center justify-between">
-          <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-fg-muted">This week</span>
-          {metrics && <WeekTotals metrics={metrics} />}
-        </div>
-        <WeekList metrics={metrics} />
-      </section>
+      <FormSection metrics={metrics} loading={loading} onRefresh={onRefresh} />
+      <RacesSection metrics={metrics} />
+      <WeekSection metrics={metrics} />
 
       <section className="flex flex-col gap-2.5">
         <div className="flex items-center justify-between">
@@ -310,43 +267,122 @@ export function Sidebar({
   );
 }
 
+const SECTION_LABEL = "text-[11px] font-semibold uppercase tracking-[0.12em] text-fg-muted";
+
+export function FormSection({
+  metrics,
+  loading,
+  onRefresh,
+  fluid = false,
+}: Pick<SidebarProps, "metrics" | "loading" | "onRefresh"> & { fluid?: boolean }) {
+  const fitness = metrics?.fitness;
+  return (
+    <section className="flex flex-col gap-3.5">
+      <div className="flex items-center justify-between">
+        <span className={SECTION_LABEL}>Form today</span>
+        <button
+          onClick={onRefresh}
+          disabled={loading}
+          title="Refresh from Intervals.icu"
+          className="-mr-2 flex h-8 items-center gap-1.5 px-2 font-mono text-[11px] text-fg-muted transition hover:text-fg"
+        >
+          <RefreshCw className={`h-3 w-3 ${loading ? "animate-spin" : ""}`} />
+          {fitness?.date ? fitness.date.slice(5).replace("-", "/") : "sync"}
+        </button>
+      </div>
+      <div className="flex items-end gap-3">
+        <span className="font-display text-[72px] font-bold leading-[0.85]">
+          {fitness?.tsb != null ? formatSigned(fitness.tsb) : "—"}
+        </span>
+        {fitness && (
+          <div className="flex flex-col gap-0.5 pb-1">
+            <span className={`text-sm font-semibold ${isFormWarning(metrics) ? "text-signal-warn" : "text-signal"}`}>
+              {FORM_LABELS[fitness.form_status]}
+            </span>
+            <span className="text-xs text-fg-muted">TSB · form</span>
+          </div>
+        )}
+      </div>
+      <FormSparkline points={metrics?.formHistory ?? []} fluid={fluid} />
+      <div className="grid grid-cols-2 gap-2">
+        <Stat label="Fitness · CTL" value={fitness?.ctl} />
+        <Stat label="Fatigue · ATL" value={fitness?.atl} />
+      </div>
+    </section>
+  );
+}
+
+export function RacesSection({ metrics }: { metrics: MetricsResponse | null }) {
+  const races = upcomingRaces(metrics);
+  if (races.length === 0) return null;
+  return (
+    <section className="flex flex-col gap-2.5">
+      <span className={SECTION_LABEL}>Next races</span>
+      <RaceList races={races.slice(0, MAX_RACES)} />
+    </section>
+  );
+}
+
+export function WeekSection({ metrics }: { metrics: MetricsResponse | null }) {
+  return (
+    <section className="flex flex-col gap-2.5">
+      <div className="flex items-center justify-between">
+        <span className={SECTION_LABEL}>This week</span>
+        {metrics && <WeekTotals metrics={metrics} />}
+      </div>
+      <WeekList metrics={metrics} />
+    </section>
+  );
+}
+
+const MOBILE_ICON_BUTTON = "flex h-11 w-11 items-center justify-center rounded-lg text-fg-muted hover:text-fg";
+
 export function MobileBar({
   metrics,
+  onOpenToday,
+  onNewChat,
   onOpenRules,
   onOpenSettings,
   onOpenHistory,
-}: Pick<SidebarProps, "metrics" | "onOpenRules" | "onOpenSettings" | "onOpenHistory">) {
+}: Pick<SidebarProps, "metrics" | "onNewChat" | "onOpenRules" | "onOpenSettings" | "onOpenHistory"> & {
+  onOpenToday: () => void;
+}) {
   const tsb = metrics?.fitness?.tsb;
   return (
-    <header className="sticky top-0 z-30 flex h-[60px] items-center justify-between border-b border-ink-hair bg-ink/95 px-4 backdrop-blur lg:hidden">
-      <Wordmark size="sm" />
-      <div className="flex items-center gap-1">
-        {tsb != null && (
-          <span className="mr-1 flex h-9 items-center gap-2 rounded-full border border-ink-line px-3 font-mono text-xs">
-            <span className="text-fg-muted">TSB</span>
-            <span>{formatSigned(tsb)}</span>
-            <span className={`h-1.5 w-1.5 rounded-full ${isFormWarning(metrics) ? "bg-signal-warn" : "bg-signal"}`} />
-          </span>
-        )}
+    <header className="sticky top-0 z-30 box-content flex h-[60px] items-center justify-between gap-2 border-b border-ink-hair bg-ink/95 pl-4 pr-2 pt-[env(safe-area-inset-top)] backdrop-blur lg:hidden">
+      <div className="flex min-w-0 items-center gap-2">
+        <CadenceMark size={16} />
+        <span className="hidden text-base font-semibold tracking-tight min-[400px]:inline">{APP_NAME}</span>
+      </div>
+      <div className="flex items-center">
         <button
-          onClick={onOpenHistory}
-          aria-label="Chats"
-          className="flex h-11 w-11 items-center justify-center rounded-lg text-fg-muted hover:text-fg"
+          onClick={onOpenToday}
+          aria-label="Form and this week"
+          className="mr-1 flex h-9 items-center gap-2 rounded-full border border-ink-line px-3 font-mono text-xs transition hover:border-ink-edge"
         >
+          {tsb != null ? (
+            <>
+              <span className="text-fg-muted">TSB</span>
+              <span>{formatSigned(tsb)}</span>
+              <span className={`h-1.5 w-1.5 rounded-full ${isFormWarning(metrics) ? "bg-signal-warn" : "bg-signal"}`} />
+            </>
+          ) : (
+            <>
+              <CalendarDays className="h-3.5 w-3.5 text-fg-muted" />
+              <span>Week</span>
+            </>
+          )}
+        </button>
+        <button onClick={onNewChat} aria-label="New chat" className={MOBILE_ICON_BUTTON}>
+          <SquarePen className="h-4 w-4" />
+        </button>
+        <button onClick={onOpenHistory} aria-label="Chats" className={MOBILE_ICON_BUTTON}>
           <History className="h-4 w-4" />
         </button>
-        <button
-          onClick={onOpenRules}
-          aria-label="Coach rules"
-          className="flex h-11 w-11 items-center justify-center rounded-lg text-fg-muted hover:text-fg"
-        >
+        <button onClick={onOpenRules} aria-label="Coach rules" className={MOBILE_ICON_BUTTON}>
           <SlidersHorizontal className="h-4 w-4" />
         </button>
-        <button
-          onClick={onOpenSettings}
-          aria-label="Settings"
-          className="flex h-11 w-11 items-center justify-center rounded-lg text-fg-muted hover:text-fg"
-        >
+        <button onClick={onOpenSettings} aria-label="Settings" className={MOBILE_ICON_BUTTON}>
           <Settings className="h-4 w-4" />
         </button>
       </div>
@@ -354,7 +390,7 @@ export function MobileBar({
   );
 }
 
-function IntervalsIcon() {
+export function IntervalsIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 20 20" aria-hidden="true">
       <polyline
@@ -424,7 +460,7 @@ function RailButton({
   );
 }
 
-function FormSparkline({ points }: { points: Array<{ tsb: number }> }) {
+function FormSparkline({ points, fluid = false }: { points: Array<{ tsb: number }>; fluid?: boolean }) {
   const width = 252;
   const height = 56;
   if (points.length < 2) {
@@ -441,8 +477,8 @@ function FormSparkline({ points }: { points: Array<{ tsb: number }> }) {
 
   return (
     <svg
-      width={width}
-      height={height}
+      width={fluid ? "100%" : width}
+      height={fluid ? undefined : height}
       viewBox={`0 0 ${width} ${height}`}
       fill="none"
       role="img"

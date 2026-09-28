@@ -235,7 +235,7 @@ export function CoachPreferencesModal({ isOpen, onClose, athleteId, onSaved }: C
                         aria-label={`${row.label} on ${day}`}
                         title={`${row.label} on ${day}`}
                         onClick={() => toggleDay(row.key, day)}
-                        className={`h-8 rounded-md border transition sm:h-10 ${
+                        className={`h-10 rounded-md border transition ${
                           active ? "border-transparent" : "border-ink-line hover:border-ink-edge hover:bg-ink-surface"
                         }`}
                         style={active ? { background: row.color } : undefined}
@@ -321,6 +321,7 @@ export function CoachPreferencesModal({ isOpen, onClose, athleteId, onSaved }: C
               <div className="relative w-28">
                 <input
                   type="number"
+                  inputMode="numeric"
                   aria-label="Gym session length in minutes"
                   min={15}
                   max={120}
@@ -425,6 +426,7 @@ function HoursInput({
     <div className="relative w-24">
       <input
         type="number"
+        inputMode="numeric"
         aria-label={label}
         min={min}
         max={max}

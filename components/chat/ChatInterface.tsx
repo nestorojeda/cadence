@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useEffect, useMemo, useState } from "react";
+import React, { useRef, useEffect, useLayoutEffect, useMemo, useState } from "react";
 import { useChat } from "@ai-sdk/react";
 import {
   DefaultChatTransport,
@@ -8,7 +8,7 @@ import {
   lastAssistantMessageIsCompleteWithApprovalResponses,
   type UIMessage,
 } from "ai";
-import { ArrowUp, Square } from "lucide-react";
+import { ArrowDown, ArrowUp, Square } from "lucide-react";
 import { ChatMessage, CoachLabel, LiveStatus } from "./ChatMessage";
 import { COMPOSER_CHIPS, QuickPrompts } from "./QuickPrompts";
 import { DEFAULT_MODELS, DEFAULT_PROVIDER, type ModelProvider } from "@/lib/llm/models";
@@ -40,6 +40,17 @@ const API_KEY_STORAGE: Partial<Record<ModelProvider, string>> = {
   anthropic: "apex_anthropic_key",
 };
 
+const NEAR_BOTTOM_PX = 80;
+
+function isNearBottom() {
+  const doc = document.documentElement;
+  return doc.scrollHeight - (window.scrollY + window.innerHeight) < NEAR_BOTTOM_PX;
+}
+
+function scrollToBottom(behavior: ScrollBehavior) {
+  window.scrollTo({ top: document.documentElement.scrollHeight, behavior });
+}
+
 function getModelSettings() {
   const modelProvider = (localStorage.getItem("apex_model_provider") as ModelProvider) || DEFAULT_PROVIDER;
   return {
@@ -62,7 +73,8 @@ export function ChatInterface({
   onTurnEnd,
 }: ChatInterfaceProps) {
   const [input, setInput] = useState("");
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const followRef = useRef(true);
+  const [atBottom, setAtBottom] = useState(true);
 
   // The transport's body callback runs per request; keep athleteId in a ref so it's always current.
   const athleteIdRef = useRef(athleteId);
@@ -100,6 +112,7 @@ export function ChatInterface({
   const submitText = (value: string) => {
     const text = value.trim();
     if (!text || isLoading) return;
+    followRef.current = true;
     void sendMessage({ text });
     setInput("");
   };
@@ -110,8 +123,28 @@ export function ChatInterface({
   };
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    const onScroll = () => {
+      const near = isNearBottom();
+      followRef.current = near;
+      setAtBottom(near);
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+    };
+  }, []);
+
+  // Smooth scrolling would fire scroll events mid-animation that read as "the athlete scrolled up".
+  useEffect(() => {
+    if (followRef.current) scrollToBottom("instant");
   }, [messages, isLoading]);
+
+  const jumpToLatest = () => {
+    followRef.current = true;
+    scrollToBottom("smooth");
+  };
 
   const eventsBefore = useMemo(() => eventsBeforeWrites(messages), [messages]);
 
@@ -138,10 +171,12 @@ export function ChatInterface({
 
   if (messages.length === 0) {
     return (
-      <div className="flex flex-1 items-center justify-center px-4 py-10 lg:py-16">
+      <div className="flex flex-1 justify-center px-4 pt-8 lg:items-center lg:py-16">
         <div className="flex w-full max-w-[680px] flex-col gap-8">
           <Briefing metrics={metrics} />
-          {composer}
+          <div className="sticky bottom-0 z-20 order-last -mx-4 mt-auto bg-ink px-3 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 lg:static lg:order-none lg:mx-0 lg:mt-0 lg:bg-transparent lg:p-0">
+            {composer}
+          </div>
           <QuickPrompts onSelectPrompt={submitText} disabled={isLoading} />
         </div>
       </div>
@@ -195,23 +230,25 @@ export function ChatInterface({
               <span className="break-words text-fg-subtle">{error.message}</span>
             </div>
           )}
-
-          <div ref={messagesEndRef} />
         </div>
       </div>
 
-      <div className="sticky bottom-0 z-20 flex justify-center bg-ink px-3 pb-4 pt-3 lg:px-8 lg:pb-6">
+      <div className="sticky bottom-0 z-20 flex justify-center bg-ink px-3 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 lg:px-8 lg:pb-6">
+        {!atBottom && (
+          <button
+            type="button"
+            onClick={jumpToLatest}
+            className="absolute -top-11 left-1/2 flex h-9 -translate-x-1/2 items-center gap-1.5 rounded-full border border-ink-edge bg-ink-surface px-3.5 font-mono text-xs text-fg shadow-lg transition hover:bg-ink-raised"
+          >
+            <ArrowDown className="h-3.5 w-3.5" />
+            latest
+          </button>
+        )}
         <div className="flex w-full max-w-[720px] flex-col gap-2">
           {composer}
           <span className="hidden text-center text-[11px] text-fg-muted lg:block">
             Enter to send · Shift + Enter for a new line · the coach reads your Intervals.icu data live
           </span>
-          <button
-            onClick={startNewChat}
-            className="self-center text-xs text-fg-muted underline underline-offset-4 lg:hidden"
-          >
-            New chat
-          </button>
         </div>
       </div>
     </div>
@@ -319,6 +356,15 @@ interface ComposerProps {
 }
 
 function Composer({ value, onChange, onSubmit, onStop, isLoading, large, chips, onChip }: ComposerProps) {
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useLayoutEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [value]);
+
   return (
     <form
       onSubmit={(e) => {
@@ -332,18 +378,20 @@ function Composer({ value, onChange, onSubmit, onStop, isLoading, large, chips, 
       </label>
       <div className="flex items-end gap-3">
         <textarea
+          ref={textareaRef}
           id="coach-message"
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
+            // On touch keyboards Enter adds a line; the send button sends.
+            if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing && !isTouch()) {
               e.preventDefault();
               onSubmit();
             }
           }}
           placeholder="Ask about your form, a ride, or next week…"
-          rows={large ? 3 : 2}
-          className="max-h-40 flex-1 resize-none bg-transparent py-1 text-base leading-normal text-fg placeholder:text-fg-muted focus:outline-none lg:text-[15px]"
+          rows={1}
+          className={`${large ? "min-h-14 lg:min-h-[76px]" : "min-h-8 lg:min-h-[53px]"} max-h-[40dvh] flex-1 resize-none bg-transparent py-1 text-base leading-normal text-fg placeholder:text-fg-muted focus:outline-none lg:max-h-40 lg:text-[15px]`}
         />
         {!chips && <SendButton isLoading={isLoading} canSend={!!value.trim()} onStop={onStop} />}
       </div>
@@ -356,7 +404,7 @@ function Composer({ value, onChange, onSubmit, onStop, isLoading, large, chips, 
                 type="button"
                 disabled={isLoading}
                 onClick={() => onChip(chip.prompt)}
-                className="h-[30px] shrink-0 rounded-full border border-ink-line px-2.5 text-xs text-fg-subtle transition hover:border-ink-edge hover:text-fg disabled:opacity-40"
+                className="h-9 shrink-0 rounded-full border border-ink-line px-2.5 text-xs text-fg-subtle transition hover:border-ink-edge hover:text-fg disabled:opacity-40 lg:h-[30px]"
               >
                 {chip.label}
               </button>
@@ -367,6 +415,10 @@ function Composer({ value, onChange, onSubmit, onStop, isLoading, large, chips, 
       )}
     </form>
   );
+}
+
+function isTouch() {
+  return window.matchMedia("(pointer: coarse)").matches;
 }
 
 function SendButton({ isLoading, canSend, onStop }: { isLoading: boolean; canSend: boolean; onStop: () => void }) {

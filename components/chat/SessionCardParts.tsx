@@ -107,7 +107,7 @@ export function SessionCardStatus({
             type="button"
             disabled={!onDecide}
             onClick={() => onDecide?.(false)}
-            className="h-8 rounded-lg border border-ink-edge px-3 text-fg transition hover:bg-ink-raised disabled:opacity-40"
+            className="h-10 rounded-lg border border-ink-edge px-4 text-fg transition hover:bg-ink-raised disabled:opacity-40 sm:h-8 sm:px-3"
           >
             Skip
           </button>
@@ -115,7 +115,7 @@ export function SessionCardStatus({
             type="button"
             disabled={!onDecide}
             onClick={() => onDecide?.(true)}
-            className="h-8 rounded-lg bg-signal px-3 font-semibold text-on-signal transition hover:brightness-95 disabled:opacity-40"
+            className="h-10 rounded-lg bg-signal px-4 font-semibold text-on-signal transition hover:brightness-95 disabled:opacity-40 sm:h-8 sm:px-3"
           >
             {copy.approve}
           </button>
