@@ -9,21 +9,18 @@ services:
     volumes:
       - tailscale-state:/var/lib/tailscale
       - ./deploy/tailscale/serve.json:/config/serve.json:ro
-    extra_hosts:
-      - host.docker.internal:host-gateway
     restart: unless-stopped
 
-  cadence:
+  app:
     build: .
     image: cadence:latest
-    network_mode: service:tailscale
-    depends_on:
-      - tailscale
     env_file:
       - path: .env.local
         required: false
     environment:
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434/v1}
+    extra_hosts:
+      - host.docker.internal:host-gateway
     volumes:
       - ./data:/app/data
     restart: unless-stopped
