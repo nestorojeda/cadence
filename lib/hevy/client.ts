@@ -86,7 +86,9 @@ interface CacheEntry<T> {
 // Keyed by API key (in memory only): the template library is ~400 entries fetched 100 at a time, and the folder id
 // never changes once created.
 const templateCache = new Map<string, CacheEntry<HevyExerciseTemplate[]>>();
-const folderCache = new Map<string, number>();
+// Holds the pending lookup, not just the result: sessions approved together run in parallel and must share one
+// lookup-or-create, or each would make its own folder.
+const folderCache = new Map<string, Promise<number>>();
 const TEMPLATE_TTL_MS = 6 * 60 * 60 * 1000;
 const REQUEST_TIMEOUT_MS = 30_000;
 
@@ -155,36 +157,45 @@ export class HevyClient {
   }
 
   /** Id of the folder the coach's routines go in, created on first use. */
-  async getOrCreateFolder(title = HEVY_FOLDER_TITLE): Promise<number> {
+  getOrCreateFolder(title = HEVY_FOLDER_TITLE): Promise<number> {
     const cacheKey = `${this.apiKey}:${title}`;
-    const cached = folderCache.get(cacheKey);
-    if (cached != null) return cached;
+    let pending = folderCache.get(cacheKey);
+    if (!pending) {
+      pending = this.findOrCreateFolder(title);
+      folderCache.set(cacheKey, pending);
+      // A failed lookup is retried on the next routine rather than cached.
+      pending.catch(() => folderCache.delete(cacheKey));
+    }
+    return pending;
+  }
 
+  private async findOrCreateFolder(title: string): Promise<number> {
     type Folder = { id: number; title: string };
-    let id: number | undefined;
-    for (let page = 1; page <= 10 && id == null; page++) {
+    const matches: Folder[] = [];
+    for (let page = 1; page <= 10; page++) {
       const data = await this.request<{ page_count?: number; routine_folders?: Folder[] }>(
         `/routine_folders?page=${page}&pageSize=10`,
         "fetch Hevy routine folders"
       ).catch((error: Error) => {
-        // Accounts without folders get a 404 (or a page without `routine_folders`) instead of an empty list.
+        // Hevy answers 404 past the last page, and for accounts without folders.
         if (/\(404\)/.test(error.message)) return { page_count: 0, routine_folders: [] as Folder[] };
         throw error;
       });
-      id = (data.routine_folders ?? []).find((f) => f.title === title)?.id;
-      if (page >= (data.page_count ?? 0)) break;
+      const folders = data.routine_folders ?? [];
+      matches.push(...folders.filter((f) => f.title === title));
+      if (page >= (data.page_count ?? 0) || folders.length === 0) break;
     }
-    if (id == null) {
-      const created = await this.request<{ routine_folder?: Folder | Folder[] } & Partial<Folder>>(
-        "/routine_folders",
-        "create the Hevy routine folder",
-        { method: "POST", body: JSON.stringify({ routine_folder: { title } }) }
-      );
-      const folder = Array.isArray(created.routine_folder) ? created.routine_folder[0] : created.routine_folder;
-      id = folder?.id ?? created.id;
-      if (id == null) throw new Error(`Hevy did not return the new routine folder's id (${JSON.stringify(created)})`);
-    }
-    folderCache.set(cacheKey, id);
+    // Earlier versions could create duplicates; always use the oldest so routines stay together.
+    if (matches.length > 0) return Math.min(...matches.map((f) => f.id));
+
+    const created = await this.request<{ routine_folder?: Folder | Folder[] } & Partial<Folder>>(
+      "/routine_folders",
+      "create the Hevy routine folder",
+      { method: "POST", body: JSON.stringify({ routine_folder: { title } }) }
+    );
+    const folder = Array.isArray(created.routine_folder) ? created.routine_folder[0] : created.routine_folder;
+    const id = folder?.id ?? created.id;
+    if (id == null) throw new Error(`Hevy did not return the new routine folder's id (${JSON.stringify(created)})`);
     return id;
   }
 
