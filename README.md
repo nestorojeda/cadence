@@ -244,7 +244,7 @@ and anyone who isn't on your Tailscale network can't reach it at all.
 5. **Start it:**
 
    ```bash
-   docker compose up -d --build
+   make run
    ```
 
 6. Open `https://cadence.<your-tailnet>.ts.net`. The first load can take a few seconds while the certificate is
@@ -256,9 +256,16 @@ off your network after 180 days.
 **Your data** is in `data/` next to `compose.yaml`, the same folder a plain `pnpm start` uses. The container runs
 as user 1000. On Linux, if chats don't save, run `sudo chown -R 1000:1000 data`.
 
-**Updating:** `git pull`, then `docker compose up -d --build`.
+**Day to day:**
 
-**Logs:** `docker compose logs -f cadence`.
+| Command        | What it does                                                                                                   |
+| -------------- | -------------------------------------------------------------------------------------------------------------- |
+| `make run`     | Build and start (also how you update after `git pull`).                                                        |
+| `make stop`    | Stop the containers.                                                                                           |
+| `make restart` | Restart without rebuilding.                                                                                    |
+| `make logs`    | Follow Cadence's logs.                                                                                         |
+| `make status`  | Show whether the containers are running.                                                                       |
+| `make destroy` | Remove the containers, the image and the Tailscale login. `data/` is kept; rejoining needs a new `TS_AUTHKEY`. |
 
 **Ollama** on the same machine is reached at `http://host.docker.internal:11434/v1`. On Linux, start Ollama with
 `OLLAMA_HOST=0.0.0.0` so the container can reach it. For Ollama on another machine, set `OLLAMA_BASE_URL` in `.env`.
