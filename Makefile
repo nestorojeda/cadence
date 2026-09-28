@@ -1,7 +1,7 @@
 .PHONY: run stop restart destroy logs status
 
 run:
-	docker compose up -d --build
+	docker compose up -d --build --remove-orphans
 
 stop:
 	docker compose stop
@@ -13,7 +13,7 @@ destroy:
 	docker compose down --volumes --rmi local
 
 logs:
-	docker compose logs -f cadence
+	docker compose logs -f app
 
 status:
 	docker compose ps

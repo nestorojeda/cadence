@@ -45,7 +45,7 @@ report; its `scan.sh` collects the mechanical signals.
 change to `lib/`; there are no React component or route handler tests yet.
 
 **Docker:** `make run` (`docker compose up -d --build`; also `stop`, `restart`, `logs`, `status`, `destroy`) runs the app behind a Tailscale sidecar (`compose.yaml`,
-`deploy/tailscale/serve.json`); the app shares the sidecar's network, so no host port is published. The image builds
+`deploy/tailscale/serve.json`); Tailscale Serve proxies to the `app` service over the compose network and no host port is published. Don't give the app service the sidecar's `hostname` (`cadence`): the name would resolve to both containers. Don't use `network_mode: service:tailscale` either: the app loses its network whenever the sidecar restarts. The image builds
 with `NEXT_OUTPUT=standalone` (`next.config.ts`), which keeps its own `.next` inside the container and doesn't clash
 with a local dev server. `data/` is bind-mounted.
 
