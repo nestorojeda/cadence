@@ -10,8 +10,6 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // Cockpit palette (warm ground, one signal accent). Values live in app/globals.css with a light
-        // and a dark set; the `dark` class on <html> picks one.
         ink: {
           DEFAULT: "rgb(var(--ink) / <alpha-value>)",
           rail: "rgb(var(--ink-rail) / <alpha-value>)",
@@ -34,7 +32,6 @@ const config: Config = {
           DEFAULT: "rgb(var(--signal) / <alpha-value>)",
           warn: "rgb(var(--signal-warn) / <alpha-value>)",
         },
-        // Text on a signal fill: dark on lime at night, white on olive by day.
         "on-signal": "rgb(var(--on-signal) / <alpha-value>)",
       },
       fontFamily: {
@@ -43,7 +40,6 @@ const config: Config = {
         display: ["var(--font-display)", "var(--font-sans)", "sans-serif"],
       },
       animation: {
-        // Cadence mark while the coach works: one crank revolution per pedal stroke at 90 rpm.
         pedal: "spin 0.667s linear infinite",
       },
       borderRadius: {

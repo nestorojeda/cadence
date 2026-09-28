@@ -3,7 +3,7 @@ import { terrainInfo } from "@/lib/intervals/terrain";
 import { formatDuration, type KeyEvent } from "@/lib/intervals/metrics";
 import { GYM_EQUIPMENT, GYM_GOALS, type GymPreferences } from "@/lib/coach/gym";
 
-/** "Friday, 2026-09-25" in the server's local time zone (the athlete's, when self-hosted). */
+/** Server's local time zone (the athlete's, when self-hosted). */
 function formatToday(now: Date): string {
   const weekday = now.toLocaleDateString("en-US", { weekday: "long" });
   const pad = (n: number) => n.toString().padStart(2, "0");
@@ -80,9 +80,6 @@ ${loads}
 `;
 }
 
-/**
- * Builds the dynamic Cycling Coach system prompt infused with live athlete rules and schedule preferences.
- */
 export function buildCoachSystemPrompt(
   preferences: CoachPreferences,
   now = new Date(),

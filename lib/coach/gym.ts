@@ -1,7 +1,4 @@
-/**
- * Strength training: the athlete's gym preferences and the shape of a gym session the coach schedules. Shared by the
- * server (prompt, tools) and the UI (Coach rules, session cards), so it must not import server-only code.
- */
+// Shared by the server and the UI, so it must not import server-only code.
 
 export type GymGoal = "cycling_performance" | "injury_prevention" | "muscle" | "bone_health" | "mobility";
 export type GymExperience = "beginner" | "intermediate" | "advanced";
@@ -11,9 +8,7 @@ export interface GymPreferences {
   goals: GymGoal[];
   experience: GymExperience;
   equipment: GymEquipment;
-  /** Typical session length, warm-up included. */
   sessionMinutes: number;
-  /** Injuries, exercises to avoid or favour, anything else about the gym. */
   notes: string;
 }
 
@@ -70,17 +65,14 @@ export const GYM_EQUIPMENT: Array<{ id: GymEquipment; label: string; description
   { id: "bodyweight", label: "Bodyweight", description: "no equipment; bodyweight and household items only" },
 ];
 
-/** Input of the `create_gym_session` tool (see lib/intervals/tools.ts). */
 export interface GymExercise {
   name: string;
   hevy_exercise_id?: string;
-  /** Working sets. */
   sets: number;
   warmup_sets?: number;
   reps?: number;
   rep_min?: number;
   rep_max?: number;
-  /** Time per set for holds and carries. */
   duration_seconds?: number;
   weight_kg?: number;
   rpe?: number;
@@ -99,7 +91,6 @@ export interface GymSessionInput {
   exercises: GymExercise[];
 }
 
-/** Result of the `create_gym_session` tool: each target reports on its own, so one can fail without the other. */
 export interface GymSessionResult {
   /** `skipped`: the session was already on the calendar (a Hevy-only retry). */
   intervals: { id: number } | { error: string } | "skipped";
@@ -107,7 +98,6 @@ export interface GymSessionResult {
   hevy: { routine_id: string; title: string; unmatched?: string[] } | { error: string } | "not_connected";
 }
 
-/** RPE values Hevy accepts when logging a set; prescriptions are rounded to them. */
 export const RPE_VALUES = [6, 7, 7.5, 8, 8.5, 9, 9.5, 10];
 
 function formatSeconds(seconds: number): string {
@@ -117,7 +107,6 @@ function formatSeconds(seconds: number): string {
   return s ? `${m}:${s.toString().padStart(2, "0")}` : `${m}:00`;
 }
 
-/** "4×5", "3×8–10", "3×45s". */
 export function formatSetsReps(e: Partial<GymExercise>): string {
   const sets = e.sets ?? 0;
   let per = "";
@@ -140,7 +129,6 @@ export function formatRpe(rpe?: number): string | null {
   return `RPE ${rpe} (${reps} in reserve)`;
 }
 
-/** One line per exercise, e.g. "Back Squat (Barbell) — 4×5 @ RPE 8 · 80 kg · rest 2:30". */
 export function formatExerciseLine(e: GymExercise): string {
   const facts = [
     e.weight_kg != null ? `${e.weight_kg} kg` : null,
@@ -151,7 +139,6 @@ export function formatExerciseLine(e: GymExercise): string {
   return `- ${[main, ...facts].join(" · ")}${e.notes ? `. ${e.notes}` : ""}`;
 }
 
-/** Plain-text description for the Intervals.icu calendar event. */
 export function formatGymDescription(input: GymSessionInput): string {
   return [input.notes?.trim(), input.exercises.map(formatExerciseLine).join("\n")].filter(Boolean).join("\n\n");
 }

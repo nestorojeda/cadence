@@ -17,9 +17,7 @@ import {
   wellnessRange,
 } from "./compact";
 
-// Read tools return trimmed records (see ./compact) with bounded default date ranges: raw Intervals.icu responses are
-// large and every result is re-sent to the model on each later step of the turn.
-// Tools take no athlete ID: the client is bound to the athlete the route resolved, so the model can't act on another.
+// No athlete ID in tool inputs: the client is bound to the athlete the route resolved.
 type Row = Record<string, unknown>;
 
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD");
@@ -47,10 +45,6 @@ const gymExerciseSchema = z.object({
   notes: z.string().optional().describe("Short cue (tempo, form, side-to-side)"),
 });
 
-/**
- * Creates Vercel AI SDK tools bound to an IntervalsClient instance. With a Hevy client, gym sessions are also created
- * as Hevy routines.
- */
 export function getIntervalsTools(client: IntervalsClient, hevy: HevyClient | null = null) {
   return {
     icu_get_fitness_summary: tool({

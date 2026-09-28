@@ -1,20 +1,11 @@
 import { isToolUIPart, type UIMessage } from "ai";
 
-/**
- * Human-in-the-loop for write tools. The route pauses on `approval-requested` tool parts (see `toolApproval` in
- * app/api/chat/route.ts); the athlete's decisions come back as the paused assistant message. Only the decisions are
- * taken from the client: tool inputs always come from the stored message, so nothing can be altered while approving.
- */
+// Only the decisions come from the client: tool inputs always come from the stored message.
 
 type ToolPart = Extract<UIMessage["parts"][number], { toolCallId: string }>;
 
-/** Reason recorded when the athlete sends a new message instead of answering pending approvals. */
 const EXPIRED_REASON = "The athlete replied without confirming, so this was not added.";
 
-/**
- * Merges the approve/deny decisions from the client's copy of `stored` into it. Returns null when the incoming message
- * answers none of the pending approvals.
- */
 export function applyApprovalResponses(stored: UIMessage, incoming: UIMessage): UIMessage | null {
   const decisions = new Map<string, { approved: boolean; reason?: string }>();
   for (const part of incoming.parts) {
@@ -41,15 +32,10 @@ export function applyApprovalResponses(stored: UIMessage, incoming: UIMessage): 
   return answered > 0 ? { ...stored, parts } : null;
 }
 
-/** True while `message` has tool calls waiting for the athlete's decision. */
 export function hasPendingApprovals(message: UIMessage | undefined): boolean {
   return !!message?.parts.some((part) => isToolUIPart(part) && part.state === "approval-requested");
 }
 
-/**
- * Declines approvals the athlete left unanswered, so the coach sees that the sessions were not added rather than
- * having the calls silently dropped from its context.
- */
 export function expirePendingApprovals(message: UIMessage): UIMessage {
   if (!hasPendingApprovals(message)) return message;
   return {

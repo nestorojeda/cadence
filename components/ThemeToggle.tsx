@@ -24,7 +24,6 @@ function applyTheme(preference: ThemePreference) {
   document.documentElement.classList.toggle("dark", dark);
 }
 
-// Every toggle on the page (rail, settings) shares one preference.
 const listeners = new Set<() => void>();
 
 function subscribe(listener: () => void) {
@@ -32,11 +31,9 @@ function subscribe(listener: () => void) {
   return () => listeners.delete(listener);
 }
 
-/** Current color mode preference and a setter that applies and saves it. */
 export function useTheme() {
   const preference = useSyncExternalStore(subscribe, readPreference, () => "system" as const);
 
-  // Follow OS changes while on "system".
   useEffect(() => {
     if (preference !== "system") return;
     const media = window.matchMedia(DARK_QUERY);
@@ -59,7 +56,6 @@ export function useTheme() {
   return { preference, setPreference };
 }
 
-/** Light / Dark / System segmented control (rail footer, Settings → Appearance). */
 export function ThemeToggle({ size = "sm" }: { size?: "sm" | "md" }) {
   const { preference, setPreference } = useTheme();
   return (
@@ -86,7 +82,6 @@ export function ThemeToggle({ size = "sm" }: { size?: "sm" | "md" }) {
   );
 }
 
-/** Single button for the compact rail: shows the current mode and cycles Light → Dark → System. */
 export function ThemeCycleButton() {
   const { preference, setPreference } = useTheme();
   const next = THEME_PREFERENCES[(THEME_PREFERENCES.indexOf(preference) + 1) % THEME_PREFERENCES.length];

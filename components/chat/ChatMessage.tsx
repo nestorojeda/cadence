@@ -14,11 +14,8 @@ import { CREATE_EVENT_TOOL, CREATE_GYM_TOOL, DELETE_EVENT_TOOL, UPDATE_EVENT_TOO
 
 interface ChatMessageProps {
   message: UIMessage;
-  /** True while this (last, assistant) message is still being streamed. */
   isStreaming?: boolean;
-  /** Answers a pending calendar change; only given while the athlete can still decide (last message, idle). */
   onApproval?: (response: { id: string; approved: boolean; reason?: string }) => void;
-  /** For update/delete calls (by toolCallId): the event as it was before, from the chat's calendar reads. */
   eventsBefore?: Map<string, KnownEvent>;
 }
 
@@ -35,7 +32,6 @@ const TOOL_LABELS: Record<string, string> = {
   hevy_get_exercise_history: "lift history",
 };
 
-/** Write tools render as session cards rather than in the read trace. */
 const CARD_TOOLS = new Set([CREATE_EVENT_TOOL, CREATE_GYM_TOOL, UPDATE_EVENT_TOOL, DELETE_EVENT_TOOL]);
 
 function toolLabel(name: string) {
@@ -47,11 +43,9 @@ function isRunning(part: ToolPart) {
 }
 
 function hasFailed(part: ToolPart) {
-  // Our tools report failures as `{ error }` outputs so the model can recover.
   return toolErrorText(part) !== undefined;
 }
 
-/** Error reported by a finished tool call, either thrown or returned as `{ error }`. */
 function toolErrorText(part: ToolPart) {
   if (part.state === "output-error") return part.errorText;
   const output = part.state === "output-available" ? part.output : undefined;
@@ -117,7 +111,6 @@ export function ChatMessage({ message, isStreaming = false, onApproval, eventsBe
     for (const part of pending) if (part.approval) onApproval?.({ id: part.approval.id, approved });
   };
   const hasText = message.parts.some((p) => isTextUIPart(p) && p.text.trim());
-  // A finished turn should end in a reply or a session card; say so rather than leave just the read trace.
   const endedSilently = !isStreaming && !hasText && !toolParts.some((p) => CARD_TOOLS.has(getToolName(p)));
 
   let liveText: string | null = null;
@@ -219,7 +212,6 @@ export function ChatMessage({ message, isStreaming = false, onApproval, eventsBe
   );
 }
 
-/** One-line summary of the data the coach read, expandable into the individual calls. */
 function ToolTrace({ parts }: { parts: ToolPart[] }) {
   const [open, setOpen] = useState(false);
   const finished = parts.filter((p) => !isRunning(p));

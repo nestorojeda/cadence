@@ -3,7 +3,6 @@ import { HevyClient } from "./client";
 
 type Folder = { id: number; title: string };
 
-/** Fake Hevy folder endpoints: lists `folders` 10 per page and appends on POST. */
 function mockFolders(folders: Folder[]) {
   let nextId = 100;
   const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {

@@ -39,11 +39,8 @@ import { resolveAthleteId } from "@/lib/api/athlete";
 
 export const maxDuration = 60;
 
-/**
- * Model steps per turn. Planning with Hevy lookups can take many read rounds, so the last steps are reserved: reads
- * are switched off for the final two (the coach can still schedule), and the final step answers without tools, so a
- * turn never ends on a tool result with no reply.
- */
+// The last steps are reserved: reads are switched off for the final two and the final step answers without tools,
+// so a turn never ends on a tool result with no reply.
 const MAX_STEPS = 12;
 
 const optionalString = z.string().max(4096).optional();
@@ -78,8 +75,6 @@ function errorMessage(error: unknown) {
 
 export async function POST(req: NextRequest) {
   try {
-    // The client sends only the new message (or, to answer tool approvals, the paused assistant message); history is
-    // loaded from disk so it isn't re-uploaded every turn.
     const body = requestSchema.safeParse(await req.json().catch(() => null));
     if (!body.success) {
       return jsonError("Expected a chat `id` and a user or assistant `message`.", 400);
@@ -100,11 +95,9 @@ export async function POST(req: NextRequest) {
       return jsonError("No valid Intervals.icu athlete ID. Set it in Settings or INTERVALS_ICU_ATHLETE_ID in .env.local.", 400);
     }
 
-    // Initialize Intervals.icu client and AI tools
     const intervalsApiKey =
       clientIntervalsKey || process.env.INTERVALS_ICU_API_KEY || "";
     const intervalsClient = new IntervalsClient(intervalsApiKey, athleteId);
-    // Hevy is optional: with a key, gym sessions also become Hevy routines and the coach can read past lifts.
     const hevyKey = clientHevyKey || process.env.HEVY_API_KEY;
     const hevyClient = hevyKey ? new HevyClient(hevyKey) : null;
     const tools = {
@@ -112,7 +105,6 @@ export async function POST(req: NextRequest) {
       ...(hevyClient ? getHevyTools(hevyClient) : {}),
     };
 
-    // Persistent preferences plus upcoming races and time off, which are usually beyond the calendar tool's window.
     const [preferences, keyEvents] = await Promise.all([
       getPreferences(athleteId),
       getKeyEvents(intervalsClient, athleteId).catch((error) => {
@@ -122,10 +114,8 @@ export async function POST(req: NextRequest) {
     ]);
     const systemPrompt = buildCoachSystemPrompt(preferences, new Date(), keyEvents, { hevyConnected: !!hevyClient });
 
-    // Resolve Language Model Provider
     let model: LanguageModel;
     let providerOptions: Parameters<typeof streamText>[0]["providerOptions"];
-    // Turns a stream error into the message shown in the chat; providers can override it with a friendlier hint.
     let describeError = errorMessage;
     if (modelProvider === "google") {
       const key = clientApiKey || process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY;
@@ -174,7 +164,6 @@ export async function POST(req: NextRequest) {
       const ollama = createOpenAICompatible({
         name: "ollama",
         baseURL,
-        // Optional: only needed behind an authenticating proxy or for ollama.com.
         apiKey: clientApiKey || process.env.OLLAMA_API_KEY,
         // OpenAI-compatible streams omit token counts unless asked; the chat history shows usage per chat.
         includeUsage: true,
@@ -199,7 +188,6 @@ export async function POST(req: NextRequest) {
     const history = stored?.messages ?? [];
     let messages: UIMessage[];
     if (message.role === "assistant") {
-      // Approval continuation: merge the athlete's decisions into the stored message and resume that turn.
       const last = history[history.length - 1];
       const answered = last?.id === message.id ? applyApprovalResponses(last, message) : null;
       if (!answered) {
@@ -207,8 +195,7 @@ export async function POST(req: NextRequest) {
       }
       messages = [...history.slice(0, -1), answered];
     } else {
-      // Replace rather than append when the client resends a message it already sent (e.g. a retry). Approvals left
-      // unanswered are declined: the athlete moved on without adding those sessions.
+      // Replace rather than append on a resend (e.g. a retry). Unanswered approvals are declined.
       messages = [...history.filter((m) => m.id !== message.id), message].map((m) =>
         m.role === "assistant" ? expirePendingApprovals(m) : m
       );
@@ -238,7 +225,6 @@ export async function POST(req: NextRequest) {
       messages: modelMessages,
       tools,
       providerOptions,
-      // Calendar writes wait for the athlete: the stream ends with a preview card to approve or skip.
       toolApproval: Object.fromEntries(WRITE_TOOL_NAMES.map((name) => [name, "user-approval" as const])),
       stopWhen: isStepCount(MAX_STEPS),
       prepareStep: ({ stepNumber }) => {
@@ -271,7 +257,6 @@ export async function POST(req: NextRequest) {
               messages: finished,
               summary: current?.summary,
             }));
-            // Fold older turns into the summary in the background so the reply isn't held open.
             void summarize(athleteId, model, chat);
           } catch (error) {
             console.error(`[POST /api/chat] Could not save chat ${chatId}:`, error);

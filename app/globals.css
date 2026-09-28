@@ -2,10 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/*
- * Color tokens as RGB channels, so Tailwind opacity modifiers work (`bg-ink/95`).
- * Light values on :root, dark on .dark; the class is set before paint by the script in app/layout.tsx.
- */
+/* RGB channels, so Tailwind opacity modifiers work (`bg-ink/95`). */
 :root {
   color-scheme: light;
   --ink: 246 246 241;
@@ -59,7 +56,6 @@ body {
   min-height: 100vh;
 }
 
-/* Custom Scrollbars */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;

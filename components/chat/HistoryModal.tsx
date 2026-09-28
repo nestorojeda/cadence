@@ -16,7 +16,6 @@ interface HistoryModalProps {
   onDelete: (id: string) => Promise<void>;
 }
 
-/** Every saved chat for the athlete, with search, rename and delete. */
 export function HistoryModal({ isOpen, ...props }: HistoryModalProps) {
   // Mounted only while open so search and edit state reset each time.
   return isOpen ? <HistoryDialog {...props} /> : null;

@@ -9,7 +9,6 @@ const user = (id: string, text = `question ${id}`) => ({ id, role: "user", parts
 const coach = (id: string, text = `answer ${id}`) =>
   ({ id, role: "assistant", parts: [{ type: "text", text, state: "done" }] }) as UIMessage;
 
-/** Alternating user/assistant messages m0…m{n-1}, starting with a user message. */
 const conversation = (n: number) => Array.from({ length: n }, (_, i) => (i % 2 ? coach(`m${i}`) : user(`m${i}`)));
 
 function chat(messages: UIMessage[], summary?: StoredChat["summary"]): StoredChat {

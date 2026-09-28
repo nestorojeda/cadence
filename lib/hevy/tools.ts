@@ -4,7 +4,6 @@ import { HevyClient } from "./client";
 import { compactExerciseHistory, compactWorkouts, searchExerciseTemplates } from "./routine";
 import { daysFromToday } from "@/lib/intervals/compact";
 
-/** Read tools over the athlete's Hevy account; only offered when a Hevy API key is set. */
 export function getHevyTools(hevy: HevyClient) {
   return {
     hevy_search_exercises: tool({

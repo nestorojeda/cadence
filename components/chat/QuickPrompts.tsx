@@ -37,7 +37,6 @@ const PROMPTS = [
   },
 ];
 
-/** Short follow-ups offered under the composer once a conversation is going. */
 export const COMPOSER_CHIPS = [
   { label: "Readiness", prompt: "How ready am I to train today?" },
   { label: "Last ride", prompt: "Review my most recent ride." },

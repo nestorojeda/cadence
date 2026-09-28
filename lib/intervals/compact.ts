@@ -1,25 +1,15 @@
 import { toLocalDate } from "./metrics";
 
-/**
- * Trims Intervals.icu API objects to what the coach uses before they go to the model. Raw responses are large (dozens
- * of fields per record, full-precision floats, `workout_doc` trees), and each tool result is re-sent on every step of a
- * turn, so this is the main lever on token cost.
- */
-
 type Row = Record<string, unknown>;
 
-/** Most wellness days the coach can request at once. */
 export const MAX_WELLNESS_DAYS = 90;
-/** Most calendar days the coach can request at once (races and time off further out are in the system prompt). */
 export const MAX_EVENT_DAYS = 62;
-/** Longest event description sent; structured workouts fit, long free-text notes are cut. */
 const MAX_EVENT_DESCRIPTION_CHARS = 600;
 
 function round(value: unknown): unknown {
   return typeof value === "number" && !Number.isInteger(value) ? Math.round(value * 10) / 10 : value;
 }
 
-/** Copies `keys` from `source` (renamed when given as [from, to]), dropping empty values and rounding decimals. */
 function pick(source: Row, keys: Array<string | [string, string]>): Row {
   const out: Row = {};
   for (const key of keys) {
@@ -37,7 +27,6 @@ export function daysFromToday(days: number): string {
   return toLocalDate(d);
 }
 
-/** Date range for a wellness request: the last 14 days by default, never longer than MAX_WELLNESS_DAYS. */
 export function wellnessRange(oldest?: string, newest?: string): { oldest: string; newest: string } {
   const end = newest || daysFromToday(0);
   const earliest = new Date(`${end}T00:00:00`);
@@ -47,17 +36,12 @@ export function wellnessRange(oldest?: string, newest?: string): { oldest: strin
   return { oldest: start < floor ? floor : start, newest: end };
 }
 
-/** `date` (YYYY-MM-DD) moved by `days`, in local time. */
 function addDays(date: string, days: number): string {
   const d = new Date(`${date}T00:00:00`);
   d.setDate(d.getDate() + days);
   return toLocalDate(d);
 }
 
-/**
- * Date range for a calendar request: 7 days back to 14 ahead by default, never longer than MAX_EVENT_DAYS from
- * `oldest` (a longer request is cut at the end, so the coach pages forward with a later `oldest`).
- */
 export function eventsRange(oldest?: string, newest?: string): { oldest: string; newest: string } {
   const start = oldest || daysFromToday(-7);
   const end = newest || daysFromToday(14);
@@ -105,7 +89,7 @@ export function compactEvents(events: Row[]): Row[] {
     ...pick({ ...e, description: truncate(e.description, MAX_EVENT_DESCRIPTION_CHARS) }, [
       "id",
       "start_date_local",
-      // Exclusive; only worth sending for events that span several days (holidays, illness).
+      // Exclusive; only worth sending for multi-day events.
       ...(isMultiDay(e) ? ["end_date_local"] : []),
       "category",
       "type",
@@ -114,7 +98,6 @@ export function compactEvents(events: Row[]): Row[] {
       "distance",
       "icu_training_load",
       "icu_intensity",
-      // Set once a ride has been done against this plan.
       "paired_activity_id",
       "description",
     ]),
@@ -154,7 +137,6 @@ export function compactActivities(activities: Row[]): Row[] {
   return activities.map((a) => pick(a, ACTIVITY_FIELDS));
 }
 
-/** One activity in more depth: the summary plus zone distribution, pacing and interval breakdown. */
 export function compactActivityDetails(activity: Row): Row {
   const zoneTimes = activity.icu_zone_times as Array<{ id: string; secs: number }> | undefined;
   return {

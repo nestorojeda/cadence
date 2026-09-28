@@ -20,7 +20,6 @@ const DAYS_OF_WEEK = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "S
 
 type DayListKey = "longRideDays" | "intervalDays" | "gymDays" | "restDays";
 
-/** Rows of the week grid; colours follow the zone palette used for sessions in the sidebar. */
 const TERRAIN_ICONS: Record<Terrain, LucideIcon> = {
   flat: Minus,
   rolling: Waves,
@@ -143,8 +142,7 @@ export function CoachPreferencesModal({
     setPreferences(createDefaultPreferences(athleteId));
   };
 
-  // A rest day with a bike session is almost always a mistake worth pointing out. Gym on a rest day is fine: the
-  // coach reads it as gym only, no bike.
+  // Gym on a rest day is fine: the coach reads it as gym only, no bike.
   const restConflicts = preferences.restDays.filter((day) =>
     SESSION_ROWS.some(
       (row) => row.key !== "restDays" && row.key !== "gymDays" && preferences[row.key].includes(day)

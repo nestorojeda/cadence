@@ -6,7 +6,6 @@ import { summarizeTerrain } from "@/lib/intervals/terrain";
 
 const LOOKBACK_DAYS = 90;
 
-/** Suggests the athlete's terrain type from their recent outdoor rides. */
 export async function GET(req: NextRequest) {
   const athleteId = resolveAthleteId(req.nextUrl.searchParams.get("athleteId"));
   if (!athleteId) return missingAthlete();

@@ -4,7 +4,6 @@ import React from "react";
 import { AlertTriangle, CalendarCog, CalendarMinus, CalendarPlus, Check, X } from "lucide-react";
 import { CadenceMark } from "@/components/CadenceMark";
 
-/** `pending`: proposed by the coach, waiting for the athlete; `declined`: skipped, never written. */
 export type WorkoutCardStatus = "pending" | "adding" | "added" | "declined" | "failed";
 
 export function formatDay(iso?: string) {
@@ -17,7 +16,6 @@ export function formatDay(iso?: string) {
     .toUpperCase();
 }
 
-/** What a card proposes to do to the calendar; picks the card's wording. */
 export type SessionCardKind = "create" | "update" | "delete";
 
 const COPY: Record<
@@ -53,7 +51,6 @@ const COPY: Record<
   },
 };
 
-/** Outer shell of a session card; dashed while it waits for the athlete. */
 export function SessionCardShell({ status, children }: { status: WorkoutCardStatus; children: React.ReactNode }) {
   return (
     <div
@@ -75,7 +72,6 @@ export function CardStat({ label, value }: { label: string; value: string }) {
   );
 }
 
-/** Status row with Add/Skip while pending. `added` may carry a note (e.g. a partial Hevy failure). */
 export function SessionCardStatus({
   status,
   kind = "create",
@@ -87,11 +83,8 @@ export function SessionCardStatus({
   status: WorkoutCardStatus;
   kind?: SessionCardKind;
   errorText?: string;
-  /** Replaces the kind's default "done" text. */
   addedText?: string;
-  /** Shown with a warning icon next to `addedText` when part of the write failed. */
   addedWarning?: string;
-  /** Approves (true) or skips (false) a pending change; omitted when the athlete can't decide right now. */
   onDecide?: (approved: boolean) => void;
 }) {
   const copy = COPY[kind];

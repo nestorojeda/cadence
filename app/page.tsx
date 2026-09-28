@@ -11,12 +11,10 @@ import type { ChatMeta, StoredChat } from "@/lib/chat/types";
 import { DEFAULT_MODELS, DEFAULT_PROVIDER, type ModelProvider } from "@/lib/llm/models";
 import type { MetricsResponse } from "@/lib/intervals/metrics";
 
-/** Athlete ID from Settings; empty means the server's INTERVALS_ICU_ATHLETE_ID. */
 function storedAthleteId() {
   return localStorage.getItem("apex_athlete_id") || "";
 }
 
-/** Keeps the open chat in `?chat=` so a reload reopens it. */
 function setChatParam(id: string | null) {
   const url = new URL(window.location.href);
   if (id) url.searchParams.set("chat", id);
@@ -43,11 +41,9 @@ export default function Home() {
   const [modelLabel, setModelLabel] = useState("");
   const [metrics, setMetrics] = useState<MetricsResponse | null>(null);
   const [metricsLoading, setMetricsLoading] = useState(false);
-  // Bumped when settings are saved so the metrics reload with a new key or athlete.
   const [settingsVersion, setSettingsVersion] = useState(0);
   const [sidebarCompact, setSidebarCompact] = useState(false);
   const [chats, setChats] = useState<ChatMeta[]>([]);
-  // Null until the first chat (from the URL or a fresh one) is resolved on mount.
   const [chat, setChat] = useState<OpenChat | null>(null);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
@@ -59,7 +55,7 @@ export default function Home() {
     setModelLabel(readModelLabel());
   };
 
-  // Compact sidebar is a per-browser preference; storage can be unavailable (private mode), so never let it throw.
+  // Storage can be unavailable (private mode), so never let it throw.
   useEffect(() => {
     try {
       setSidebarCompact(localStorage.getItem("apex_sidebar_compact") === "true");
@@ -120,7 +116,6 @@ export default function Home() {
     else newChat(storedAthleteId());
   }, [openChat, newChat]);
 
-  // Switching athlete in Settings starts a fresh chat for that athlete.
   useEffect(() => {
     if (chat && chat.athleteId !== athleteId) newChat(athleteId);
   }, [athleteId, chat, newChat]);
@@ -166,7 +161,6 @@ export default function Home() {
     (changedCalendar: boolean) => {
       if (chat) setChatParam(chat.id);
       fetchChats();
-      // The sidebar's week shows planned sessions; refresh it after the coach adds, moves or removes one.
       if (changedCalendar) fetchMetrics();
     },
     [chat, fetchChats, fetchMetrics]
@@ -223,14 +217,12 @@ export default function Home() {
         onDelete={deleteChat}
       />
 
-      {/* Coach Rules & Schedule Modal */}
       <CoachPreferencesModal
         isOpen={isRulesOpen}
         onClose={() => setIsRulesOpen(false)}
         athleteId={athleteId}
       />
 
-      {/* Settings Modal */}
       <SettingsModal
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}

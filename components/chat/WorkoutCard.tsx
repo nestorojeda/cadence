@@ -15,7 +15,6 @@ import {
 
 export type { WorkoutCardStatus };
 
-/** Input of the `icu_create_calendar_event` tool (see lib/intervals/tools.ts). */
 export interface WorkoutEventInput {
   name: string;
   start_date_local: string;
@@ -27,21 +26,15 @@ export interface WorkoutEventInput {
 }
 
 interface WorkoutCardProps {
-  /** The session to create, or for a change, the fields that change. */
   input: Partial<WorkoutEventInput>;
-  /** For a change: the event as the coach last read it. The card shows the result and what it was. */
   previous?: Partial<WorkoutEventInput>;
-  /** Intervals.icu event id, for a change to an event the coach's reads don't include. */
   eventId?: string;
-  /** `update` for a change to an existing event. */
   kind?: Extract<SessionCardKind, "create" | "update">;
   status: WorkoutCardStatus;
   errorText?: string;
-  /** Adds (true) or skips (false) a pending session; omitted when the athlete can't decide right now. */
   onDecide?: (approved: boolean) => void;
 }
 
-/** "was" summary of the fields a change replaces, e.g. "TUE 29 SEP · 1h00". Empty when nothing listed changed. */
 function previousSummary(previous: Partial<WorkoutEventInput>, changes: Partial<WorkoutEventInput>): string {
   const was: string[] = [];
   if (changes.start_date_local && formatDay(changes.start_date_local) !== formatDay(previous.start_date_local)) {
@@ -57,7 +50,6 @@ function previousSummary(previous: Partial<WorkoutEventInput>, changes: Partial<
   return was.filter(Boolean).join(" · ");
 }
 
-/** A session the coach proposed for, put on, or changed on the Intervals.icu calendar. */
 export function WorkoutCard({ input: changes, previous, eventId, kind = "create", status, errorText, onDecide }: WorkoutCardProps) {
   const input: Partial<WorkoutEventInput> = { ...previous, ...changes };
   const was = previous ? previousSummary(previous, changes) : "";
@@ -109,7 +101,6 @@ export function WorkoutCard({ input: changes, previous, eventId, kind = "create"
   );
 }
 
-/** A planned session the coach proposed to take off, or took off, the Intervals.icu calendar. */
 export function RemovedEventCard({
   event,
   eventId,
@@ -117,7 +108,6 @@ export function RemovedEventCard({
   errorText,
   onDecide,
 }: {
-  /** The event as the coach last read it; unknown when its reads are not in this chat. */
   event?: Partial<WorkoutEventInput>;
   eventId?: string;
   status: WorkoutCardStatus;

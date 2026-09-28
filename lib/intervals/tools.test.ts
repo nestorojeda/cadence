@@ -21,7 +21,6 @@ function fakeClient(event: CalendarEvent) {
   return { client, tools: getIntervalsTools(client as unknown as IntervalsClient) };
 }
 
-/** Runs a tool's execute the way the AI SDK would, outside a model call. */
 function run<T>(t: { execute?: (input: T, options: never) => unknown }, input: T) {
   return t.execute!(input, { toolCallId: "t1", messages: [] } as never);
 }

@@ -9,11 +9,9 @@ interface ModalProps {
   onClose: () => void;
   footer: React.ReactNode;
   children: React.ReactNode;
-  /** Tailwind max-width class for the panel. */
   width?: string;
 }
 
-/** Dialog shell in the cockpit style: bottom sheet on phones, centred panel from `sm` up. */
 export function Modal({ title, description, onClose, footer, children, width = "sm:max-w-lg" }: ModalProps) {
   const titleId = useId();
 
@@ -62,7 +60,6 @@ export function Modal({ title, description, onClose, footer, children, width = "
   );
 }
 
-/** Labelled group inside a modal. */
 export function ModalSection({
   label,
   htmlFor,
@@ -109,7 +106,6 @@ export function GhostButton(props: React.ButtonHTMLAttributes<HTMLButtonElement>
   );
 }
 
-/** Transient "Saved" confirmation shown in a modal footer. */
 export function SavedNote({ show, children }: { show: boolean; children: React.ReactNode }) {
   return (
     <span role="status" className="flex items-center gap-1.5 text-xs text-fg-subtle">

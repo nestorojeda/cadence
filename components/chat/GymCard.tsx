@@ -8,13 +8,11 @@ import { CardStat, SessionCardShell, SessionCardStatus, formatDay, type WorkoutC
 interface GymCardProps {
   input: Partial<GymSessionInput>;
   status: WorkoutCardStatus;
-  /** Tool result once written: Intervals.icu and Hevy report separately. */
   output?: GymSessionResult;
   errorText?: string;
   onDecide?: (approved: boolean) => void;
 }
 
-/** Outcome line for a written session: both targets can succeed or fail independently. */
 function describeOutcome(output: GymSessionResult | undefined): {
   failed?: string;
   added?: string;
@@ -50,7 +48,6 @@ function describeOutcome(output: GymSessionResult | undefined): {
   return { added: "Added to your Intervals.icu calendar" };
 }
 
-/** A strength session the coach proposed for, or put on, Intervals.icu (and Hevy). */
 export function GymCard({ input, status, output, errorText, onDecide }: GymCardProps) {
   const exercises = (input.exercises ?? []).filter((e) => e?.name);
   const outcome = describeOutcome(status === "added" ? output : undefined);

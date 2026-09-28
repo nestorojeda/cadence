@@ -24,7 +24,6 @@ interface SidebarProps {
   metrics: MetricsResponse | null;
   loading: boolean;
   modelLabel: string;
-  /** Narrow icon rail instead of the full sidebar. */
   compact: boolean;
   onToggleCompact: () => void;
   onRefresh: () => void;
@@ -37,7 +36,6 @@ interface SidebarProps {
   onOpenHistory: () => void;
 }
 
-/** Recent chats listed in the full sidebar; the rest are in the history modal. */
 const RECENT_CHATS = 5;
 
 const DAY_LABELS = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"];
@@ -51,25 +49,21 @@ export function Wordmark({ size = "md" }: { size?: "sm" | "md" }) {
   );
 }
 
-/** Upcoming races listed in the full sidebar. */
 const MAX_RACES = 3;
 
 function upcomingRaces(metrics: MetricsResponse | null): KeyEvent[] {
   return (metrics?.keyEvents ?? []).filter((e) => e.kind === "race");
 }
 
-/** The race to count down to in tight spaces: the next A race, else the next race. */
 function focusRace(metrics: MetricsResponse | null): KeyEvent | undefined {
   const races = upcomingRaces(metrics);
   return races.find((e) => e.priority === "A") ?? races[0];
 }
 
-/** "Nov 29" */
 function shortDate(date: string): string {
   return new Date(`${date}T00:00:00`).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-/** True when form is in a range worth flagging rather than celebrating. */
 function isFormWarning(metrics: MetricsResponse | null) {
   const status = metrics?.fitness?.form_status;
   return status === "fatigued" || status === "very_fatigued";
@@ -123,7 +117,6 @@ export function Sidebar({
           </IconButton>
         </div>
 
-        {/* Form */}
         <div className="flex flex-col items-center gap-1" title={tsbTitle}>
           <span className="font-display font-bold text-[28px] leading-none">
             {fitness?.tsb != null ? formatSigned(fitness.tsb) : "—"}
@@ -136,7 +129,6 @@ export function Sidebar({
           </span>
         </div>
 
-        {/* Next race */}
         {(() => {
           const race = focusRace(metrics);
           return race ? (
@@ -150,7 +142,6 @@ export function Sidebar({
           ) : null;
         })()}
 
-        {/* Week */}
         {metrics && (
           <div className="flex flex-col items-center gap-0.5" aria-label="This week">
             {weekDays(metrics).map((day) => (
@@ -225,7 +216,6 @@ export function Sidebar({
         </div>
       </div>
 
-      {/* Form */}
       <section className="flex flex-col gap-3.5">
         <div className="flex items-baseline justify-between">
           <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-fg-muted">Form today</span>
@@ -259,7 +249,6 @@ export function Sidebar({
         </div>
       </section>
 
-      {/* Races */}
       {upcomingRaces(metrics).length > 0 && (
         <section className="flex flex-col gap-2.5">
           <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-fg-muted">Next races</span>
@@ -267,7 +256,6 @@ export function Sidebar({
         </section>
       )}
 
-      {/* Week */}
       <section className="flex flex-col gap-2.5">
         <div className="flex items-center justify-between">
           <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-fg-muted">This week</span>
@@ -276,7 +264,6 @@ export function Sidebar({
         <WeekList metrics={metrics} />
       </section>
 
-      {/* Chats */}
       <section className="flex flex-col gap-2.5">
         <div className="flex items-center justify-between">
           <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-fg-muted">Chats</span>
@@ -314,7 +301,6 @@ export function Sidebar({
   );
 }
 
-/** Compact top bar for screens without the rail. */
 export function MobileBar({
   metrics,
   onOpenRules,
@@ -359,7 +345,6 @@ export function MobileBar({
   );
 }
 
-/** The pulse line from the Intervals.icu app icon, for the link to the athlete's calendar. */
 function IntervalsIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 20 20" aria-hidden="true">
@@ -460,14 +445,12 @@ interface Session {
   name: string;
   status: SessionStatus;
   color: string;
-  /** Race priority, when the session is a race. */
   race?: KeyEvent["priority"];
-  /** Ridden time when done, otherwise planned time; seconds. */
+  /** Ridden time when done, otherwise planned; seconds. */
   duration?: number;
   planned?: number;
 }
 
-/** The current Monday–Sunday week, one entry per day with its planned and ridden sessions. */
 function weekDays(metrics: MetricsResponse) {
   const today = toLocalDate(new Date());
   const start = new Date(`${metrics.weekStart}T00:00:00`);
@@ -513,7 +496,6 @@ function racePriority(category: string): KeyEvent["priority"] {
   return match ? (match[1] as KeyEvent["priority"]) : undefined;
 }
 
-/** Upcoming races: priority, name, date and distance, countdown. */
 function RaceList({ races }: { races: KeyEvent[] }) {
   return (
     <div className="flex flex-col gap-1">
@@ -567,7 +549,6 @@ function sessionDuration(session: Session): string {
   return formatDuration(session.duration);
 }
 
-/** Ridden / planned hours for the week. */
 function WeekTotals({ metrics }: { metrics: MetricsResponse }) {
   const done =
     metrics.week.reduce((sum, e) => sum + (e.completed?.movingTime ?? 0), 0) +

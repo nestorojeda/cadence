@@ -43,7 +43,6 @@ const isListedGoogleModel = (id: string) => GOOGLE_MODELS.some((m) => m.id === i
 export function SettingsModal({ isOpen, onClose, onSettingsChanged }: SettingsModalProps) {
   const [provider, setProvider] = useState<ModelProvider>(DEFAULT_PROVIDER);
   const [modelName, setModelName] = useState(DEFAULT_MODELS[DEFAULT_PROVIDER]);
-  // Google models come from a dropdown; "custom" reveals a text field for IDs not in GOOGLE_MODELS.
   const [customModel, setCustomModel] = useState(false);
   const [thinkingLevel, setThinkingLevel] = useState<ThinkingLevel>(DEFAULT_THINKING_LEVEL);
   const [geminiKey, setGeminiKey] = useState("");
@@ -110,7 +109,6 @@ export function SettingsModal({ isOpen, onClose, onSettingsChanged }: SettingsMo
 
   const selectModel = (id: string) => {
     setModelName(id);
-    // Keep the chosen effort if the new model accepts it, else move to its closest level.
     setThinkingLevel((level) => resolveThinkingLevel(id, level));
   };
 

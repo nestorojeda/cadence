@@ -11,12 +11,6 @@ import {
 } from "@/lib/chat/types";
 import { writeJsonAtomic } from "./json-file";
 
-/**
- * Chat history persisted as JSON on local disk:
- *   data/chats/{athleteId}/index.json   — ChatMeta[] for the history list
- *   data/chats/{athleteId}/{chatId}.json — full StoredChat
- */
-
 function athleteDir(athleteId: string): string {
   // Sanitize athlete ID to prevent directory traversal
   const sanitized = athleteId.replace(/[^a-zA-Z0-9_-]/g, "");
@@ -49,7 +43,6 @@ async function readJson<T>(file: string): Promise<T | null> {
   }
 }
 
-
 // Writes for one athlete run one at a time: the chat route and the background summary both update the same files.
 const locks = new Map<string, Promise<unknown>>();
 
@@ -64,7 +57,6 @@ function withLock<T>(athleteId: string, fn: () => Promise<T>): Promise<T> {
   return run;
 }
 
-/** Title from the first user message — no model call needed. */
 function deriveTitle(messages: UIMessage[]): string {
   const text = messages
     .find((m) => m.role === "user")
@@ -101,10 +93,6 @@ export async function loadChat(athleteId: string, chatId: string): Promise<Store
   return readJson<StoredChat>(chatFile(athleteId, chatId));
 }
 
-/**
- * Read-modify-write of one chat under the athlete's lock. `update` receives the stored chat (or null for a new one)
- * and returns the new state; meta (title, counts, usage) is recomputed from it.
- */
 export async function updateChat(
   athleteId: string,
   chatId: string,

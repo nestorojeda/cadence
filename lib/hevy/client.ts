@@ -1,14 +1,8 @@
-/**
- * Typed client for the Hevy public API (https://api.hevyapp.com/docs, Hevy Pro only). Used to put the coach's gym
- * sessions into Hevy as routines and to read what the athlete has lifted.
- */
-
 import { upstreamError } from "@/lib/api/upstream";
 
 export interface HevyExerciseTemplate {
   id: string;
   title: string;
-  /** weight_reps, reps_only, bodyweight_reps, duration, … */
   type: string;
   primary_muscle_group: string;
   secondary_muscle_groups: string[];
@@ -83,8 +77,6 @@ interface CacheEntry<T> {
   expires: number;
 }
 
-// Keyed by API key (in memory only): the template library is ~400 entries fetched 100 at a time, and the folder id
-// never changes once created.
 const templateCache = new Map<string, CacheEntry<HevyExerciseTemplate[]>>();
 // Holds the pending lookup, not just the result: sessions approved together run in parallel and must share one
 // lookup-or-create, or each would make its own folder.
@@ -92,7 +84,6 @@ const folderCache = new Map<string, Promise<number>>();
 const TEMPLATE_TTL_MS = 6 * 60 * 60 * 1000;
 const REQUEST_TIMEOUT_MS = 30_000;
 
-/** Routines the coach creates go in this folder. */
 export const HEVY_FOLDER_TITLE = "Cadence";
 
 export class HevyClient {
@@ -117,7 +108,6 @@ export class HevyClient {
     return res.json() as Promise<T>;
   }
 
-  /** The athlete's whole exercise library (built-in and custom), cached for a few hours. */
   async getExerciseTemplates(): Promise<HevyExerciseTemplate[]> {
     const cached = templateCache.get(this.apiKey);
     if (cached && cached.expires > Date.now()) return cached.value;
@@ -156,7 +146,6 @@ export class HevyClient {
     return data.exercise_history ?? [];
   }
 
-  /** Id of the folder the coach's routines go in, created on first use. */
   getOrCreateFolder(title = HEVY_FOLDER_TITLE): Promise<number> {
     const cacheKey = `${this.apiKey}:${title}`;
     let pending = folderCache.get(cacheKey);

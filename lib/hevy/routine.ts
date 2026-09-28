@@ -3,7 +3,6 @@ import type { HevyExerciseHistoryEntry, HevyExerciseTemplate, HevyRoutineInput, 
 
 const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 
-/** Exercise templates matching every word of `query`, closest titles first. */
 export function searchExerciseTemplates(
   templates: HevyExerciseTemplate[],
   { query, muscle, equipment }: { query?: string; muscle?: string; equipment?: string },
@@ -56,7 +55,6 @@ function routineSets(e: GymExercise, template: HevyExerciseTemplate): HevyRoutin
   const warmup: HevyRoutineSet = {
     ...working,
     type: "warmup",
-    // Warm-ups ramp up to the working weight; leave the load for the athlete to pick.
     weight_kg: null,
   };
   return [
@@ -65,10 +63,6 @@ function routineSets(e: GymExercise, template: HevyExerciseTemplate): HevyRoutin
   ];
 }
 
-/**
- * Builds a Hevy routine for a gym session. Hevy routine sets have no RPE, so the target goes into the exercise notes.
- * Exercises that match no Hevy template are left out of the routine and listed in its notes instead.
- */
 export function toHevyRoutine(
   input: GymSessionInput,
   templates: HevyExerciseTemplate[],
@@ -103,7 +97,6 @@ export function toHevyRoutine(
   };
 }
 
-/** "Gym · Tue 29 Sep" from the session name and date. */
 export function routineTitle(input: GymSessionInput): string {
   const d = new Date(input.start_date_local);
   if (Number.isNaN(d.getTime())) return input.name;
@@ -120,10 +113,7 @@ const setLabel = (s: { weight_kg?: number | null; reps?: number | null; duration
     .filter(Boolean)
     .join("");
 
-/**
- * Recent workouts trimmed to what the coach needs to set loads: each exercise's working sets as "80kg×5@8". Workout
- * titles are in the athlete's app language while the library is English, so the library title is added when it differs.
- */
+// Workout titles are in the athlete's app language while the library is English, so the library title is added.
 export function compactWorkouts(workouts: HevyWorkout[], templates: HevyExerciseTemplate[] = []) {
   const libraryTitle = new Map(templates.map((t) => [t.id, t.title]));
   return workouts.map((w) => ({
@@ -142,7 +132,6 @@ export function compactWorkouts(workouts: HevyWorkout[], templates: HevyExercise
   }));
 }
 
-/** Exercise history grouped per workout, newest first. */
 export function compactExerciseHistory(entries: HevyExerciseHistoryEntry[], limit = 10) {
   const byWorkout = new Map<string, { date: string; sets: string[] }>();
   for (const e of entries) {

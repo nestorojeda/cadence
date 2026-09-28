@@ -29,22 +29,17 @@ interface ChatInterfaceProps {
   /** Stable ID of this conversation; the parent remounts the component (via `key`) to switch chats. */
   chatId: string;
   initialMessages: UIMessage[];
-  /** Saved title, when the chat has one (it may have been renamed). */
   title?: string;
   onNewChat: () => void;
-  /** Called after each reply has finished streaming (and been saved server-side). */
-  /** Called after each reply; `changedCalendar` when it added, changed or removed calendar events. */
   onTurnEnd: (changedCalendar: boolean) => void;
 }
 
-// Providers without an entry (Ollama) need no key from the browser.
 const API_KEY_STORAGE: Partial<Record<ModelProvider, string>> = {
   google: "apex_gemini_key",
   openai: "apex_openai_key",
   anthropic: "apex_anthropic_key",
 };
 
-/** Reads the model/API settings saved by SettingsModal, at request time so changes apply immediately. */
 function getModelSettings() {
   const modelProvider = (localStorage.getItem("apex_model_provider") as ModelProvider) || DEFAULT_PROVIDER;
   return {
@@ -69,8 +64,7 @@ export function ChatInterface({ athleteId, metrics, chatId, initialMessages, tit
     () =>
       new DefaultChatTransport({
         api: "/api/chat",
-        // History lives on the server: send only the new message, not the whole transcript. After calendar approvals
-        // the last message is the paused assistant reply, which carries the athlete's decisions.
+        // History lives on the server: send only the last message.
         prepareSendMessagesRequest: ({ id, messages }) => ({
           body: { id, message: messages[messages.length - 1], athleteId: athleteIdRef.current, ...getModelSettings() },
         }),
@@ -84,7 +78,6 @@ export function ChatInterface({ athleteId, metrics, chatId, initialMessages, tit
     id: chatId,
     messages: initialMessages,
     transport,
-    // Resume the turn once every proposed calendar change has been added or skipped.
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithApprovalResponses,
     onFinish: ({ message }) => onTurnEndRef.current(wroteToCalendar(message)),
     onError: (err) => {
@@ -94,7 +87,6 @@ export function ChatInterface({ athleteId, metrics, chatId, initialMessages, tit
 
   const isLoading = status === "submitted" || status === "streaming";
   const lastMessage = messages[messages.length - 1];
-  // Between sending and the first streamed part there is no assistant message to show progress in.
   const awaitingReply = isLoading && lastMessage?.role === "user";
 
   const submitText = (value: string) => {
@@ -150,7 +142,6 @@ export function ChatInterface({ athleteId, metrics, chatId, initialMessages, tit
 
   return (
     <div className="flex-1 flex flex-col min-h-0">
-      {/* Conversation bar */}
       <div className="hidden lg:flex sticky top-0 z-20 h-14 shrink-0 items-center justify-between gap-4 px-8 border-b border-ink-hair bg-ink/95 backdrop-blur">
         <div className="flex items-baseline gap-3 min-w-0">
           <span className="text-sm font-medium truncate">{title || firstUserText || "Conversation"}</span>
@@ -171,7 +162,6 @@ export function ChatInterface({ athleteId, metrics, chatId, initialMessages, tit
         </button>
       </div>
 
-      {/* Messages */}
       <div className="flex-1 flex justify-center px-4 lg:px-8 pt-5 lg:pt-8">
         <div className="w-full max-w-[720px] flex flex-col gap-7 pb-6">
           {messages.map((message, idx) => (
@@ -202,7 +192,6 @@ export function ChatInterface({ athleteId, metrics, chatId, initialMessages, tit
         </div>
       </div>
 
-      {/* Composer */}
       <div className="sticky bottom-0 z-20 flex justify-center px-3 lg:px-8 pt-3 pb-4 lg:pb-6 bg-ink">
         <div className="w-full max-w-[720px] flex flex-col gap-2">
           {composer}
@@ -224,7 +213,6 @@ function greeting(hour: number) {
   return "Evening";
 }
 
-/** Date line, greeting and today's readiness, shown before the first message. */
 function Briefing({ metrics }: { metrics: MetricsResponse | null }) {
   // Time-dependent copy is computed after mount so server and client render the same markup.
   const [now, setNow] = useState<Date | null>(null);
