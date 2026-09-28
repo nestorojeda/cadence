@@ -4,18 +4,22 @@ import { eventsBeforeWrites, wroteToCalendar } from "./known-events";
 
 type Part = UIMessage["parts"][number];
 
-const read = (id: string, output: unknown): Part =>
-  ({ type: "tool-icu_get_calendar_events", toolCallId: id, state: "output-available", input: {}, output }) as Part;
+const read = (id: string, output: unknown): Part => ({
+  type: "tool-icu_get_calendar_events",
+  toolCallId: id,
+  state: "output-available",
+  input: {},
+  output,
+});
 const update = (id: string, input: object, state = "output-available", output?: unknown): Part =>
   ({ type: "tool-icu_update_calendar_event", toolCallId: id, state, input, output }) as Part;
-const remove = (id: string, input: object): Part =>
-  ({
-    type: "tool-icu_delete_calendar_event",
-    toolCallId: id,
-    state: "approval-requested",
-    input,
-    approval: { id: `a-${id}` },
-  }) as Part;
+const remove = (id: string, input: object): Part => ({
+  type: "tool-icu_delete_calendar_event",
+  toolCallId: id,
+  state: "approval-requested",
+  input,
+  approval: { id: `a-${id}` },
+});
 const coach = (id: string, parts: Part[]) => ({ id, role: "assistant", parts }) as UIMessage;
 
 const vo2 = { id: 7, name: "VO2", start_date_local: "2026-09-29T09:00:00", category: "WORKOUT" };

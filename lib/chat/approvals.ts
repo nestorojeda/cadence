@@ -2,8 +2,6 @@ import { isToolUIPart, type UIMessage } from "ai";
 
 // Only the decisions come from the client: tool inputs always come from the stored message.
 
-type ToolPart = Extract<UIMessage["parts"][number], { toolCallId: string }>;
-
 const EXPIRED_REASON = "The athlete replied without confirming, so this was not added.";
 
 export function applyApprovalResponses(stored: UIMessage, incoming: UIMessage): UIMessage | null {
@@ -25,9 +23,9 @@ export function applyApprovalResponses(stored: UIMessage, incoming: UIMessage): 
     answered++;
     return {
       ...part,
-      state: "approval-responded",
+      state: "approval-responded" as const,
       approval: { ...part.approval, ...decision },
-    } as ToolPart;
+    };
   });
   return answered > 0 ? { ...stored, parts } : null;
 }
@@ -42,11 +40,11 @@ export function expirePendingApprovals(message: UIMessage): UIMessage {
     ...message,
     parts: message.parts.map((part) =>
       isToolUIPart(part) && part.state === "approval-requested"
-        ? ({
+        ? {
             ...part,
-            state: "output-denied",
+            state: "output-denied" as const,
             approval: { ...part.approval, approved: false, reason: EXPIRED_REASON },
-          } as ToolPart)
+          }
         : part,
     ),
   };

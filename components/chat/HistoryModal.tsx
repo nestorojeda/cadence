@@ -102,7 +102,7 @@ function HistoryDialog({
                     value={draft}
                     onChange={(e) => setDraft(e.target.value)}
                     onKeyDown={(e) => {
-                      if (e.key === "Enter") saveRename(chat.id);
+                      if (e.key === "Enter") void saveRename(chat.id);
                       if (e.key === "Escape") {
                         e.stopPropagation();
                         setEditingId(null);

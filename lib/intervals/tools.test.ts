@@ -209,7 +209,7 @@ describe("athlete binding", () => {
             output: { id: 7 },
           },
         ],
-      } as UIMessage,
+      },
     ];
     expect((await safeValidateUIMessages({ messages: stored, tools: bound() })).success).toBe(true);
   });

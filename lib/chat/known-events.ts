@@ -20,7 +20,8 @@ export function eventsBeforeWrites(messages: UIMessage[]): Map<string, KnownEven
         for (const event of part.output) if (isEvent(event)) known.set(String(event.id), event);
       } else if (name === UPDATE_EVENT_TOOL || name === DELETE_EVENT_TOOL) {
         const eventId = (part.input as { event_id?: unknown } | undefined)?.event_id;
-        const previous = eventId != null ? known.get(String(eventId)) : undefined;
+        const previous =
+          typeof eventId === "string" || typeof eventId === "number" ? known.get(String(eventId)) : undefined;
         if (previous) before.set(part.toolCallId, previous);
         if (name === UPDATE_EVENT_TOOL && part.state === "output-available" && isEvent(part.output)) {
           known.set(String(part.output.id), { ...previous, ...part.output });

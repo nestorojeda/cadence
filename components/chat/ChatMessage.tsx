@@ -7,7 +7,7 @@ import { AlertTriangle, Check, ChevronDown } from "lucide-react";
 import { getToolName, isTextUIPart, isToolUIPart, type UIMessage } from "ai";
 import { RemovedEventCard, WorkoutCard, type WorkoutCardStatus, type WorkoutEventInput } from "./WorkoutCard";
 import { GymCard } from "./GymCard";
-import type { GymSessionInput, GymSessionResult } from "@/lib/coach/gym";
+import type { GymSessionResult } from "@/lib/coach/gym";
 import { CadenceMark } from "@/components/CadenceMark";
 import type { KnownEvent } from "@/lib/chat/known-events";
 import { CREATE_EVENT_TOOL, CREATE_GYM_TOOL, DELETE_EVENT_TOOL, UPDATE_EVENT_TOOL } from "@/lib/intervals/tool-names";
@@ -49,9 +49,7 @@ function hasFailed(part: ToolPart) {
 function toolErrorText(part: ToolPart) {
   if (part.state === "output-error") return part.errorText;
   const output = part.state === "output-available" ? part.output : undefined;
-  return output && typeof output === "object" && "error" in output
-    ? String((output as { error: unknown }).error)
-    : undefined;
+  return output && typeof output === "object" && "error" in output ? String(output.error) : undefined;
 }
 
 function workoutStatus(part: ToolPart): WorkoutCardStatus {
@@ -139,7 +137,7 @@ export function ChatMessage({ message, isStreaming = false, onApproval, eventsBe
           );
         }
         if (isToolUIPart(part) && CARD_TOOLS.has(getToolName(part))) {
-          const toolPart = part as ToolPart;
+          const toolPart = part;
           const approvalId = toolPart.state === "approval-requested" ? toolPart.approval.id : undefined;
           const onDecide =
             approvalId && onApproval ? (approved: boolean) => onApproval({ id: approvalId, approved }) : undefined;
@@ -158,7 +156,7 @@ export function ChatMessage({ message, isStreaming = false, onApproval, eventsBe
                 />
               ) : toolName === CREATE_GYM_TOOL ? (
                 <GymCard
-                  input={(toolPart.input ?? {}) as Partial<GymSessionInput>}
+                  input={toolPart.input ?? {}}
                   status={workoutStatus(toolPart)}
                   output={toolPart.state === "output-available" ? (toolPart.output as GymSessionResult) : undefined}
                   errorText={toolErrorText(toolPart)}
@@ -166,7 +164,7 @@ export function ChatMessage({ message, isStreaming = false, onApproval, eventsBe
                 />
               ) : (
                 <WorkoutCard
-                  input={(toolPart.input ?? {}) as Partial<WorkoutEventInput>}
+                  input={toolPart.input ?? {}}
                   previous={toolName === UPDATE_EVENT_TOOL ? before : undefined}
                   eventId={toolName === UPDATE_EVENT_TOOL ? eventId : undefined}
                   kind={toolName === UPDATE_EVENT_TOOL ? "update" : "create"}

@@ -173,7 +173,7 @@ export async function POST(req: NextRequest) {
       model = ollama(ollamaModel);
       describeError = (error) => {
         const message = errorMessage(error);
-        const detail = `${message} ${error instanceof Error && error.cause ? String(error.cause) : ""}`;
+        const detail = `${message} ${error instanceof Error && error.cause ? errorMessage(error.cause) : ""}`;
         if (/ECONNREFUSED|Cannot connect|fetch failed/i.test(detail)) {
           return `Ollama isn't reachable at ${baseURL}. Is \`ollama serve\` running? (${message})`;
         }

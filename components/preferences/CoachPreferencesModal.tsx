@@ -48,9 +48,9 @@ export function CoachPreferencesModal({ isOpen, onClose, athleteId, onSaved }: C
       setSavedSuccess(false);
       setDetectNote(null);
       fetch(`/api/preferences?athleteId=${encodeURIComponent(athleteId)}`)
-        .then((res) => res.json())
+        .then((res) => res.json() as Promise<CoachPreferences | { error: string }>)
         .then((data) => {
-          if (data && !data.error) {
+          if (data && !("error" in data)) {
             setPreferences(data);
           }
         })
@@ -87,7 +87,7 @@ export function CoachPreferencesModal({ isOpen, onClose, athleteId, onSaved }: C
         body: JSON.stringify(preferences),
       });
       if (res.ok) {
-        const data = await res.json();
+        const data = (await res.json()) as { preferences: CoachPreferences };
         setPreferences(data.preferences);
         setSavedSuccess(true);
         if (onSaved) onSaved(data.preferences);

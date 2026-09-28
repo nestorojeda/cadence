@@ -100,12 +100,12 @@ export function ChatInterface({
   const submitText = (value: string) => {
     const text = value.trim();
     if (!text || isLoading) return;
-    sendMessage({ text });
+    void sendMessage({ text });
     setInput("");
   };
 
   const startNewChat = () => {
-    if (isLoading) stop();
+    if (isLoading) void stop();
     onNewChat();
   };
 

@@ -7,7 +7,8 @@ description: Verify a change in the Apex Cycling Coach app — typecheck, unit t
 
 Run these in order and stop at the first failure — fix it before continuing.
 
-1. **Typecheck**: `pnpm exec tsc --noEmit`
+1. **Typecheck and style**: `pnpm exec tsc --noEmit`, `pnpm lint`, `pnpm format:check` (fix formatting with
+   `pnpm format`).
 2. **Unit tests**: `pnpm test` (Vitest, no network). If the change is in `lib/`, add or update the colocated
    `*.test.ts` first.
 3. **Build**: `pnpm build` (catches App Router / server-client boundary errors tsc misses).

@@ -24,6 +24,8 @@ persistent, per-athlete schedule rules.
 pnpm install          # package manager is pnpm (see pnpm-lock.yaml) — don't use npm/yarn
 pnpm dev              # http://localhost:3000
 pnpm exec tsc --noEmit  # typecheck — run after every change
+pnpm lint             # ESLint (type-aware typescript-eslint + next/core-web-vitals); `pnpm lint:fix`
+pnpm format           # Prettier (120 cols, double quotes, Tailwind class sorting); CI runs `pnpm format:check`
 pnpm test             # unit tests (Vitest); `pnpm test:watch` while iterating
 pnpm build            # full production build — run before declaring a feature done
 ```
@@ -47,7 +49,9 @@ change to `lib/`; there are no React component or route handler tests yet.
 with `NEXT_OUTPUT=standalone` (`next.config.ts`), which keeps its own `.next` inside the container and doesn't clash
 with a local dev server. `data/` is bind-mounted.
 
-`pnpm lint` (`next lint`) is deprecated in Next 15.5 and has no ESLint config; prefer `tsc`.
+**Code style** is enforced in CI (`.github/workflows/ci.yml`: `format:check`, `lint`, `tsc`, `test`). Config lives in
+`eslint.config.mjs` and `.prettierrc.json`; don't disable a rule inline without a reason after `--`. The one-time
+Prettier reformat is listed in `.git-blame-ignore-revs` (`git config blame.ignoreRevsFile .git-blame-ignore-revs`).
 
 ## Architecture
 

@@ -76,14 +76,14 @@ export default function Home() {
   const fetchChats = useCallback(async () => {
     try {
       const res = await fetch(`/api/chats?athleteId=${encodeURIComponent(athleteId)}`);
-      if (res.ok) setChats(await res.json());
+      if (res.ok) setChats((await res.json()) as ChatMeta[]);
     } catch (e) {
       console.warn("Could not load chats:", e);
     }
   }, [athleteId]);
 
   useEffect(() => {
-    fetchChats();
+    void fetchChats();
   }, [fetchChats]);
 
   const newChat = useCallback((forAthlete: string) => {
@@ -96,7 +96,7 @@ export default function Home() {
       try {
         const res = await fetch(`/api/chats/${encodeURIComponent(id)}?athleteId=${encodeURIComponent(forAthlete)}`);
         if (res.ok) {
-          const stored: StoredChat = await res.json();
+          const stored = (await res.json()) as StoredChat;
           setChat({ id, athleteId: forAthlete, messages: stored.messages });
           setChatParam(id);
           return;
@@ -112,7 +112,7 @@ export default function Home() {
   // Resolve the first chat once; the athlete comes straight from storage because state hasn't caught up yet.
   useEffect(() => {
     const id = new URLSearchParams(window.location.search).get("chat");
-    if (id) openChat(id, storedAthleteId());
+    if (id) void openChat(id, storedAthleteId());
     else newChat(storedAthleteId());
   }, [openChat, newChat]);
 
@@ -145,7 +145,7 @@ export default function Home() {
         headers: intervalsKey ? { "x-intervals-api-key": intervalsKey } : undefined,
       });
       if (res.ok) {
-        setMetrics(await res.json());
+        setMetrics((await res.json()) as MetricsResponse);
       }
     } catch (e) {
       console.warn("Could not load metrics:", e);
@@ -156,14 +156,14 @@ export default function Home() {
   }, [athleteId, settingsVersion]);
 
   useEffect(() => {
-    fetchMetrics();
+    void fetchMetrics();
   }, [fetchMetrics]);
 
   const onTurnEnd = useCallback(
     (changedCalendar: boolean) => {
       if (chat) setChatParam(chat.id);
-      fetchChats();
-      if (changedCalendar) fetchMetrics();
+      void fetchChats();
+      if (changedCalendar) void fetchMetrics();
     },
     [chat, fetchChats, fetchMetrics],
   );

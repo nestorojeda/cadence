@@ -44,7 +44,7 @@ function withLock<T>(athleteId: string, fn: () => Promise<T>): Promise<T> {
   const run = (locks.get(key) ?? Promise.resolve()).then(fn, fn);
   const settled = run.catch(() => {});
   locks.set(key, settled);
-  settled.then(() => {
+  void settled.then(() => {
     if (locks.get(key) === settled) locks.delete(key);
   });
   return run;
