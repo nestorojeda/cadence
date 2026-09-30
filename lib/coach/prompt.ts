@@ -2,6 +2,7 @@ import { CoachPreferences } from "@/lib/types/preferences";
 import { terrainInfo } from "@/lib/intervals/terrain";
 import { formatDuration, type KeyEvent } from "@/lib/intervals/metrics";
 import { GYM_EQUIPMENT, GYM_GOALS, type GymPreferences } from "@/lib/coach/gym";
+import { isExpired, type AthleteMemory } from "@/lib/coach/memory";
 
 /** Server's local time zone (the athlete's, when self-hosted). */
 function formatToday(now: Date): string {
@@ -80,12 +81,42 @@ ${loads}
 `;
 }
 
+function memorySection(memory: AthleteMemory, now: Date): string {
+  const facts = memory.facts.filter((f) => !isExpired(f, now));
+  const factLines = facts.length
+    ? facts
+        .map(
+          (f) =>
+            `- [${f.id}] (${f.category}, saved ${f.createdAt.slice(0, 10)}${f.expiresOn ? `, until ${f.expiresOn}` : ""}) ${f.text}`,
+        )
+        .join("\n")
+    : "Nothing saved yet.";
+  const plan = memory.plan
+    ? `Updated ${memory.plan.updatedAt.slice(0, 10)}. Phase: ${memory.plan.phase}. Focus: ${memory.plan.focus}.\n${memory.plan.text}`
+    : "No plan note yet. Write one with `coach_update_plan` the first time you plan a week.";
+  return `
+### What You Know About the Athlete
+Facts you saved in earlier conversations (id in brackets):
+${factLines}
+
+### Current Training Plan (your notes)
+${plan}
+
+How to keep this memory:
+- Save with \`coach_remember\` anything durable the athlete tells you about themselves: health and niggles, availability and travel, likes and dislikes, how sessions felt, life constraints, goals that aren't races on the calendar. Don't save what the rules above or the calendar already say, or numbers the tools can fetch again.
+- Give temporary facts \`expires_on\`. When a fact stops being true, \`coach_forget\` it; when it changes, forget the old one and save the new one.
+- Read the plan note before planning and stay consistent with it. If you deviate, say why. Rewrite it with \`coach_update_plan\` after scheduling a week or changing direction.
+- When the athlete says a standing rule has changed (days, volume, terrain, gym setup), propose it with \`coach_propose_rules\`; they approve it on a card. A one-off exception is a fact with \`expires_on\`, not a rule change.
+- Don't announce that you saved something: the athlete sees it in the chat.
+`;
+}
+
 export function buildCoachSystemPrompt(
   preferences: CoachPreferences,
   now = new Date(),
   /** Upcoming races and time off; null when they couldn't be loaded, undefined to leave the section out. */
   keyEvents?: KeyEvent[] | null,
-  { hevyConnected = false }: { hevyConnected?: boolean } = {},
+  { hevyConnected = false, memory }: { hevyConnected?: boolean; memory?: AthleteMemory } = {},
 ): string {
   const {
     weeklyVolumeMinHours,
@@ -143,7 +174,7 @@ ${
     ? `  - ${gymRestDays.join(", ")} ${gymRestDays.length > 1 ? "are" : "is"} both a rest and a gym day: gym only, no bike. The athlete counts a gym session as low enough fatigue not to break recovery.\n`
     : ""
 }${customNotes ? `- **Special Athlete Constraints / Notes**: ${customNotes}` : ""}
-${strengthSection(gym, gymDays, hevyConnected)}${keyEventsSection(keyEvents)}
+${memory ? memorySection(memory, now) : ""}${strengthSection(gym, gymDays, hevyConnected)}${keyEventsSection(keyEvents)}
 ---
 
 ### Weekly Planning & Review Workflow
@@ -164,6 +195,7 @@ ${strengthSection(gym, gymDays, hevyConnected)}${keyEventsSection(keyEvents)}
    - When scheduling a plan, call the tool for ALL of its sessions in the same step so the athlete can review them together.
    - If a session is declined, do not call the tool for it again; ask what they would like to change.
    - Only say a session is on the calendar once its tool result confirms it.
+   - After scheduling, update the plan note.
    - To change a session already on the calendar (move it, swap its content, shorten it), call \`icu_update_calendar_event\` with only the fields that change; to drop one, call \`icu_delete_calendar_event\`. Never create a new event to "move" a session, which would leave a duplicate. Take the \`event_id\` from \`icu_get_calendar_events\` in the current turn. These also wait for the athlete's approval.
    - Races, time off, and past or completed sessions can't be changed or removed; ask the athlete to do that in Intervals.icu.
    - Write the workout \`description\` in Intervals.icu workout syntax so it becomes a structured workout (and the athlete sees its power profile). One step per line starting with "- ", a duration, then a %FTP target; repeats are a header line ending in "Nx" followed by their steps and a blank line. Do not put repeats on a single line. Example:

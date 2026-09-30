@@ -20,6 +20,8 @@ import { HevyClient } from "@/lib/hevy/client";
 import { getHevyTools } from "@/lib/hevy/tools";
 import { getKeyEvents } from "@/lib/intervals/events";
 import { getPreferences } from "@/lib/storage/preferences-store";
+import { getMemory } from "@/lib/storage/memory-store";
+import { getCoachTools } from "@/lib/coach/tools";
 import { buildCoachSystemPrompt } from "@/lib/coach/prompt";
 import {
   DEFAULT_MODELS,
@@ -34,7 +36,7 @@ import { isValidChatId, loadChat, updateChat } from "@/lib/storage/chat-store";
 import { buildModelMessages, foldSummary, historyInstructions, messagesAfterSummary } from "@/lib/chat/context";
 import { applyApprovalResponses, expirePendingApprovals } from "@/lib/chat/approvals";
 import type { CoachMessageMetadata, StoredChat } from "@/lib/chat/types";
-import { WRITE_TOOL_NAMES } from "@/lib/intervals/tool-names";
+import { MEMORY_TOOL_NAMES, WRITE_TOOL_NAMES } from "@/lib/intervals/tool-names";
 import { resolveAthleteId } from "@/lib/api/athlete";
 
 export const maxDuration = 60;
@@ -105,16 +107,21 @@ export async function POST(req: NextRequest) {
     const tools = {
       ...getIntervalsTools(intervalsClient, hevyClient),
       ...(hevyClient ? getHevyTools(hevyClient) : {}),
+      ...getCoachTools(athleteId, chatId),
     };
 
-    const [preferences, keyEvents] = await Promise.all([
+    const [preferences, memory, keyEvents] = await Promise.all([
       getPreferences(athleteId),
+      getMemory(athleteId),
       getKeyEvents(intervalsClient, athleteId).catch((error) => {
         console.warn("[POST /api/chat] Could not load races:", errorMessage(error));
         return null;
       }),
     ]);
-    const systemPrompt = buildCoachSystemPrompt(preferences, new Date(), keyEvents, { hevyConnected: !!hevyClient });
+    const systemPrompt = buildCoachSystemPrompt(preferences, new Date(), keyEvents, {
+      hevyConnected: !!hevyClient,
+      memory,
+    });
 
     let model: LanguageModel;
     let providerOptions: Parameters<typeof streamText>[0]["providerOptions"];
@@ -232,7 +239,11 @@ export async function POST(req: NextRequest) {
       prepareStep: ({ stepNumber }) => {
         if (stepNumber >= MAX_STEPS - 1) return { toolChoice: "none" as const };
         if (stepNumber >= MAX_STEPS - 3) {
-          return { activeTools: WRITE_TOOL_NAMES.filter((name) => name in tools) as Array<keyof typeof tools> };
+          return {
+            activeTools: [...WRITE_TOOL_NAMES, ...MEMORY_TOOL_NAMES].filter((name) => name in tools) as Array<
+              keyof typeof tools
+            >,
+          };
         }
         return undefined;
       },

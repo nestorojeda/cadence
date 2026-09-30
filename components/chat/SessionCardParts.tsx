@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { AlertTriangle, CalendarCog, CalendarMinus, CalendarPlus, Check, X } from "lucide-react";
+import { AlertTriangle, CalendarCog, CalendarMinus, CalendarPlus, Check, SlidersHorizontal, X } from "lucide-react";
 import { CadenceMark } from "@/components/CadenceMark";
 
 export type WorkoutCardStatus = "pending" | "adding" | "added" | "declined" | "failed";
@@ -16,7 +16,7 @@ export function formatDay(iso?: string) {
     .toUpperCase();
 }
 
-export type SessionCardKind = "create" | "update" | "delete";
+export type SessionCardKind = "create" | "update" | "delete" | "rules";
 
 const COPY: Record<
   SessionCardKind,
@@ -56,6 +56,15 @@ const COPY: Record<
     working: "Removing from your calendar…",
     done: "Removed from your Intervals.icu calendar",
     failed: "Couldn’t remove it",
+  },
+  rules: {
+    icon: SlidersHorizontal,
+    pending: "Rules not changed yet",
+    approve: "Update rules",
+    declined: "Rules unchanged",
+    working: "Updating your coach rules…",
+    done: "Coach rules updated",
+    failed: "Couldn’t update the rules",
   },
 };
 

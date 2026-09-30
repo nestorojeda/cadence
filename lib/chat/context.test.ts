@@ -215,6 +215,7 @@ describe("foldSummary", () => {
         write("icu_create_calendar_event", { name: "VO2" }),
         write("icu_update_calendar_event", { event_id: "7", name: "Endurance" }),
         write("icu_delete_calendar_event", { event_id: "8" }),
+        write("coach_propose_rules", { intervalDays: ["Wednesday"] }),
       ],
     };
     await foldSummary(model, chat(messages));
@@ -222,5 +223,6 @@ describe("foldSummary", () => {
     expect(prompts[0]).toContain('[Scheduled on calendar: {\\"name\\":\\"VO2\\"}]');
     expect(prompts[0]).toContain("[Changed on calendar:");
     expect(prompts[0]).toContain("[Removed from calendar:");
+    expect(prompts[0]).toContain("[Changed coach rules:");
   });
 });

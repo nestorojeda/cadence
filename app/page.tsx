@@ -8,6 +8,7 @@ import { CoachPreferencesModal } from "@/components/preferences/CoachPreferences
 import { SettingsModal } from "@/components/SettingsModal";
 import { HistoryModal } from "@/components/chat/HistoryModal";
 import { TodaySheet } from "@/components/TodaySheet";
+import { CoachMemoryModal } from "@/components/memory/CoachMemoryModal";
 import type { ChatMeta, StoredChat } from "@/lib/chat/types";
 import { DEFAULT_MODELS, DEFAULT_PROVIDER, type ModelProvider } from "@/lib/llm/models";
 import type { MetricsResponse } from "@/lib/intervals/metrics";
@@ -40,6 +41,7 @@ function readModelLabel() {
 export default function Home() {
   const [athleteId, setAthleteId] = useState("");
   const [isRulesOpen, setIsRulesOpen] = useState(false);
+  const [isMemoryOpen, setIsMemoryOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [modelLabel, setModelLabel] = useState("");
   const [metrics, setMetrics] = useState<MetricsResponse | null>(null);
@@ -195,6 +197,7 @@ export default function Home() {
         onToggleCompact={toggleSidebar}
         onRefresh={fetchMetrics}
         onOpenRules={() => setIsRulesOpen(true)}
+        onOpenMemory={() => setIsMemoryOpen(true)}
         onOpenSettings={() => setIsSettingsOpen(true)}
         chats={chats}
         activeChatId={chat?.id}
@@ -244,7 +247,13 @@ export default function Home() {
         metrics={metrics}
         loading={metricsLoading}
         onRefresh={fetchMetrics}
+        onOpenMemory={() => {
+          setIsTodayOpen(false);
+          setIsMemoryOpen(true);
+        }}
       />
+
+      <CoachMemoryModal isOpen={isMemoryOpen} onClose={() => setIsMemoryOpen(false)} athleteId={athleteId} />
 
       <CoachPreferencesModal isOpen={isRulesOpen} onClose={() => setIsRulesOpen(false)} athleteId={athleteId} />
 

@@ -7,16 +7,27 @@ import { AlertTriangle, Check, ChevronDown } from "lucide-react";
 import { getToolName, isTextUIPart, isToolUIPart, type UIMessage } from "ai";
 import { RemovedEventCard, WorkoutCard, type WorkoutCardStatus, type WorkoutEventInput } from "./WorkoutCard";
 import { GymCard } from "./GymCard";
+import { MemoryPill } from "./MemoryPill";
+import { RulesCard } from "./RulesCard";
+import type { ProposeRulesResult } from "@/lib/coach/rules";
 import type { GymSessionResult } from "@/lib/coach/gym";
 import { CadenceMark } from "@/components/CadenceMark";
 import type { KnownEvent } from "@/lib/chat/known-events";
-import { CREATE_EVENT_TOOL, CREATE_GYM_TOOL, DELETE_EVENT_TOOL, UPDATE_EVENT_TOOL } from "@/lib/intervals/tool-names";
+import {
+  CREATE_EVENT_TOOL,
+  CREATE_GYM_TOOL,
+  DELETE_EVENT_TOOL,
+  MEMORY_TOOL_NAMES,
+  PROPOSE_RULES_TOOL,
+  UPDATE_EVENT_TOOL,
+} from "@/lib/intervals/tool-names";
 
 interface ChatMessageProps {
   message: UIMessage;
   isStreaming?: boolean;
   onApproval?: (response: { id: string; approved: boolean; reason?: string }) => void;
   eventsBefore?: Map<string, KnownEvent>;
+  athleteId: string;
 }
 
 type ToolPart = Extract<UIMessage["parts"][number], { toolCallId: string }>;
@@ -32,7 +43,14 @@ const TOOL_LABELS: Record<string, string> = {
   hevy_get_exercise_history: "lift history",
 };
 
-const CARD_TOOLS = new Set([CREATE_EVENT_TOOL, CREATE_GYM_TOOL, UPDATE_EVENT_TOOL, DELETE_EVENT_TOOL]);
+const CARD_TOOLS = new Set([
+  CREATE_EVENT_TOOL,
+  CREATE_GYM_TOOL,
+  UPDATE_EVENT_TOOL,
+  DELETE_EVENT_TOOL,
+  PROPOSE_RULES_TOOL,
+]);
+const MEMORY_TOOLS = new Set(MEMORY_TOOL_NAMES);
 
 function toolLabel(name: string) {
   return TOOL_LABELS[name] ?? name.replace(/^icu_(get_)?/, "").replace(/_/g, " ");
@@ -86,7 +104,7 @@ export function LiveStatus({ text }: { text: string }) {
   );
 }
 
-export function ChatMessage({ message, isStreaming = false, onApproval, eventsBefore }: ChatMessageProps) {
+export function ChatMessage({ message, isStreaming = false, onApproval, eventsBefore, athleteId }: ChatMessageProps) {
   if (message.role === "user") {
     const text = message.parts
       .filter(isTextUIPart)
@@ -102,7 +120,7 @@ export function ChatMessage({ message, isStreaming = false, onApproval, eventsBe
   }
 
   const toolParts = message.parts.filter(isToolUIPart) as ToolPart[];
-  const readParts = toolParts.filter((p) => !CARD_TOOLS.has(getToolName(p)));
+  const readParts = toolParts.filter((p) => !CARD_TOOLS.has(getToolName(p)) && !MEMORY_TOOLS.has(getToolName(p)));
   const running = toolParts.find(isRunning);
   const pending = toolParts.filter((p) => p.state === "approval-requested");
   const lastPendingId = pending[pending.length - 1]?.toolCallId;
@@ -116,7 +134,13 @@ export function ChatMessage({ message, isStreaming = false, onApproval, eventsBe
   let liveText: string | null = null;
   if (isStreaming && running) {
     const name = getToolName(running);
-    liveText = CARD_TOOLS.has(name) ? "updating your calendar…" : `reading ${toolLabel(name)}…`;
+    liveText = MEMORY_TOOLS.has(name)
+      ? "taking notes…"
+      : name === PROPOSE_RULES_TOOL
+        ? "drafting a rules change…"
+        : CARD_TOOLS.has(name)
+          ? "updating your calendar…"
+          : `reading ${toolLabel(name)}…`;
   } else if (isStreaming && !hasText) {
     liveText = "thinking…";
   }
@@ -136,6 +160,19 @@ export function ChatMessage({ message, isStreaming = false, onApproval, eventsBe
             </div>
           );
         }
+        if (isToolUIPart(part) && MEMORY_TOOLS.has(getToolName(part))) {
+          if (part.state !== "output-available" && part.state !== "output-error") return null;
+          return (
+            <MemoryPill
+              key={part.toolCallId}
+              toolName={getToolName(part)}
+              input={part.input as React.ComponentProps<typeof MemoryPill>["input"]}
+              output={part.state === "output-available" ? part.output : undefined}
+              errorText={part.state === "output-error" ? part.errorText : undefined}
+              athleteId={athleteId}
+            />
+          );
+        }
         if (isToolUIPart(part) && CARD_TOOLS.has(getToolName(part))) {
           const toolPart = part;
           const approvalId = toolPart.state === "approval-requested" ? toolPart.approval.id : undefined;
@@ -146,7 +183,16 @@ export function ChatMessage({ message, isStreaming = false, onApproval, eventsBe
           const before = eventsBefore?.get(toolPart.toolCallId) as Partial<WorkoutEventInput> | undefined;
           return (
             <React.Fragment key={toolPart.toolCallId}>
-              {toolName === DELETE_EVENT_TOOL ? (
+              {toolName === PROPOSE_RULES_TOOL ? (
+                <RulesCard
+                  input={toolPart.input ?? {}}
+                  status={workoutStatus(toolPart)}
+                  output={toolPart.state === "output-available" ? (toolPart.output as ProposeRulesResult) : undefined}
+                  errorText={toolErrorText(toolPart)}
+                  onDecide={onDecide}
+                  athleteId={athleteId}
+                />
+              ) : toolName === DELETE_EVENT_TOOL ? (
                 <RemovedEventCard
                   event={before}
                   eventId={eventId}

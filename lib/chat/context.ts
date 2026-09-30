@@ -10,7 +10,7 @@ import {
   type ToolSet,
   type UIMessage,
 } from "ai";
-import { DELETE_EVENT_TOOL, UPDATE_EVENT_TOOL, WRITE_TOOL_NAMES } from "@/lib/intervals/tool-names";
+import { DELETE_EVENT_TOOL, PROPOSE_RULES_TOOL, UPDATE_EVENT_TOOL, WRITE_TOOL_NAMES } from "@/lib/intervals/tool-names";
 import type { ChatSummary, StoredChat, TokenUsage } from "./types";
 
 const SUMMARY_TRIGGER = 12;
@@ -61,6 +61,7 @@ export function historyInstructions(chat: StoredChat | null): string {
 function writeLabel(toolName: string): string {
   if (toolName === UPDATE_EVENT_TOOL) return "Changed on calendar";
   if (toolName === DELETE_EVENT_TOOL) return "Removed from calendar";
+  if (toolName === PROPOSE_RULES_TOOL) return "Changed coach rules";
   return "Scheduled on calendar";
 }
 

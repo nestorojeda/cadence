@@ -214,6 +214,7 @@ export function ChatInterface({
               isStreaming={isLoading && idx === messages.length - 1 && message.role === "assistant"}
               onApproval={!isLoading && idx === messages.length - 1 ? addToolApprovalResponse : undefined}
               eventsBefore={eventsBefore}
+              athleteId={athleteId}
             />
           ))}
 
