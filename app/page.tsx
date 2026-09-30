@@ -177,6 +177,14 @@ export default function Home() {
     return () => document.removeEventListener("visibilitychange", onVisible);
   }, [fetchMetrics, fetchChats]);
 
+  useEffect(() => {
+    const timer = setInterval(() => {
+      if (document.visibilityState !== "visible" || Date.now() - metricsFetchedAt.current < STALE_AFTER_MS) return;
+      void fetchMetrics();
+    }, 60_000);
+    return () => clearInterval(timer);
+  }, [fetchMetrics]);
+
   const onTurnEnd = useCallback(
     (changedCalendar: boolean) => {
       if (chat) setChatParam(chat.id);
