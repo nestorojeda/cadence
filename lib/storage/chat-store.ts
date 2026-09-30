@@ -3,6 +3,7 @@ import path from "path";
 import { isTextUIPart, type UIMessage } from "ai";
 import { CHAT_ID_PATTERN, EMPTY_USAGE, addUsage, messageUsage, type ChatMeta, type StoredChat } from "@/lib/chat/types";
 import { writeJsonAtomic } from "./json-file";
+import { withLock } from "./lock";
 
 function athleteDir(athleteId: string): string {
   // Sanitize athlete ID to prevent directory traversal
@@ -37,18 +38,7 @@ async function readJson<T>(file: string): Promise<T | null> {
 }
 
 // Writes for one athlete run one at a time: the chat route and the background summary both update the same files.
-const locks = new Map<string, Promise<unknown>>();
-
-function withLock<T>(athleteId: string, fn: () => Promise<T>): Promise<T> {
-  const key = athleteDir(athleteId);
-  const run = (locks.get(key) ?? Promise.resolve()).then(fn, fn);
-  const settled = run.catch(() => {});
-  locks.set(key, settled);
-  void settled.then(() => {
-    if (locks.get(key) === settled) locks.delete(key);
-  });
-  return run;
-}
+const lockAthlete = <T>(athleteId: string, fn: () => Promise<T>) => withLock(athleteDir(athleteId), fn);
 
 function deriveTitle(messages: UIMessage[]): string {
   const text = messages
@@ -92,7 +82,7 @@ export async function updateChat(
   update: (chat: StoredChat | null) => Omit<StoredChat, "meta"> & { meta?: Partial<ChatMeta> },
   { touch = true }: { touch?: boolean } = {},
 ): Promise<StoredChat> {
-  return withLock(athleteId, async () => {
+  return lockAthlete(athleteId, async () => {
     const file = chatFile(athleteId, chatId);
     const current = await readJson<StoredChat>(file);
     const next = update(current);
@@ -124,7 +114,7 @@ export async function renameChat(athleteId: string, chatId: string, title: strin
 }
 
 export async function deleteChat(athleteId: string, chatId: string): Promise<void> {
-  await withLock(athleteId, async () => {
+  await lockAthlete(athleteId, async () => {
     await fs.rm(chatFile(athleteId, chatId), { force: true });
     await writeIndex(athleteId, (index) => index.filter((m) => m.id !== chatId));
   });

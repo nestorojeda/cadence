@@ -1,5 +1,11 @@
 import { getToolName, isToolUIPart, type UIMessage } from "ai";
-import { DELETE_EVENT_TOOL, GET_EVENTS_TOOL, UPDATE_EVENT_TOOL, WRITE_TOOL_NAMES } from "@/lib/intervals/tool-names";
+import {
+  DELETE_EVENT_TOOL,
+  GET_EVENTS_TOOL,
+  PROPOSE_RULES_TOOL,
+  UPDATE_EVENT_TOOL,
+  WRITE_TOOL_NAMES,
+} from "@/lib/intervals/tool-names";
 
 // Client-safe. Events come from stored tool outputs, never from the model's own claims.
 
@@ -37,6 +43,7 @@ export function wroteToCalendar(message: UIMessage): boolean {
     (part) =>
       isToolUIPart(part) &&
       WRITE_TOOL_NAMES.includes(getToolName(part)) &&
+      getToolName(part) !== PROPOSE_RULES_TOOL &&
       part.state === "output-available" &&
       !(part.output && typeof part.output === "object" && "error" in part.output),
   );

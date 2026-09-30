@@ -2,6 +2,7 @@
 
 import React from "react";
 import {
+  Brain,
   CalendarDays,
   Flag,
   History,
@@ -38,6 +39,7 @@ interface SidebarProps {
   onToggleCompact: () => void;
   onRefresh: () => void;
   onOpenRules: () => void;
+  onOpenMemory: () => void;
   onOpenSettings: () => void;
   chats: ChatMeta[];
   activeChatId?: string;
@@ -88,6 +90,7 @@ export function Sidebar({
   onToggleCompact,
   onRefresh,
   onOpenRules,
+  onOpenMemory,
   onOpenSettings,
   chats,
   activeChatId,
@@ -190,6 +193,9 @@ export function Sidebar({
           <IconButton label="Coach rules" onClick={onOpenRules}>
             <SlidersHorizontal className="h-4 w-4" />
           </IconButton>
+          <IconButton label="Coach memory" onClick={onOpenMemory}>
+            <Brain className="h-4 w-4" />
+          </IconButton>
           <IconButton label={`Settings (${modelLabel})`} onClick={onOpenSettings}>
             <Settings className="h-4 w-4" />
           </IconButton>
@@ -249,6 +255,7 @@ export function Sidebar({
 
       <section className="flex flex-col gap-1.5">
         <RailButton icon={SlidersHorizontal} label="Coach rules" onClick={onOpenRules} />
+        <RailButton icon={Brain} label="Coach memory" onClick={onOpenMemory} />
         <RailButton icon={Settings} label="Settings" detail={modelLabel} onClick={onOpenSettings} />
         <div className="mt-1">
           <ThemeToggle />

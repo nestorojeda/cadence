@@ -75,5 +75,13 @@ describe("wroteToCalendar", () => {
     );
     expect(wroteToCalendar(coach("m1", [remove("d1", { event_id: "7" })]))).toBe(false);
     expect(wroteToCalendar(coach("m1", [read("r1", [vo2])]))).toBe(false);
+    const rules = {
+      type: "tool-coach_propose_rules",
+      toolCallId: "p1",
+      state: "output-available",
+      input: {},
+      output: { changes: [] },
+    } as Part;
+    expect(wroteToCalendar(coach("m1", [rules]))).toBe(false);
   });
 });
