@@ -209,11 +209,10 @@ export default function Home() {
       <Sidebar
         athleteId={athleteId || metrics?.athlete?.id || ""}
         metrics={metrics}
-        loading={metricsLoading}
         modelLabel={modelLabel}
         compact={sidebarCompact}
         onToggleCompact={toggleSidebar}
-        onRefresh={fetchMetrics}
+        onOpenToday={() => setIsTodayOpen(true)}
         onOpenRules={() => setIsRulesOpen(true)}
         onOpenMemory={() => setIsMemoryOpen(true)}
         onOpenSettings={() => setIsSettingsOpen(true)}
@@ -227,10 +226,13 @@ export default function Home() {
 
       <div className="flex min-w-0 flex-1 flex-col">
         <MobileBar
+          athleteId={athleteId || metrics?.athlete?.id || ""}
           metrics={metrics}
+          modelLabel={modelLabel}
           onOpenToday={() => setIsTodayOpen(true)}
           onNewChat={() => newChat(athleteId)}
           onOpenRules={() => setIsRulesOpen(true)}
+          onOpenMemory={() => setIsMemoryOpen(true)}
           onOpenSettings={() => setIsSettingsOpen(true)}
           onOpenHistory={() => setIsHistoryOpen(true)}
           unreadReports={unreadReports}
@@ -267,10 +269,6 @@ export default function Home() {
         metrics={metrics}
         loading={metricsLoading}
         onRefresh={fetchMetrics}
-        onOpenMemory={() => {
-          setIsTodayOpen(false);
-          setIsMemoryOpen(true);
-        }}
       />
 
       <CoachMemoryModal isOpen={isMemoryOpen} onClose={() => setIsMemoryOpen(false)} athleteId={athleteId} />
