@@ -269,10 +269,6 @@ export default function Home() {
         metrics={metrics}
         loading={metricsLoading}
         onRefresh={fetchMetrics}
-        onOpenMemory={() => {
-          setIsTodayOpen(false);
-          setIsMemoryOpen(true);
-        }}
       />
 
       <CoachMemoryModal isOpen={isMemoryOpen} onClose={() => setIsMemoryOpen(false)} athleteId={athleteId} />
