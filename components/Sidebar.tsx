@@ -1,9 +1,11 @@
 "use client";
 
 import React from "react";
+import Link from "next/link";
 import {
   Brain,
   CalendarDays,
+  FileText,
   Flag,
   History,
   PanelLeftClose,
@@ -46,6 +48,8 @@ interface SidebarProps {
   onOpenChat: (id: string) => void;
   onNewChat: () => void;
   onOpenHistory: () => void;
+  /** Session reports not opened yet. */
+  unreadReports: number;
 }
 
 const RECENT_CHATS = 5;
@@ -97,6 +101,7 @@ export function Sidebar({
   onOpenChat,
   onNewChat,
   onOpenHistory,
+  unreadReports,
 }: SidebarProps) {
   const fitness = metrics?.fitness;
   const athleteName = metrics?.athlete?.name || athleteId;
@@ -128,6 +133,15 @@ export function Sidebar({
           <IconButton label="Chats" onClick={onOpenHistory}>
             <History className="h-4 w-4" />
           </IconButton>
+          <Link
+            href="/reports"
+            aria-label={reportsLabel(unreadReports)}
+            title={reportsLabel(unreadReports)}
+            className="relative flex h-10 w-10 items-center justify-center rounded-lg text-fg-muted transition hover:bg-ink-raised hover:text-fg"
+          >
+            <FileText className="h-4 w-4" />
+            {unreadReports > 0 && <UnreadBadge count={unreadReports} className="absolute -right-0.5 -top-0.5" />}
+          </Link>
         </div>
 
         <div className="flex flex-col items-center gap-1" title={tsbTitle}>
@@ -254,6 +268,14 @@ export function Sidebar({
       <div className="flex-1" />
 
       <section className="flex flex-col gap-1.5">
+        <Link
+          href="/reports"
+          className="flex h-10 items-center gap-2.5 rounded-lg px-2.5 text-left text-[13px] transition hover:bg-ink-raised"
+        >
+          <FileText className="h-4 w-4 text-fg-muted" />
+          <span className="flex-1">Reports</span>
+          {unreadReports > 0 && <UnreadBadge count={unreadReports} />}
+        </Link>
         <RailButton icon={SlidersHorizontal} label="Coach rules" onClick={onOpenRules} />
         <RailButton icon={Brain} label="Coach memory" onClick={onOpenMemory} />
         <RailButton icon={Settings} label="Settings" detail={modelLabel} onClick={onOpenSettings} />
@@ -342,7 +364,21 @@ export function WeekSection({ metrics }: { metrics: MetricsResponse | null }) {
   );
 }
 
-const MOBILE_ICON_BUTTON = "flex h-11 w-11 items-center justify-center rounded-lg text-fg-muted hover:text-fg";
+function reportsLabel(unread: number) {
+  return unread > 0 ? `Reports (${unread} new)` : "Reports";
+}
+
+function UnreadBadge({ count, className = "" }: { count: number; className?: string }) {
+  return (
+    <span
+      className={`flex h-4 min-w-4 items-center justify-center rounded-full bg-signal px-1 font-mono text-[10px] font-medium text-on-signal ${className}`}
+    >
+      {count}
+    </span>
+  );
+}
+
+const MOBILE_ICON_BUTTON = "flex h-11 w-10 items-center justify-center rounded-lg text-fg-muted hover:text-fg";
 
 export function MobileBar({
   metrics,
@@ -351,7 +387,11 @@ export function MobileBar({
   onOpenRules,
   onOpenSettings,
   onOpenHistory,
-}: Pick<SidebarProps, "metrics" | "onNewChat" | "onOpenRules" | "onOpenSettings" | "onOpenHistory"> & {
+  unreadReports,
+}: Pick<
+  SidebarProps,
+  "metrics" | "onNewChat" | "onOpenRules" | "onOpenSettings" | "onOpenHistory" | "unreadReports"
+> & {
   onOpenToday: () => void;
 }) {
   const tsb = metrics?.fitness?.tsb;
@@ -386,6 +426,10 @@ export function MobileBar({
         <button onClick={onOpenHistory} aria-label="Chats" className={MOBILE_ICON_BUTTON}>
           <History className="h-4 w-4" />
         </button>
+        <Link href="/reports" aria-label={reportsLabel(unreadReports)} className={`relative ${MOBILE_ICON_BUTTON}`}>
+          <FileText className="h-4 w-4" />
+          {unreadReports > 0 && <span className="absolute right-2.5 top-2.5 h-[7px] w-[7px] rounded-full bg-signal" />}
+        </Link>
         <button onClick={onOpenRules} aria-label="Coach rules" className={MOBILE_ICON_BUTTON}>
           <SlidersHorizontal className="h-4 w-4" />
         </button>

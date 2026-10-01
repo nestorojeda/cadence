@@ -12,6 +12,7 @@ import { CoachMemoryModal } from "@/components/memory/CoachMemoryModal";
 import type { ChatMeta, StoredChat } from "@/lib/chat/types";
 import { DEFAULT_MODELS, DEFAULT_PROVIDER, type ModelProvider } from "@/lib/llm/models";
 import type { MetricsResponse } from "@/lib/intervals/metrics";
+import type { ReportsResponse } from "@/lib/reports/types";
 
 function storedAthleteId() {
   return localStorage.getItem("apex_athlete_id") || "";
@@ -52,6 +53,7 @@ export default function Home() {
   const [chat, setChat] = useState<OpenChat | null>(null);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [isTodayOpen, setIsTodayOpen] = useState(false);
+  const [unreadReports, setUnreadReports] = useState(0);
   const metricsFetchedAt = useRef(0);
 
   const loadStoredSettings = () => {
@@ -92,6 +94,21 @@ export default function Home() {
   useEffect(() => {
     void fetchChats();
   }, [fetchChats]);
+
+  const fetchUnreadReports = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/reports?athleteId=${encodeURIComponent(athleteId)}&pending=0`);
+      if (!res.ok) return;
+      const { reports } = (await res.json()) as ReportsResponse;
+      setUnreadReports(reports.filter((r) => r.status === "ready" && !r.readAt).length);
+    } catch (e) {
+      console.warn("Could not load reports:", e);
+    }
+  }, [athleteId]);
+
+  useEffect(() => {
+    void fetchUnreadReports();
+  }, [fetchUnreadReports]);
 
   const newChat = useCallback((forAthlete: string) => {
     setChat({ id: generateId(), athleteId: forAthlete, messages: [] });
@@ -172,10 +189,11 @@ export default function Home() {
       if (document.visibilityState !== "visible" || Date.now() - metricsFetchedAt.current < STALE_AFTER_MS) return;
       void fetchMetrics();
       void fetchChats();
+      void fetchUnreadReports();
     };
     document.addEventListener("visibilitychange", onVisible);
     return () => document.removeEventListener("visibilitychange", onVisible);
-  }, [fetchMetrics, fetchChats]);
+  }, [fetchMetrics, fetchChats, fetchUnreadReports]);
 
   const onTurnEnd = useCallback(
     (changedCalendar: boolean) => {
@@ -204,6 +222,7 @@ export default function Home() {
         onOpenChat={(id) => openChat(id, athleteId)}
         onNewChat={() => newChat(athleteId)}
         onOpenHistory={() => setIsHistoryOpen(true)}
+        unreadReports={unreadReports}
       />
 
       <div className="flex min-w-0 flex-1 flex-col">
@@ -214,6 +233,7 @@ export default function Home() {
           onOpenRules={() => setIsRulesOpen(true)}
           onOpenSettings={() => setIsSettingsOpen(true)}
           onOpenHistory={() => setIsHistoryOpen(true)}
+          unreadReports={unreadReports}
         />
         {chat && chat.athleteId === athleteId && (
           <ChatInterface

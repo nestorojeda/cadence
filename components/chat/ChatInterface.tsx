@@ -11,7 +11,7 @@ import {
 import { ArrowDown, ArrowUp, Square } from "lucide-react";
 import { ChatMessage, CoachLabel, LiveStatus } from "./ChatMessage";
 import { COMPOSER_CHIPS, QuickPrompts } from "./QuickPrompts";
-import { DEFAULT_MODELS, DEFAULT_PROVIDER, type ModelProvider } from "@/lib/llm/models";
+import { getModelSettings } from "@/lib/llm/client-settings";
 import {
   FORM_LABELS,
   formatCountdown,
@@ -34,12 +34,6 @@ interface ChatInterfaceProps {
   onTurnEnd: (changedCalendar: boolean) => void;
 }
 
-const API_KEY_STORAGE: Partial<Record<ModelProvider, string>> = {
-  google: "apex_gemini_key",
-  openai: "apex_openai_key",
-  anthropic: "apex_anthropic_key",
-};
-
 const NEAR_BOTTOM_PX = 80;
 
 function isNearBottom() {
@@ -49,18 +43,6 @@ function isNearBottom() {
 
 function scrollToBottom(behavior: ScrollBehavior) {
   window.scrollTo({ top: document.documentElement.scrollHeight, behavior });
-}
-
-function getModelSettings() {
-  const modelProvider = (localStorage.getItem("apex_model_provider") as ModelProvider) || DEFAULT_PROVIDER;
-  return {
-    modelProvider,
-    modelName: localStorage.getItem("apex_model_name") || DEFAULT_MODELS[modelProvider],
-    thinkingLevel: localStorage.getItem("apex_thinking_level") || undefined,
-    apiKey: (API_KEY_STORAGE[modelProvider] && localStorage.getItem(API_KEY_STORAGE[modelProvider])) || undefined,
-    intervalsApiKey: localStorage.getItem("apex_intervals_key") || undefined,
-    hevyApiKey: localStorage.getItem("apex_hevy_key") || undefined,
-  };
 }
 
 export function ChatInterface({
