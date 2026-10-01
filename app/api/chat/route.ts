@@ -10,10 +10,6 @@ import {
   type LanguageModel,
   type UIMessage,
 } from "ai";
-import { createGoogle, type GoogleLanguageModelOptions } from "@ai-sdk/google";
-import { createOpenAI } from "@ai-sdk/openai";
-import { createAnthropic } from "@ai-sdk/anthropic";
-import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import { IntervalsClient } from "@/lib/intervals/client";
 import { getIntervalsTools } from "@/lib/intervals/tools";
 import { HevyClient } from "@/lib/hevy/client";
@@ -23,15 +19,8 @@ import { getPreferences } from "@/lib/storage/preferences-store";
 import { getMemory } from "@/lib/storage/memory-store";
 import { getCoachTools } from "@/lib/coach/tools";
 import { buildCoachSystemPrompt } from "@/lib/coach/prompt";
-import {
-  DEFAULT_MODELS,
-  DEFAULT_OLLAMA_BASE_URL,
-  DEFAULT_PROVIDER,
-  THINKING_LEVELS,
-  resolveThinkingLevel,
-  supportsThinkingLevel,
-  type ThinkingLevel,
-} from "@/lib/llm/models";
+import { DEFAULT_PROVIDER, THINKING_LEVELS, type ThinkingLevel } from "@/lib/llm/models";
+import { errorMessage, resolveModel } from "@/lib/llm/provider";
 import { isValidChatId, loadChat, updateChat } from "@/lib/storage/chat-store";
 import { buildModelMessages, foldSummary, historyInstructions, messagesAfterSummary } from "@/lib/chat/context";
 import { applyApprovalResponses, expirePendingApprovals } from "@/lib/chat/approvals";
@@ -69,10 +58,6 @@ function jsonError(error: string, status: number) {
     status,
     headers: { "Content-Type": "application/json" },
   });
-}
-
-function errorMessage(error: unknown) {
-  return error instanceof Error ? error.message : String(error);
 }
 
 export async function POST(req: NextRequest) {
@@ -123,75 +108,9 @@ export async function POST(req: NextRequest) {
       memory,
     });
 
-    let model: LanguageModel;
-    let providerOptions: Parameters<typeof streamText>[0]["providerOptions"];
-    let describeError = errorMessage;
-    if (modelProvider === "google") {
-      const key = clientApiKey || process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY;
-      if (!key) {
-        return jsonError(
-          "Google Gemini API key not found. Please add GEMINI_API_KEY in .env.local or enter it in the app Settings.",
-          400,
-        );
-      }
-      const google = createGoogle({ apiKey: key });
-      const googleModel = modelName || DEFAULT_MODELS.google;
-      model = google(googleModel);
-      // Effort is the athlete's choice in Settings (they pay for the thinking tokens). Older models (2.5) take a
-      // thinkingBudget instead, so they keep their default.
-      if (supportsThinkingLevel(googleModel)) {
-        providerOptions = {
-          google: {
-            thinkingConfig: { thinkingLevel: resolveThinkingLevel(googleModel, thinkingLevel) },
-          } satisfies GoogleLanguageModelOptions,
-        };
-      }
-    } else if (modelProvider === "openai") {
-      const key = clientApiKey || process.env.OPENAI_API_KEY;
-      if (!key) {
-        return jsonError(
-          "OpenAI API key not found. Please add OPENAI_API_KEY in .env.local or enter it in the app Settings.",
-          400,
-        );
-      }
-      const openai = createOpenAI({ apiKey: key });
-      model = openai(modelName || DEFAULT_MODELS.openai);
-    } else if (modelProvider === "anthropic") {
-      const key = clientApiKey || process.env.ANTHROPIC_API_KEY;
-      if (!key) {
-        return jsonError(
-          "Anthropic API key not found. Please add ANTHROPIC_API_KEY in .env.local or enter it in the app Settings.",
-          400,
-        );
-      }
-      const anthropic = createAnthropic({ apiKey: key });
-      model = anthropic(modelName || DEFAULT_MODELS.anthropic);
-    } else if (modelProvider === "ollama") {
-      // Base URL is server config only: accepting it from the request would let clients point the server anywhere.
-      const baseURL = process.env.OLLAMA_BASE_URL || DEFAULT_OLLAMA_BASE_URL;
-      const ollamaModel = modelName || DEFAULT_MODELS.ollama;
-      const ollama = createOpenAICompatible({
-        name: "ollama",
-        baseURL,
-        apiKey: clientApiKey || process.env.OLLAMA_API_KEY,
-        // OpenAI-compatible streams omit token counts unless asked; the chat history shows usage per chat.
-        includeUsage: true,
-      });
-      model = ollama(ollamaModel);
-      describeError = (error) => {
-        const message = errorMessage(error);
-        const detail = `${message} ${error instanceof Error && error.cause ? errorMessage(error.cause) : ""}`;
-        if (/ECONNREFUSED|Cannot connect|fetch failed/i.test(detail)) {
-          return `Ollama isn't reachable at ${baseURL}. Is \`ollama serve\` running? (${message})`;
-        }
-        if (/not found/i.test(message) && message.includes(ollamaModel)) {
-          return `Ollama model "${ollamaModel}" isn't installed. Run \`ollama pull ${ollamaModel}\`. (${message})`;
-        }
-        return message;
-      };
-    } else {
-      return jsonError(`Unknown model provider: ${modelProvider}`, 400);
-    }
+    const resolved = resolveModel({ provider: modelProvider, modelName, apiKey: clientApiKey, thinkingLevel });
+    if ("error" in resolved) return jsonError(resolved.error, 400);
+    const { model, providerOptions, describeError } = resolved;
 
     const stored = await loadChat(athleteId, chatId);
     const history = stored?.messages ?? [];

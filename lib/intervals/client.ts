@@ -39,6 +39,10 @@ export interface ActivitySummary {
   name: string;
   type: string;
   start_date_local: string;
+  /** UTC, with a trailing Z. */
+  start_date?: string;
+  /** When the activity reached Intervals.icu (UTC). */
+  created?: string;
   distance?: number;
   moving_time?: number;
   elapsed_time?: number;
@@ -49,7 +53,14 @@ export interface ActivitySummary {
   max_heartrate?: number;
   icu_intensity?: number;
   icu_training_load?: number; // TSS
+  icu_ftp?: number;
+  icu_weighted_avg_watts?: number;
   paired_event_id?: number;
+}
+
+export interface ActivityIntervals {
+  id: string;
+  icu_intervals?: Array<Record<string, unknown>>;
 }
 
 export interface CalendarEvent {
@@ -67,6 +78,8 @@ export interface CalendarEvent {
   type?: string;
   training_availability?: string;
   paired_activity_id?: string | null;
+  /** Intervals.icu's parsed workout; `steps` is empty for a plain note-style event. */
+  workout_doc?: { steps?: unknown[] } | null;
 }
 
 export interface FitnessSummary {
@@ -202,6 +215,13 @@ export class IntervalsClient {
 
   async getActivity(activityId: string): Promise<Record<string, unknown>> {
     return this.request(`/activity/${encodeURIComponent(activityId)}`, `fetch activity ${activityId}`);
+  }
+
+  async getActivityIntervals(activityId: string): Promise<ActivityIntervals> {
+    return this.request(
+      `/activity/${encodeURIComponent(activityId)}/intervals`,
+      `fetch intervals of activity ${activityId}`,
+    );
   }
 
   async getEvents(oldest?: string, newest?: string): Promise<CalendarEvent[]> {

@@ -157,3 +157,26 @@ export function compactActivityDetails(activity: Row): Row {
     ...(zoneTimes?.length ? { power_zone_secs: Object.fromEntries(zoneTimes.map((z) => [z.id, z.secs])) } : {}),
   };
 }
+
+const MAX_INTERVALS = 60;
+
+/** The activity's laps/intervals from `/activity/{id}/intervals`, trimmed to what a session review needs. */
+export function compactIntervals(intervals: Row[]): Row[] {
+  return intervals
+    .slice(0, MAX_INTERVALS)
+    .map((i) =>
+      pick(i, [
+        "type",
+        "label",
+        "moving_time",
+        "average_watts",
+        ["weighted_average_watts", "normalized_power"],
+        ["intensity", "percent_ftp"],
+        "zone",
+        "average_heartrate",
+        "max_heartrate",
+        "average_cadence",
+        "decoupling",
+      ]),
+    );
+}
