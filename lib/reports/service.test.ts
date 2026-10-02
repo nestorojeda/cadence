@@ -1,12 +1,10 @@
-import fs from "fs/promises";
-import os from "os";
-import path from "path";
 import { MockLanguageModelV4 } from "ai/test";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ActivitySummary, CalendarEvent, IntervalsClient } from "@/lib/intervals/client";
 import type { ResolvedModel } from "@/lib/llm/provider";
+import { resetDb, setDbForTests } from "@/lib/db/client";
+import { createTestDb } from "@/lib/db/testing";
 
-let root: string;
 let service: typeof import("./service");
 let store: typeof import("@/lib/storage/report-store");
 
@@ -70,8 +68,7 @@ function resolvedModel(text: string | Error): { resolved: ResolvedModel; prompts
 }
 
 beforeEach(async () => {
-  root = await fs.mkdtemp(path.join(os.tmpdir(), "cadence-report-service-"));
-  vi.spyOn(process, "cwd").mockReturnValue(root);
+  setDbForTests(await createTestDb());
   vi.spyOn(console, "warn").mockImplementation(() => {});
   vi.resetModules();
   service = await import("./service");
@@ -80,7 +77,7 @@ beforeEach(async () => {
 
 afterEach(async () => {
   vi.restoreAllMocks();
-  await fs.rm(root, { recursive: true, force: true });
+  await resetDb();
 });
 
 describe("autoReports", () => {
@@ -146,7 +143,7 @@ describe("autoReports", () => {
         status: "failed",
         attempts: 1,
         metrics: {},
-        createdAt: "",
+        createdAt: "2026-09-29T20:00:00.000Z",
       },
       body: "",
     });

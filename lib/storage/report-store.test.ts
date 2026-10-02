@@ -1,11 +1,8 @@
-import fs from "fs/promises";
-import os from "os";
-import path from "path";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { resetDb, setDbForTests } from "@/lib/db/client";
+import { createTestDb } from "@/lib/db/testing";
 import type { StoredReport } from "@/lib/reports/types";
-
-let root: string;
-let store: typeof import("./report-store");
+import * as store from "./report-store";
 
 const report = (activityId: string, date: string): StoredReport => ({
   meta: {
@@ -22,15 +19,11 @@ const report = (activityId: string, date: string): StoredReport => ({
 });
 
 beforeEach(async () => {
-  root = await fs.mkdtemp(path.join(os.tmpdir(), "cadence-reports-"));
-  vi.spyOn(process, "cwd").mockReturnValue(root);
-  vi.resetModules();
-  store = await import("./report-store");
+  setDbForTests(await createTestDb());
 });
 
 afterEach(async () => {
-  vi.restoreAllMocks();
-  await fs.rm(root, { recursive: true, force: true });
+  await resetDb();
 });
 
 describe("report store", () => {
@@ -60,7 +53,26 @@ describe("report store", () => {
     expect((await store.listReports("i1"))[0].status).toBe("ready");
   });
 
-  it("rejects activity IDs that could leave the folder", async () => {
+  it("round-trips the full report and keeps the first read time", async () => {
+    const full: StoredReport = {
+      ...report("i10", "2026-09-27"),
+      meta: {
+        ...report("i10", "2026-09-27").meta,
+        type: "Ride",
+        model: "google · x",
+        metrics: { load: 80, intensity: 0.86 },
+      },
+      workout: "- 4x 8m 100%",
+    };
+    await store.saveReport("i1", full);
+    expect(await store.loadReport("i1", "i10")).toEqual(full);
+    const read = await store.markRead("i1", "i10");
+    expect((await store.markRead("i1", "i10"))?.readAt).toBe(read?.readAt);
+    expect(await store.loadReport("i1", "i10")).toEqual({ ...full, meta: { ...full.meta, readAt: read?.readAt } });
+    expect(await store.listReports("i2")).toEqual([]);
+  });
+
+  it("rejects invalid activity IDs", async () => {
     expect(store.isValidActivityId("i191637326")).toBe(true);
     expect(store.isValidActivityId("../index")).toBe(false);
     await expect(store.loadReport("i1", "../x")).rejects.toThrow("Invalid activity ID");

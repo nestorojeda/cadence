@@ -9,7 +9,7 @@ import { SettingsModal } from "@/components/SettingsModal";
 import { HistoryModal } from "@/components/chat/HistoryModal";
 import { TodaySheet } from "@/components/TodaySheet";
 import { CoachMemoryModal } from "@/components/memory/CoachMemoryModal";
-import type { ChatMeta, StoredChat } from "@/lib/chat/types";
+import type { ChatMeta, ChatSearchHit, StoredChat } from "@/lib/chat/types";
 import { DEFAULT_MODELS, DEFAULT_PROVIDER, type ModelProvider } from "@/lib/llm/models";
 import type { MetricsResponse } from "@/lib/intervals/metrics";
 import type { ReportsResponse } from "@/lib/reports/types";
@@ -94,6 +94,17 @@ export default function Home() {
   useEffect(() => {
     void fetchChats();
   }, [fetchChats]);
+
+  const searchChats = useCallback(
+    async (query: string, signal: AbortSignal) => {
+      const res = await fetch(`/api/chats?athleteId=${encodeURIComponent(athleteId)}&q=${encodeURIComponent(query)}`, {
+        signal,
+      });
+      if (!res.ok) throw new Error(`Search failed (${res.status})`);
+      return (await res.json()) as ChatSearchHit[];
+    },
+    [athleteId],
+  );
 
   const fetchUnreadReports = useCallback(async () => {
     try {
@@ -260,6 +271,7 @@ export default function Home() {
         onNewChat={() => newChat(athleteId)}
         onRename={renameChat}
         onDelete={deleteChat}
+        onSearch={searchChats}
       />
 
       <TodaySheet

@@ -22,7 +22,7 @@ import { getCoachTools } from "@/lib/coach/tools";
 import { buildCoachSystemPrompt } from "@/lib/coach/prompt";
 import { DEFAULT_PROVIDER, THINKING_LEVELS, type ThinkingLevel } from "@/lib/llm/models";
 import { errorMessage, resolveModel } from "@/lib/llm/provider";
-import { isValidChatId, loadChat, updateChat } from "@/lib/storage/chat-store";
+import { isValidChatId, loadChat, saveChatMessages, setChatSummary } from "@/lib/storage/chat-store";
 import { buildModelMessages, foldSummary, historyInstructions, messagesAfterSummary } from "@/lib/chat/context";
 import { applyApprovalResponses, expirePendingApprovals } from "@/lib/chat/approvals";
 import type { CoachMessageMetadata, StoredChat } from "@/lib/chat/types";
@@ -188,10 +188,7 @@ export async function POST(req: NextRequest) {
             : undefined,
         onEnd: async ({ messages: finished }) => {
           try {
-            const chat = await updateChat(athleteId, chatId, (current) => ({
-              messages: finished,
-              summary: current?.summary,
-            }));
+            const chat = await saveChatMessages(athleteId, chatId, finished);
             void summarize(athleteId, model, chat);
           } catch (error) {
             console.error(`[POST /api/chat] Could not save chat ${chatId}:`, error);
@@ -219,14 +216,7 @@ async function summarize(athleteId: string, model: LanguageModel, chat: StoredCh
   try {
     const summary = await foldSummary(model, chat);
     if (!summary) return;
-    await updateChat(
-      athleteId,
-      chat.meta.id,
-      (current) => ({ messages: current?.messages ?? chat.messages, summary }),
-      {
-        touch: false,
-      },
-    );
+    await setChatSummary(athleteId, chat.meta.id, summary);
   } catch (error) {
     console.error(`[POST /api/chat] Could not summarize chat ${chat.meta.id}:`, errorMessage(error));
   } finally {

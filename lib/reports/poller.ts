@@ -1,3 +1,4 @@
+import { getDb } from "@/lib/db/client";
 import { IntervalsClient } from "@/lib/intervals/client";
 import { resolveAthleteId } from "@/lib/api/athlete";
 import { getAthleteTimeZone } from "@/lib/intervals/timezone";
@@ -61,7 +62,11 @@ export function startReportPoller(): void {
     if (busy) return;
     busy = true;
     try {
-      await pollOnce(config);
+      // Prod and the dev container share the database: whichever holds the lock polls, the other skips this tick.
+      const db = await getDb();
+      await db.withAdvisoryLock("cadence:report-poller", () => pollOnce(config));
+    } catch (error) {
+      console.warn("[reports] Poll skipped:", errorMessage(error));
     } finally {
       busy = false;
     }
