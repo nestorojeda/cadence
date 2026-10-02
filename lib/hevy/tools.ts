@@ -2,9 +2,9 @@ import { tool } from "ai";
 import { z } from "zod";
 import { HevyClient } from "./client";
 import { compactExerciseHistory, compactWorkouts, searchExerciseTemplates } from "./routine";
-import { daysFromToday } from "@/lib/intervals/compact";
+import { daysFromToday } from "@/lib/intervals/timezone";
 
-export function getHevyTools(hevy: HevyClient) {
+export function getHevyTools(hevy: HevyClient, timeZone?: string) {
   return {
     hevy_search_exercises: tool({
       description:
@@ -79,7 +79,9 @@ export function getHevyTools(hevy: HevyClient) {
       }),
       execute: async ({ exercise_id, oldest }) => {
         try {
-          return compactExerciseHistory(await hevy.getExerciseHistory(exercise_id, oldest || daysFromToday(-120)));
+          return compactExerciseHistory(
+            await hevy.getExerciseHistory(exercise_id, oldest || daysFromToday(-120, timeZone)),
+          );
         } catch (error) {
           return { error: (error as Error).message };
         }

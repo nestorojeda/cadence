@@ -15,6 +15,7 @@ import { getIntervalsTools } from "@/lib/intervals/tools";
 import { HevyClient } from "@/lib/hevy/client";
 import { getHevyTools } from "@/lib/hevy/tools";
 import { getKeyEvents } from "@/lib/intervals/events";
+import { daysFromToday, getAthleteTimeZone } from "@/lib/intervals/timezone";
 import { getPreferences } from "@/lib/storage/preferences-store";
 import { getMemory } from "@/lib/storage/memory-store";
 import { getCoachTools } from "@/lib/coach/tools";
@@ -89,16 +90,17 @@ export async function POST(req: NextRequest) {
     const intervalsClient = new IntervalsClient(intervalsApiKey, athleteId);
     const hevyKey = clientHevyKey || process.env.HEVY_API_KEY;
     const hevyClient = hevyKey ? new HevyClient(hevyKey) : null;
+    const timeZone = await getAthleteTimeZone(intervalsClient, athleteId);
     const tools = {
-      ...getIntervalsTools(intervalsClient, hevyClient),
-      ...(hevyClient ? getHevyTools(hevyClient) : {}),
-      ...getCoachTools(athleteId, chatId),
+      ...getIntervalsTools(intervalsClient, hevyClient, timeZone),
+      ...(hevyClient ? getHevyTools(hevyClient, timeZone) : {}),
+      ...getCoachTools(athleteId, chatId, timeZone),
     };
 
     const [preferences, memory, keyEvents] = await Promise.all([
       getPreferences(athleteId),
-      getMemory(athleteId),
-      getKeyEvents(intervalsClient, athleteId).catch((error) => {
+      getMemory(athleteId, daysFromToday(0, timeZone)),
+      getKeyEvents(intervalsClient, athleteId, timeZone).catch((error) => {
         console.warn("[POST /api/chat] Could not load races:", errorMessage(error));
         return null;
       }),
@@ -106,6 +108,7 @@ export async function POST(req: NextRequest) {
     const systemPrompt = buildCoachSystemPrompt(preferences, new Date(), keyEvents, {
       hevyConnected: !!hevyClient,
       memory,
+      timeZone,
     });
 
     const resolved = resolveModel({ provider: modelProvider, modelName, apiKey: clientApiKey, thinkingLevel });

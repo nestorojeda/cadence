@@ -1,10 +1,11 @@
 import { tool } from "ai";
 import { z } from "zod";
 import { addFact, removeFact, setPlan } from "@/lib/storage/memory-store";
-import { getPreferences, savePreferences } from "@/lib/storage/preferences-store";
+import { updatePreferences } from "@/lib/storage/preferences-store";
 import { FORGET_TOOL, PROPOSE_RULES_TOOL, REMEMBER_TOOL, UPDATE_PLAN_TOOL } from "@/lib/intervals/tool-names";
-import { MAX_FACT_CHARS, MAX_PLAN_CHARS, MEMORY_CATEGORIES, localDate } from "./memory";
-import { mergePreferences, ruleChanges, rulesPatchSchema, type ProposeRulesResult } from "./rules";
+import { daysFromToday } from "@/lib/intervals/timezone";
+import { MAX_FACT_CHARS, MAX_PLAN_CHARS, MEMORY_CATEGORIES } from "./memory";
+import { ruleChanges, rulesPatchSchema, type ProposeRulesResult } from "./rules";
 
 export interface RememberResult {
   id: string;
@@ -16,7 +17,8 @@ export interface RememberResult {
 
 const errorOf = (error: unknown) => ({ error: (error as Error).message });
 
-export function getCoachTools(athleteId: string, chatId?: string) {
+export function getCoachTools(athleteId: string, chatId?: string, timeZone?: string) {
+  const today = () => daysFromToday(0, timeZone);
   return {
     [REMEMBER_TOOL]: tool({
       description:
@@ -32,11 +34,15 @@ export function getCoachTools(athleteId: string, chatId?: string) {
           .describe("Last day the fact holds, for temporary facts (travel, illness, a busy week)"),
       }),
       execute: async ({ text, category, expires_on }): Promise<RememberResult | { error: string }> => {
-        if (expires_on && expires_on < localDate(new Date())) {
+        if (expires_on && expires_on < today()) {
           return { error: "expires_on is in the past; there's nothing to remember." };
         }
         try {
-          const { fact, duplicate } = await addFact(athleteId, { text, category, expiresOn: expires_on, chatId });
+          const { fact, duplicate } = await addFact(
+            athleteId,
+            { text, category, expiresOn: expires_on, chatId },
+            today(),
+          );
           return {
             id: fact.id,
             text: fact.text,
@@ -55,7 +61,7 @@ export function getCoachTools(athleteId: string, chatId?: string) {
       inputSchema: z.object({ id: z.string() }),
       execute: async ({ id }) => {
         try {
-          const removed = await removeFact(athleteId, id);
+          const removed = await removeFact(athleteId, id, today());
           return removed ? { removed: removed.text } : { error: `No saved fact has the id "${id}".` };
         } catch (error) {
           return errorOf(error);
@@ -79,7 +85,7 @@ export function getCoachTools(athleteId: string, chatId?: string) {
       }),
       execute: async (plan) => {
         try {
-          return await setPlan(athleteId, { ...plan, chatId });
+          return await setPlan(athleteId, { ...plan, chatId }, today());
         } catch (error) {
           return errorOf(error);
         }
@@ -96,14 +102,9 @@ export function getCoachTools(athleteId: string, chatId?: string) {
       }),
       execute: async ({ reason: _reason, ...patch }): Promise<ProposeRulesResult | { error: string }> => {
         try {
-          const before = await getPreferences(athleteId);
-          const after = mergePreferences(before, patch);
-          if (after.weeklyVolumeMinHours > after.weeklyVolumeMaxHours) {
-            return { error: "The weekly minimum would be above the maximum." };
-          }
-          const changes = ruleChanges(before, after);
-          if (changes.length > 0) await savePreferences(after);
-          return { changes };
+          const result = await updatePreferences(athleteId, patch);
+          if ("error" in result) return result;
+          return { changes: ruleChanges(result.before, result.after) };
         } catch (error) {
           return errorOf(error);
         }

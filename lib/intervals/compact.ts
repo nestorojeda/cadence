@@ -1,4 +1,4 @@
-import { toLocalDate } from "./metrics";
+import { addDays, daysFromToday } from "./timezone";
 
 type Row = Record<string, unknown>;
 
@@ -21,30 +21,16 @@ function pick(source: Row, keys: Array<string | [string, string]>): Row {
   return out;
 }
 
-export function daysFromToday(days: number): string {
-  const d = new Date();
-  d.setDate(d.getDate() + days);
-  return toLocalDate(d);
-}
-
-export function wellnessRange(oldest?: string, newest?: string): { oldest: string; newest: string } {
-  const end = newest || daysFromToday(0);
-  const earliest = new Date(`${end}T00:00:00`);
-  earliest.setDate(earliest.getDate() - (MAX_WELLNESS_DAYS - 1));
-  const floor = toLocalDate(earliest);
-  const start = oldest || daysFromToday(-13);
+export function wellnessRange(oldest?: string, newest?: string, timeZone?: string): { oldest: string; newest: string } {
+  const end = newest || daysFromToday(0, timeZone);
+  const floor = addDays(end, -(MAX_WELLNESS_DAYS - 1));
+  const start = oldest || daysFromToday(-13, timeZone);
   return { oldest: start < floor ? floor : start, newest: end };
 }
 
-function addDays(date: string, days: number): string {
-  const d = new Date(`${date}T00:00:00`);
-  d.setDate(d.getDate() + days);
-  return toLocalDate(d);
-}
-
-export function eventsRange(oldest?: string, newest?: string): { oldest: string; newest: string } {
-  const start = oldest || daysFromToday(-7);
-  const end = newest || daysFromToday(14);
+export function eventsRange(oldest?: string, newest?: string, timeZone?: string): { oldest: string; newest: string } {
+  const start = oldest || daysFromToday(-7, timeZone);
+  const end = newest || daysFromToday(14, timeZone);
   const latest = addDays(start, MAX_EVENT_DAYS - 1);
   return { oldest: start, newest: end > latest ? latest : end };
 }

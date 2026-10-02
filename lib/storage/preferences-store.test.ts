@@ -29,8 +29,7 @@ describe("preferences store", () => {
   });
 
   it("round-trips saved preferences", async () => {
-    const prefs = await store.getPreferences("i1");
-    await store.savePreferences({ ...prefs, customNotes: "No rides before 7am" });
+    await store.updatePreferences("i1", { customNotes: "No rides before 7am" });
     vi.resetModules();
     const fresh = await import("./preferences-store");
     expect((await fresh.getPreferences("i1")).customNotes).toBe("No rides before 7am");
@@ -62,5 +61,46 @@ describe("preferences store", () => {
     const prefs = await store.getPreferences("i1");
     expect(prefs.athleteId).toBe("i1");
     expect(await fs.readFile(file("i1"), "utf-8")).toBe("{ not json");
+  });
+
+  it("refuses to update a corrupt file", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    await fs.mkdir(path.dirname(file("i1")), { recursive: true });
+    await fs.writeFile(file("i1"), "{ not json");
+    await expect(store.updatePreferences("i1", { terrain: "hilly" })).rejects.toThrow(/can't be read/);
+    expect(await fs.readFile(file("i1"), "utf-8")).toBe("{ not json");
+  });
+
+  it("rejects a weekly minimum above the maximum without saving", async () => {
+    expect(await store.updatePreferences("i1", { weeklyVolumeMinHours: 20 })).toEqual({
+      error: "The weekly minimum would be above the maximum.",
+    });
+    expect((await store.getPreferences("i1")).weeklyVolumeMinHours).toBe(8);
+  });
+
+  it("applies concurrent updates one after the other", async () => {
+    await Promise.all([
+      store.updatePreferences("i1", { terrain: "hilly" }),
+      store.updatePreferences("i1", { customNotes: "Early riser" }),
+      store.updatePreferences("i1", { restDays: ["Monday"] }),
+    ]);
+    vi.resetModules();
+    const fresh = await import("./preferences-store");
+    expect(await fresh.getPreferences("i1")).toMatchObject({
+      terrain: "hilly",
+      customNotes: "Early riser",
+      restDays: ["Monday"],
+    });
+  });
+
+  it("throws when the update can't be written", async () => {
+    await store.getPreferences("i1");
+    await fs.chmod(path.dirname(file("i1")), 0o500);
+    try {
+      await expect(store.updatePreferences("i1", { terrain: "hilly" })).rejects.toThrow();
+      expect((await store.getPreferences("i1")).terrain).toBe("rolling");
+    } finally {
+      await fs.chmod(path.dirname(file("i1")), 0o700);
+    }
   });
 });

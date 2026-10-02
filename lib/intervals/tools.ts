@@ -12,10 +12,10 @@ import {
   compactActivityDetails,
   compactEvents,
   compactWellness,
-  daysFromToday,
   eventsRange,
   wellnessRange,
 } from "./compact";
+import { daysFromToday } from "./timezone";
 
 // No athlete ID in tool inputs: the client is bound to the athlete the route resolved.
 type Row = Record<string, unknown>;
@@ -53,7 +53,7 @@ const gymExerciseSchema = z.object({
   notes: z.string().optional().describe("Short cue (tempo, form, side-to-side)"),
 });
 
-export function getIntervalsTools(client: IntervalsClient, hevy: HevyClient | null = null) {
+export function getIntervalsTools(client: IntervalsClient, hevy: HevyClient | null = null, timeZone?: string) {
   return {
     icu_get_fitness_summary: tool({
       description:
@@ -78,7 +78,7 @@ export function getIntervalsTools(client: IntervalsClient, hevy: HevyClient | nu
       }),
       execute: async ({ oldest, newest }) => {
         try {
-          const range = wellnessRange(oldest, newest);
+          const range = wellnessRange(oldest, newest, timeZone);
           const records = await client.getWellness(range.oldest, range.newest);
           return compactWellness(records as unknown as Row[]);
         } catch (error) {
@@ -138,7 +138,7 @@ export function getIntervalsTools(client: IntervalsClient, hevy: HevyClient | nu
       }),
       execute: async ({ oldest, newest }) => {
         try {
-          const range = eventsRange(oldest, newest);
+          const range = eventsRange(oldest, newest, timeZone);
           const events = await client.getEvents(range.oldest, range.newest);
           return compactEvents(events as unknown as Row[]);
         } catch (error) {
@@ -198,7 +198,7 @@ export function getIntervalsTools(client: IntervalsClient, hevy: HevyClient | nu
         try {
           // Named fields only, as in icu_create_calendar_event: approved calls run with the input stored in the chat.
           const changes = { name, start_date_local, type, description, moving_time, icu_training_load };
-          const today = daysFromToday(0);
+          const today = daysFromToday(0, timeZone);
           const blocked = editBlockReason(await client.getEvent(event_id), today);
           if (blocked) return { error: blocked };
           if (changes.start_date_local && changes.start_date_local.slice(0, 10) < today) {
@@ -224,7 +224,7 @@ export function getIntervalsTools(client: IntervalsClient, hevy: HevyClient | nu
       execute: async ({ event_id }) => {
         try {
           const event = await client.getEvent(event_id);
-          const blocked = editBlockReason(event, daysFromToday(0));
+          const blocked = editBlockReason(event, daysFromToday(0, timeZone));
           if (blocked) return { error: blocked };
           await client.deleteEvent(event_id);
           const { id, name, start_date_local, category } = event;

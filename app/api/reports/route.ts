@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { missingAthlete, resolveAthleteId } from "@/lib/api/athlete";
 import { IntervalsClient, type ActivitySummary } from "@/lib/intervals/client";
+import { getAthleteTimeZone } from "@/lib/intervals/timezone";
 import { THINKING_LEVELS, type ThinkingLevel } from "@/lib/llm/models";
 import { errorMessage, resolveModel } from "@/lib/llm/provider";
 import { eligibleSessions } from "@/lib/reports/eligible";
@@ -35,7 +36,8 @@ export async function GET(req: NextRequest) {
     let pendingLoaded = false;
     if (req.nextUrl.searchParams.get("pending") !== "0") {
       try {
-        pending = await listPending(new IntervalsClient(apiKey, athleteId), athleteId);
+        const client = new IntervalsClient(apiKey, athleteId);
+        pending = await listPending(client, athleteId, await getAthleteTimeZone(client, athleteId));
         pendingLoaded = true;
       } catch (error) {
         console.warn("[GET /api/reports] Could not load recent sessions:", errorMessage(error));

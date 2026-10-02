@@ -72,8 +72,7 @@ describe("coach_propose_rules", () => {
   });
 
   it("merges gym fields and leaves free-text notes alone", async () => {
-    const before = await preferences.getPreferences("i1");
-    await preferences.savePreferences({ ...before, customNotes: "Mine", gym: { ...before.gym, notes: "Bad back" } });
+    await preferences.updatePreferences("i1", { customNotes: "Mine", gym: { notes: "Bad back" } });
     await run(tools.coach_propose_rules, { gym: { sessionMinutes: 30 }, reason: "Shorter sessions" });
     const saved = await preferences.getPreferences("i1");
     expect(saved).toMatchObject({ customNotes: "Mine", gym: { sessionMinutes: 30, notes: "Bad back" } });
