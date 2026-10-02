@@ -3,17 +3,15 @@ import { terrainInfo } from "@/lib/intervals/terrain";
 import { formatDuration, type KeyEvent } from "@/lib/intervals/metrics";
 import { GYM_EQUIPMENT, GYM_GOALS, type GymPreferences } from "@/lib/coach/gym";
 import { isExpired, type AthleteMemory } from "@/lib/coach/memory";
+import { dateInZone, weekdayName } from "@/lib/intervals/timezone";
 
-/** Server's local time zone (the athlete's, when self-hosted). */
-function formatToday(now: Date): string {
-  const weekday = now.toLocaleDateString("en-US", { weekday: "long" });
-  const pad = (n: number) => n.toString().padStart(2, "0");
-  return `${weekday}, ${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+function formatToday(today: string): string {
+  return `${weekdayName(today)}, ${today}`;
 }
 
 const dayList = (days: string[]) => days.join(", ") || "none set";
 
-const weekday = (date: string) => new Date(`${date}T00:00:00`).toLocaleDateString("en-US", { weekday: "short" });
+const weekday = (date: string) => weekdayName(date, "short");
 
 function keyEventLine(e: KeyEvent): string {
   if (e.kind === "block") {
@@ -81,8 +79,8 @@ ${loads}
 `;
 }
 
-function memorySection(memory: AthleteMemory, now: Date): string {
-  const facts = memory.facts.filter((f) => !isExpired(f, now));
+function memorySection(memory: AthleteMemory, today: string): string {
+  const facts = memory.facts.filter((f) => !isExpired(f, today));
   const factLines = facts.length
     ? facts
         .map(
@@ -116,8 +114,13 @@ export function buildCoachSystemPrompt(
   now = new Date(),
   /** Upcoming races and time off; null when they couldn't be loaded, undefined to leave the section out. */
   keyEvents?: KeyEvent[] | null,
-  { hevyConnected = false, memory }: { hevyConnected?: boolean; memory?: AthleteMemory } = {},
+  {
+    hevyConnected = false,
+    memory,
+    timeZone,
+  }: { hevyConnected?: boolean; memory?: AthleteMemory; timeZone?: string } = {},
 ): string {
+  const today = dateInZone(now, timeZone);
   const {
     weeklyVolumeMinHours,
     weeklyVolumeMaxHours,
@@ -136,7 +139,7 @@ export function buildCoachSystemPrompt(
 
   return `You are an elite cycling coach and personal training director. You plan, review, and adjust cycling training programs using live data from Intervals.icu as your single source of truth.
 
-Today is ${formatToday(now)}. Work out every date you plan or discuss from today ("next week" starts on the coming Monday).
+Today is ${formatToday(today)}. Work out every date you plan or discuss from today ("next week" starts on the coming Monday).
 
 ---
 
@@ -174,7 +177,7 @@ ${
     ? `  - ${gymRestDays.join(", ")} ${gymRestDays.length > 1 ? "are" : "is"} both a rest and a gym day: gym only, no bike. The athlete counts a gym session as low enough fatigue not to break recovery.\n`
     : ""
 }${customNotes ? `- **Special Athlete Constraints / Notes**: ${customNotes}` : ""}
-${memory ? memorySection(memory, now) : ""}${strengthSection(gym, gymDays, hevyConnected)}${keyEventsSection(keyEvents)}
+${memory ? memorySection(memory, today) : ""}${strengthSection(gym, gymDays, hevyConnected)}${keyEventsSection(keyEvents)}
 ---
 
 ### Weekly Planning & Review Workflow

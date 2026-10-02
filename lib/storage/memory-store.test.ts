@@ -58,9 +58,19 @@ describe("memory store", () => {
     vi.setSystemTime(new Date(2026, 9, 19, 8));
     expect((await store.getMemory("i1")).facts).toEqual([]);
 
-    await store.addFact("i1", { text: "Back home", category: "availability" });
+    await store.addFact("i1", { text: "Back home", category: "availability" }, "2026-10-19");
     const saved = JSON.parse(await fs.readFile(file("i1"), "utf-8")) as { facts: Array<{ text: string }> };
     expect(saved.facts.map((f) => f.text)).toEqual(["Back home"]);
+  });
+
+  it("uses the athlete's date, and keeps expired facts on writes that don't know it", async () => {
+    await store.addFact("i1", { text: "Away in Lisbon", category: "availability", expiresOn: "2026-10-18" });
+    expect((await store.getMemory("i1", "2026-10-18")).facts).toHaveLength(1);
+    expect((await store.getMemory("i1", "2026-10-19")).facts).toEqual([]);
+
+    await store.setPlan("i1", { phase: "Build", focus: "Threshold", text: "2x20 Tue" });
+    const saved = JSON.parse(await fs.readFile(file("i1"), "utf-8")) as { facts: Array<{ text: string }> };
+    expect(saved.facts.map((f) => f.text)).toEqual(["Away in Lisbon"]);
   });
 
   it("refuses to add past the limit", async () => {

@@ -55,6 +55,12 @@ export function mergePreferences(
   return { ...current, ...defined, gym: { ...current.gym, ...definedGym } };
 }
 
+/** Why a merged set of preferences can't be saved, or null. */
+export function invalidPreferences(p: CoachPreferences): string | null {
+  if (p.weeklyVolumeMinHours > p.weeklyVolumeMaxHours) return "The weekly minimum would be above the maximum.";
+  return null;
+}
+
 export interface RuleChange {
   label: string;
   before: string;

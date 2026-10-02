@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getPreferences, savePreferences } from "@/lib/storage/preferences-store";
-import { mergePreferences, preferencesUpdateSchema } from "@/lib/coach/rules";
+import { getPreferences, updatePreferences } from "@/lib/storage/preferences-store";
+import { preferencesUpdateSchema } from "@/lib/coach/rules";
 import { missingAthlete, resolveAthleteId } from "@/lib/api/athlete";
 
 export async function GET(req: NextRequest) {
@@ -25,11 +25,9 @@ export async function POST(req: NextRequest) {
   if (!athleteId) return missingAthlete();
 
   try {
-    const current = await getPreferences(athleteId);
-    const updated = { ...mergePreferences(current, update), athleteId, updatedAt: new Date().toISOString() };
-
-    await savePreferences(updated);
-    return NextResponse.json({ success: true, preferences: updated });
+    const result = await updatePreferences(athleteId, update);
+    if ("error" in result) return NextResponse.json({ error: result.error }, { status: 400 });
+    return NextResponse.json({ success: true, preferences: result.after });
   } catch (error) {
     console.error("[POST /api/preferences] Error:", error);
     return NextResponse.json({ error: "Failed to update preferences" }, { status: 500 });

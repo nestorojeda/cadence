@@ -1,5 +1,6 @@
 import { IntervalsClient } from "@/lib/intervals/client";
 import { resolveAthleteId } from "@/lib/api/athlete";
+import { getAthleteTimeZone } from "@/lib/intervals/timezone";
 import { errorMessage, resolveModel } from "@/lib/llm/provider";
 import { autoReports } from "./service";
 
@@ -36,7 +37,8 @@ export async function pollOnce(config: PollerConfig): Promise<void> {
   }
   const client = new IntervalsClient(config.intervalsKey, config.athleteId);
   try {
-    const written = await autoReports(client, { athleteId: config.athleteId, resolved });
+    const timeZone = await getAthleteTimeZone(client, config.athleteId);
+    const written = await autoReports(client, { athleteId: config.athleteId, resolved, timeZone });
     for (const r of written)
       console.log(`[reports] ${r.status === "ready" ? "Wrote" : "Failed"} report for ${r.name} (${r.date})`);
   } catch (error) {

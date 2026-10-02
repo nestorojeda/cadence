@@ -42,12 +42,7 @@ export interface AthleteMemory {
 
 export const EMPTY_MEMORY: AthleteMemory = { facts: [], plan: null };
 
-/** YYYY-MM-DD in the server's local time zone (the athlete's, when self-hosted). */
-export function localDate(now: Date): string {
-  const pad = (n: number) => n.toString().padStart(2, "0");
-  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-}
-
-export function isExpired(fact: MemoryFact, now: Date): boolean {
-  return !!fact.expiresOn && fact.expiresOn < localDate(now);
+/** `today` is YYYY-MM-DD in the athlete's time zone; `expiresOn` is the last day the fact holds. */
+export function isExpired(fact: MemoryFact, today: string): boolean {
+  return !!fact.expiresOn && fact.expiresOn < today;
 }

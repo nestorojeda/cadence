@@ -8,6 +8,8 @@ export interface AthleteProfile {
   city?: string;
   country?: string;
   weight?: number;
+  /** IANA zone, e.g. "Europe/Madrid". */
+  timezone?: string;
   sport_settings?: Array<{
     types: string[];
     ftp?: number;

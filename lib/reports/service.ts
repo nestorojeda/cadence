@@ -1,13 +1,13 @@
 import type { IntervalsClient } from "@/lib/intervals/client";
-import { daysFromToday } from "@/lib/intervals/compact";
+import { addDays, daysFromToday } from "@/lib/intervals/timezone";
 import { getBaseline, listReports } from "@/lib/storage/report-store";
 import { eligibleSessions, pendingSession, type Session } from "./eligible";
 import { generateReport, type ReportContext } from "./generate";
 import { MAX_ATTEMPTS, PENDING_DAYS, type PendingSession, type ReportMeta } from "./types";
 
-export async function findSessions(client: IntervalsClient, days: number): Promise<Session[]> {
-  const oldest = daysFromToday(-days);
-  const newest = daysFromToday(0);
+export async function findSessions(client: IntervalsClient, days: number, timeZone?: string): Promise<Session[]> {
+  const newest = daysFromToday(0, timeZone);
+  const oldest = addDays(newest, -days);
   const [activities, events] = await Promise.all([
     client.getActivities(100, oldest, newest),
     client.getEvents(oldest, newest),
@@ -16,8 +16,12 @@ export async function findSessions(client: IntervalsClient, days: number): Promi
 }
 
 /** Sessions from the last week with no report at all (failed ones are listed as reports, with a Retry). */
-export async function listPending(client: IntervalsClient, athleteId: string): Promise<PendingSession[]> {
-  const [sessions, reports] = await Promise.all([findSessions(client, PENDING_DAYS), listReports(athleteId)]);
+export async function listPending(
+  client: IntervalsClient,
+  athleteId: string,
+  timeZone?: string,
+): Promise<PendingSession[]> {
+  const [sessions, reports] = await Promise.all([findSessions(client, PENDING_DAYS, timeZone), listReports(athleteId)]);
   const known = new Set(reports.map((r) => r.activityId));
   return sessions
     .filter((s) => !known.has(s.activity.id))
@@ -40,12 +44,12 @@ export function runReport(session: Session, ctx: ReportContext): Promise<ReportM
 /** Reports the poller writes on its own: new uploads since the baseline, plus failed ones still worth retrying. */
 export async function autoReports(
   client: IntervalsClient,
-  ctx: Omit<ReportContext, "client" | "attempts">,
+  { timeZone, ...ctx }: Omit<ReportContext, "client" | "attempts"> & { timeZone?: string },
   now = new Date(),
 ): Promise<ReportMeta[]> {
   const [baseline, sessions, reports] = await Promise.all([
     getBaseline(ctx.athleteId, now),
-    findSessions(client, 2),
+    findSessions(client, 2, timeZone),
     listReports(ctx.athleteId),
   ]);
   const byId = new Map(reports.map((r) => [r.activityId, r]));

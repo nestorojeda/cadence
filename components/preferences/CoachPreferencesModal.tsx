@@ -39,6 +39,7 @@ export function CoachPreferencesModal({ isOpen, onClose, athleteId, onSaved }: C
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [detecting, setDetecting] = useState(false);
   const [detectNote, setDetectNote] = useState<{ text: string; error?: boolean } | null>(null);
 
@@ -46,6 +47,7 @@ export function CoachPreferencesModal({ isOpen, onClose, athleteId, onSaved }: C
     if (isOpen) {
       setLoading(true);
       setSavedSuccess(false);
+      setSaveError(null);
       setDetectNote(null);
       fetch(`/api/preferences?athleteId=${encodeURIComponent(athleteId)}`)
         .then((res) => res.json() as Promise<CoachPreferences | { error: string }>)
@@ -80,6 +82,7 @@ export function CoachPreferencesModal({ isOpen, onClose, athleteId, onSaved }: C
   const handleSave = async () => {
     setSaving(true);
     setSavedSuccess(false);
+    setSaveError(null);
     try {
       const res = await fetch("/api/preferences", {
         method: "POST",
@@ -94,9 +97,13 @@ export function CoachPreferencesModal({ isOpen, onClose, athleteId, onSaved }: C
         setTimeout(() => {
           setSavedSuccess(false);
         }, 2000);
+      } else {
+        const data = (await res.json().catch(() => null)) as { error?: string } | null;
+        setSaveError(data?.error ?? "Couldn't save the rules.");
       }
     } catch (e) {
       console.error("Failed to save preferences:", e);
+      setSaveError("Couldn't reach the server.");
     } finally {
       setSaving(false);
     }
@@ -162,7 +169,13 @@ export function CoachPreferencesModal({ isOpen, onClose, athleteId, onSaved }: C
             Reset defaults
           </button>
           <div className="flex items-center gap-3">
-            <SavedNote show={savedSuccess}>Saved</SavedNote>
+            {saveError ? (
+              <span role="alert" className="text-xs text-signal-warn">
+                {saveError}
+              </span>
+            ) : (
+              <SavedNote show={savedSuccess}>Saved</SavedNote>
+            )}
             <GhostButton onClick={onClose}>Close</GhostButton>
             <PrimaryButton onClick={handleSave} disabled={saving || loading}>
               {saving ? "Saving…" : "Save rules"}

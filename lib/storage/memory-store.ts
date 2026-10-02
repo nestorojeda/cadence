@@ -12,6 +12,7 @@ import {
   type MemoryFact,
   type PlanNote,
 } from "@/lib/coach/memory";
+import { dateInZone } from "@/lib/intervals/timezone";
 import { writeJsonAtomic } from "./json-file";
 import { withLock } from "./lock";
 
@@ -42,18 +43,25 @@ async function load(file: string): Promise<AthleteMemory | null> {
   }
 }
 
-export async function getMemory(athleteId: string, now = new Date()): Promise<AthleteMemory> {
+/** `today` is the athlete's date (YYYY-MM-DD); without it, the server's. */
+export async function getMemory(athleteId: string, today = dateInZone(new Date())): Promise<AthleteMemory> {
   const memory = (await load(memoryFile(athleteId))) ?? EMPTY_MEMORY;
-  return { ...memory, facts: memory.facts.filter((f) => !isExpired(f, now)) };
+  return { ...memory, facts: memory.facts.filter((f) => !isExpired(f, today)) };
 }
 
-function update<T>(athleteId: string, fn: (memory: AthleteMemory, now: Date) => { memory: AthleteMemory; result: T }) {
+/** Expired facts are dropped only when the athlete's `today` is known: the server's date can be a day ahead. */
+function update<T>(
+  athleteId: string,
+  fn: (memory: AthleteMemory, now: Date) => { memory: AthleteMemory; result: T },
+  today?: string,
+) {
   const file = memoryFile(athleteId);
   return withLock(file, async () => {
     const current = await load(file);
     if (!current) throw new Error("The coach's memory file can't be read, so nothing was saved.");
     const now = new Date();
-    const { memory, result } = fn({ ...current, facts: current.facts.filter((f) => !isExpired(f, now)) }, now);
+    const facts = today ? current.facts.filter((f) => !isExpired(f, today)) : current.facts;
+    const { memory, result } = fn({ ...current, facts }, now);
     await writeJsonAtomic(file, memory, 2);
     cache.set(file, memory);
     return result;
@@ -72,54 +80,68 @@ function newId(taken: MemoryFact[]): string {
 export function addFact(
   athleteId: string,
   fact: { text: string; category: MemoryCategory; expiresOn?: string; chatId?: string },
+  today?: string,
 ): Promise<{ fact: MemoryFact; duplicate: boolean }> {
   const text = fact.text.trim();
   if (!text) return Promise.reject(new Error("Nothing to remember."));
   if (text.length > MAX_FACT_CHARS) {
     return Promise.reject(new Error(`Keep a fact under ${MAX_FACT_CHARS} characters.`));
   }
-  return update<{ fact: MemoryFact; duplicate: boolean }>(athleteId, (memory, now) => {
-    const existing = memory.facts.find((f) => normalize(f.text) === normalize(text));
-    if (existing) return { memory, result: { fact: existing, duplicate: true } };
-    if (memory.facts.length >= MAX_FACTS) {
-      throw new Error(`Memory is full (${MAX_FACTS} facts). Forget one that no longer matters first.`);
-    }
-    const saved: MemoryFact = {
-      id: newId(memory.facts),
-      text,
-      category: fact.category,
-      createdAt: now.toISOString(),
-      ...(fact.expiresOn ? { expiresOn: fact.expiresOn } : {}),
-      ...(fact.chatId ? { chatId: fact.chatId } : {}),
-    };
-    return { memory: { ...memory, facts: [...memory.facts, saved] }, result: { fact: saved, duplicate: false } };
-  });
+  return update<{ fact: MemoryFact; duplicate: boolean }>(
+    athleteId,
+    (memory, now) => {
+      const existing = memory.facts.find((f) => normalize(f.text) === normalize(text));
+      if (existing) return { memory, result: { fact: existing, duplicate: true } };
+      if (memory.facts.length >= MAX_FACTS) {
+        throw new Error(`Memory is full (${MAX_FACTS} facts). Forget one that no longer matters first.`);
+      }
+      const saved: MemoryFact = {
+        id: newId(memory.facts),
+        text,
+        category: fact.category,
+        createdAt: now.toISOString(),
+        ...(fact.expiresOn ? { expiresOn: fact.expiresOn } : {}),
+        ...(fact.chatId ? { chatId: fact.chatId } : {}),
+      };
+      return { memory: { ...memory, facts: [...memory.facts, saved] }, result: { fact: saved, duplicate: false } };
+    },
+    today,
+  );
 }
 
-export function removeFact(athleteId: string, id: string): Promise<MemoryFact | null> {
-  return update(athleteId, (memory) => {
-    const fact = memory.facts.find((f) => f.id === id) ?? null;
-    return { memory: { ...memory, facts: memory.facts.filter((f) => f.id !== id) }, result: fact };
-  });
+export function removeFact(athleteId: string, id: string, today?: string): Promise<MemoryFact | null> {
+  return update(
+    athleteId,
+    (memory) => {
+      const fact = memory.facts.find((f) => f.id === id) ?? null;
+      return { memory: { ...memory, facts: memory.facts.filter((f) => f.id !== id) }, result: fact };
+    },
+    today,
+  );
 }
 
 export function setPlan(
   athleteId: string,
   plan: { phase: string; focus: string; text: string; chatId?: string },
+  today?: string,
 ): Promise<PlanNote> {
   if (plan.text.length > MAX_PLAN_CHARS) {
     return Promise.reject(new Error(`Keep the plan note under ${MAX_PLAN_CHARS} characters.`));
   }
-  return update(athleteId, (memory, now) => {
-    const note: PlanNote = {
-      phase: plan.phase.trim(),
-      focus: plan.focus.trim(),
-      text: plan.text.trim(),
-      updatedAt: now.toISOString(),
-      ...(plan.chatId ? { chatId: plan.chatId } : {}),
-    };
-    return { memory: { ...memory, plan: note }, result: note };
-  });
+  return update(
+    athleteId,
+    (memory, now) => {
+      const note: PlanNote = {
+        phase: plan.phase.trim(),
+        focus: plan.focus.trim(),
+        text: plan.text.trim(),
+        updatedAt: now.toISOString(),
+        ...(plan.chatId ? { chatId: plan.chatId } : {}),
+      };
+      return { memory: { ...memory, plan: note }, result: note };
+    },
+    today,
+  );
 }
 
 export function clearPlan(athleteId: string): Promise<void> {

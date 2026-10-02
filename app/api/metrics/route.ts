@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { missingAthlete, resolveAthleteId } from "@/lib/api/athlete";
 import { IntervalsClient, type ActivitySummary } from "@/lib/intervals/client";
-import { toLocalDate, type MetricsResponse, type WeekActivity } from "@/lib/intervals/metrics";
+import type { MetricsResponse, WeekActivity } from "@/lib/intervals/metrics";
 import { RACE_CATEGORIES, getKeyEvents } from "@/lib/intervals/events";
+import { addDays, daysFromToday, getAthleteTimeZone, weekdayIndex } from "@/lib/intervals/timezone";
 
 export async function GET(req: NextRequest) {
   const athleteId = resolveAthleteId(req.nextUrl.searchParams.get("athleteId"));
@@ -13,15 +14,10 @@ export async function GET(req: NextRequest) {
 
     const client = new IntervalsClient(apiKey, athleteId);
 
-    const today = new Date();
-    const historyStart = new Date(today);
-    historyStart.setDate(today.getDate() - 42);
-    // Monday of the current week (getDay: Sunday = 0).
-    const monday = new Date(today);
-    monday.setDate(today.getDate() - ((today.getDay() + 6) % 7));
-    const sunday = new Date(monday);
-    sunday.setDate(monday.getDate() + 6);
-    const weekStart = toLocalDate(monday);
+    const timeZone = await getAthleteTimeZone(client, athleteId);
+    const today = daysFromToday(0, timeZone);
+    const weekStart = addDays(today, -weekdayIndex(today));
+    const weekEnd = addDays(weekStart, 6);
 
     const [athlete, fitness, wellness, events, activities, keyEvents] = await Promise.all([
       client.getAthlete().catch((e) => {
@@ -32,19 +28,19 @@ export async function GET(req: NextRequest) {
         console.warn("Could not load fitness summary:", e);
         return null;
       }),
-      client.getWellness(toLocalDate(historyStart)).catch((e) => {
+      client.getWellness(addDays(today, -42)).catch((e) => {
         console.warn("Could not load wellness history:", e);
         return [];
       }),
-      client.getEvents(weekStart, toLocalDate(sunday)).catch((e) => {
+      client.getEvents(weekStart, weekEnd).catch((e) => {
         console.warn("Could not load this week's calendar:", e);
         return [];
       }),
-      client.getActivities(50, weekStart, toLocalDate(sunday)).catch((e) => {
+      client.getActivities(50, weekStart, weekEnd).catch((e) => {
         console.warn("Could not load this week's activities:", e);
         return [];
       }),
-      getKeyEvents(client, athleteId).catch((e) => {
+      getKeyEvents(client, athleteId, timeZone).catch((e) => {
         console.warn("Could not load races:", e);
         return null;
       }),

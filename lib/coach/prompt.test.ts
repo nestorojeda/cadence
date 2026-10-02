@@ -50,3 +50,15 @@ describe("buildCoachSystemPrompt memory", () => {
     expect(prompt).toContain("Updated 2026-10-08. Phase: Build 2. Focus: VO2.\n5x4 Thu");
   });
 });
+
+describe("buildCoachSystemPrompt date", () => {
+  it("states today in the athlete's time zone", () => {
+    const lateEvening = new Date("2026-10-02T23:30:00Z");
+    expect(buildCoachSystemPrompt(preferences, lateEvening, undefined, { timeZone: "Europe/Madrid" })).toContain(
+      "Today is Saturday, 2026-10-03.",
+    );
+    expect(buildCoachSystemPrompt(preferences, lateEvening, undefined, { timeZone: "UTC" })).toContain(
+      "Today is Friday, 2026-10-02.",
+    );
+  });
+});
