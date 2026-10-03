@@ -28,6 +28,15 @@ export interface StoredChat {
   summary?: ChatSummary;
 }
 
+export interface ChatSearchHit {
+  chat: ChatMeta;
+  /** Best-matching message text, matches wrapped in SNIPPET_MARK_START / SNIPPET_MARK_END. None for title-only hits. */
+  snippet?: string;
+}
+
+export const SNIPPET_MARK_START = "\u0002";
+export const SNIPPET_MARK_END = "\u0003";
+
 export interface CoachMessageMetadata {
   usage?: TokenUsage;
 }

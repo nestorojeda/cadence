@@ -38,3 +38,6 @@ next-env.d.ts
 
 # athlete data (coach rules saved at runtime)
 /data/
+
+# database dumps (make db-backup)
+/backups/

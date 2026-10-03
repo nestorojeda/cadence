@@ -1,3 +1,6 @@
+# Production: `make run` (tailscale + app + db). Development: `make dev` (next dev with HMR on localhost:3000, same db).
+x-database-url: &database-url postgres://${POSTGRES_USER:-cadence}:${POSTGRES_PASSWORD:-cadence}@db:5432/${POSTGRES_DB:-cadence}
+
 services:
   tailscale:
     image: tailscale/tailscale:stable
@@ -11,6 +14,24 @@ services:
       - ./deploy/tailscale/serve.json:/config/serve.json:ro
     restart: unless-stopped
 
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-cadence}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cadence}
+      POSTGRES_DB: ${POSTGRES_DB:-cadence}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    # Loopback only: for host `pnpm dev`, psql and backups. Containers use the compose network.
+    ports:
+      - 127.0.0.1:${POSTGRES_PORT:-5432}:5432
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
   app:
     build: .
     image: cadence:latest
@@ -18,12 +39,45 @@ services:
       - path: .env.local
         required: false
     environment:
+      DATABASE_URL: *database-url
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434/v1}
     extra_hosts:
       - host.docker.internal:host-gateway
     volumes:
       - ./data:/app/data
+    depends_on:
+      db:
+        condition: service_healthy
     restart: unless-stopped
+
+  dev:
+    profiles: [dev]
+    build:
+      context: .
+      target: dev
+    image: cadence-dev:latest
+    # Next also reads the mounted .env.local itself; these values win over it.
+    environment:
+      DATABASE_URL: *database-url
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434/v1}
+      # File events don't cross the macOS bind mount reliably.
+      WATCHPACK_POLLING: "true"
+      # Prod polls Intervals.icu for reports; dev only does when asked (the shared lock prevents doubles either way).
+      REPORTS_POLL_MINUTES: ${DEV_REPORTS_POLL_MINUTES:-0}
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    ports:
+      - 127.0.0.1:${DEV_PORT:-3000}:3000
+    volumes:
+      - .:/app
+      # The image's Linux node_modules and a .next of its own (never the host's, see CLAUDE.md).
+      - /app/node_modules
+      - dev-next:/app/.next
+    depends_on:
+      db:
+        condition: service_healthy
 
 volumes:
   tailscale-state:
+  pgdata:
+  dev-next:
