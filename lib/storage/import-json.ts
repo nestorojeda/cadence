@@ -4,17 +4,23 @@ import type { StoredChat } from "@/lib/chat/types";
 import type { StoredReport } from "@/lib/reports/types";
 import { getDb, toJsonParam, type Db } from "@/lib/db/client";
 import { isValidChatId, writeMessages } from "./chat-store";
+import { insertMemory, normalizeMemory } from "./memory-store";
+import { insertPreferences, normalizePreferences } from "./preferences-store";
 import { isValidActivityId, writeBaseline, writeReport } from "./report-store";
 
-// One-time move of the chats and reports that used to be JSON files under data/ into Postgres. Runs at startup; the
-// files are left in place as a backup. A chat or report already in the database is never overwritten.
+// One-time move of what used to be JSON files under data/ into Postgres. Runs at startup; the files are left in place
+// as a backup. Nothing already in the database is overwritten. Each step has its own `app_state` key, so a database
+// that imported chats and reports earlier still picks up preferences and memory.
 
-const IMPORT_KEY = "json_import";
+const CHATS_REPORTS_KEY = "json_import";
+const ATHLETES_KEY = "json_import_athletes";
 const ATHLETE_PATTERN = /^[a-zA-Z0-9_-]+$/;
 
 export interface ImportResult {
   chats: number;
   reports: number;
+  /** Preference and memory documents. */
+  athletes: number;
   skipped: number;
 }
 
@@ -71,15 +77,28 @@ async function importReport(db: Db, athleteId: string, file: string): Promise<bo
   });
 }
 
-/** Imports data/chats and data/reports once per database. `null` when it already ran (or another process is on it). */
+async function importAthleteFile(db: Db, file: string, name: string): Promise<boolean> {
+  const memory = name.endsWith(".memory.json");
+  const athleteId = name.slice(0, -(memory ? ".memory.json" : ".json").length);
+  if (!ATHLETE_PATTERN.test(athleteId)) throw new Error("not an athlete file");
+  const stored = await readJson(file);
+  return memory
+    ? insertMemory(db, athleteId, normalizeMemory(stored))
+    : insertPreferences(db, { ...normalizePreferences(stored, athleteId), athleteId });
+}
+
+/** Imports data/ once per database. `null` when every step already ran (or another process is on it). */
 export async function importLegacyJson(dataDir = path.join(process.cwd(), "data")): Promise<ImportResult | null> {
   const db = await getDb();
   return db.withAdvisoryLock("cadence:json-import", async () => {
-    const done = await db.query("SELECT 1 FROM app_state WHERE key = $1", [IMPORT_KEY]);
-    if (done.rows.length) return null;
+    const { rows } = await db.query<{ key: string }>("SELECT key FROM app_state WHERE key = ANY($1::text[])", [
+      [CHATS_REPORTS_KEY, ATHLETES_KEY],
+    ]);
+    const done = new Set(rows.map((r) => r.key));
+    if (done.has(CHATS_REPORTS_KEY) && done.has(ATHLETES_KEY)) return null;
 
-    const result: ImportResult = { chats: 0, reports: 0, skipped: 0 };
-    const attempt = async (file: string, run: () => Promise<boolean>, kind: "chats" | "reports") => {
+    const result: ImportResult = { chats: 0, reports: 0, athletes: 0, skipped: 0 };
+    const attempt = async (file: string, run: () => Promise<boolean>, kind: "chats" | "reports" | "athletes") => {
       try {
         if (await run()) result[kind]++;
       } catch (error) {
@@ -87,48 +106,63 @@ export async function importLegacyJson(dataDir = path.join(process.cwd(), "data"
         console.warn(`[db] Skipped ${file} during the JSON import:`, (error as Error).message);
       }
     };
+    const markDone = (key: string) =>
+      db.query("INSERT INTO app_state (key, value) VALUES ($1, $2) ON CONFLICT (key) DO NOTHING", [
+        key,
+        new Date().toISOString(),
+      ]);
 
-    const chatsDir = path.join(dataDir, "chats");
-    for (const athleteId of (await listDir(chatsDir)).filter((a) => ATHLETE_PATTERN.test(a))) {
-      const dir = path.join(chatsDir, athleteId);
-      for (const name of await listDir(dir)) {
-        if (!name.endsWith(".json") || name === "index.json") continue;
-        const file = path.join(dir, name);
-        await attempt(file, () => importChat(db, athleteId, file), "chats");
-      }
-    }
-
-    const reportsDir = path.join(dataDir, "reports");
-    for (const athleteId of (await listDir(reportsDir)).filter((a) => ATHLETE_PATTERN.test(a))) {
-      const dir = path.join(reportsDir, athleteId);
-      for (const name of await listDir(dir)) {
-        if (!name.endsWith(".json") || name === "index.json") continue;
-        const file = path.join(dir, name);
-        if (name === "state.json") {
-          await attempt(
-            file,
-            async () => {
-              const { baseline } = (await readJson(file)) as { baseline?: string };
-              if (baseline) await writeBaseline(db, athleteId, baseline);
-              return false;
-            },
-            "reports",
-          );
-          continue;
+    if (!done.has(CHATS_REPORTS_KEY)) {
+      const chatsDir = path.join(dataDir, "chats");
+      for (const athleteId of (await listDir(chatsDir)).filter((a) => ATHLETE_PATTERN.test(a))) {
+        const dir = path.join(chatsDir, athleteId);
+        for (const name of await listDir(dir)) {
+          if (!name.endsWith(".json") || name === "index.json") continue;
+          const file = path.join(dir, name);
+          await attempt(file, () => importChat(db, athleteId, file), "chats");
         }
-        await attempt(file, () => importReport(db, athleteId, file), "reports");
       }
+
+      const reportsDir = path.join(dataDir, "reports");
+      for (const athleteId of (await listDir(reportsDir)).filter((a) => ATHLETE_PATTERN.test(a))) {
+        const dir = path.join(reportsDir, athleteId);
+        for (const name of await listDir(dir)) {
+          if (!name.endsWith(".json") || name === "index.json") continue;
+          const file = path.join(dir, name);
+          if (name === "state.json") {
+            await attempt(
+              file,
+              async () => {
+                const { baseline } = (await readJson(file)) as { baseline?: string };
+                if (baseline) await writeBaseline(db, athleteId, baseline);
+                return false;
+              },
+              "reports",
+            );
+            continue;
+          }
+          await attempt(file, () => importReport(db, athleteId, file), "reports");
+        }
+      }
+      await markDone(CHATS_REPORTS_KEY);
     }
 
-    await db.query("INSERT INTO app_state (key, value) VALUES ($1, $2) ON CONFLICT (key) DO NOTHING", [
-      IMPORT_KEY,
-      new Date().toISOString(),
-    ]);
-    if (result.chats || result.reports || result.skipped) {
+    if (!done.has(ATHLETES_KEY)) {
+      const athletesDir = path.join(dataDir, "athletes");
+      for (const name of await listDir(athletesDir)) {
+        if (!name.endsWith(".json")) continue;
+        const file = path.join(athletesDir, name);
+        await attempt(file, () => importAthleteFile(db, file, name), "athletes");
+      }
+      await markDone(ATHLETES_KEY);
+    }
+
+    if (result.chats || result.reports || result.athletes || result.skipped) {
       console.log(
-        `[db] Imported ${result.chats} chats and ${result.reports} reports from ${dataDir}` +
+        `[db] Imported ${result.chats} chats, ${result.reports} reports and ${result.athletes} preference/memory ` +
+          `files from ${dataDir}` +
           (result.skipped ? ` (${result.skipped} files skipped)` : "") +
-          ". The JSON files are no longer used; remove data/chats and data/reports once you've checked the app.",
+          ". The JSON files are no longer used; remove them once you've checked the app.",
       );
     }
     return result;

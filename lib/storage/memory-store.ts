@@ -1,6 +1,4 @@
 import crypto from "crypto";
-import fs from "fs/promises";
-import path from "path";
 import {
   EMPTY_MEMORY,
   MAX_FACTS,
@@ -12,58 +10,65 @@ import {
   type MemoryFact,
   type PlanNote,
 } from "@/lib/coach/memory";
+import { getDb, toJsonParam, type Queryable } from "@/lib/db/client";
 import { dateInZone } from "@/lib/intervals/timezone";
-import { writeJsonAtomic } from "./json-file";
-import { withLock } from "./lock";
 
-const cache = new Map<string, AthleteMemory>();
+// The coach's memory lives in Postgres, one jsonb document per athlete (`athlete_memory`). No in-process cache: prod
+// and the dev container share the database.
 
-function memoryFile(athleteId: string): string {
-  const sanitized = athleteId.trim().replace(/[^a-zA-Z0-9_-]/g, "");
-  if (!sanitized) throw new Error("Invalid athlete ID");
-  return path.join(process.cwd(), "data", "athletes", `${sanitized}.memory.json`);
+function cleanAthleteId(athleteId: string): string {
+  const id = athleteId.trim();
+  if (!id || /[^a-zA-Z0-9_-]/.test(id)) throw new Error("Invalid athlete ID");
+  return id;
 }
 
-/** null when the file exists but can't be read: it's left alone so nothing the coach saved is overwritten. */
-async function load(file: string): Promise<AthleteMemory | null> {
-  const cached = cache.get(file);
-  if (cached) return cached;
-  try {
-    const stored = JSON.parse(await fs.readFile(file, "utf-8")) as Partial<AthleteMemory>;
-    const memory: AthleteMemory = {
-      facts: Array.isArray(stored.facts) ? stored.facts : [],
-      plan: stored.plan ?? null,
-    };
-    cache.set(file, memory);
-    return memory;
-  } catch (err) {
-    if ((err as NodeJS.ErrnoException).code === "ENOENT") return EMPTY_MEMORY;
-    console.warn(`[MemoryStore] Could not read ${file}:`, err);
-    return null;
-  }
+export function normalizeMemory(stored: unknown): AthleteMemory {
+  const memory = (stored ?? {}) as Partial<AthleteMemory>;
+  return { facts: Array.isArray(memory.facts) ? memory.facts : [], plan: memory.plan ?? null };
+}
+
+/** Inserts the document unless the athlete already has one. Also used by the JSON import. */
+export async function insertMemory(db: Queryable, athleteId: string, memory: AthleteMemory): Promise<boolean> {
+  const { rows } = await db.query(
+    `INSERT INTO athlete_memory (athlete_id, data) VALUES ($1, $2::jsonb)
+     ON CONFLICT (athlete_id) DO NOTHING RETURNING athlete_id`,
+    [athleteId, toJsonParam(memory)],
+  );
+  return rows.length > 0;
 }
 
 /** `today` is the athlete's date (YYYY-MM-DD); without it, the server's. */
 export async function getMemory(athleteId: string, today = dateInZone(new Date())): Promise<AthleteMemory> {
-  const memory = (await load(memoryFile(athleteId))) ?? EMPTY_MEMORY;
+  const db = await getDb();
+  const { rows } = await db.query<{ data: unknown }>("SELECT data FROM athlete_memory WHERE athlete_id = $1", [
+    cleanAthleteId(athleteId),
+  ]);
+  const memory = rows[0] ? normalizeMemory(rows[0].data) : EMPTY_MEMORY;
   return { ...memory, facts: memory.facts.filter((f) => !isExpired(f, today)) };
 }
 
 /** Expired facts are dropped only when the athlete's `today` is known: the server's date can be a day ahead. */
-function update<T>(
+async function update<T>(
   athleteId: string,
   fn: (memory: AthleteMemory, now: Date) => { memory: AthleteMemory; result: T },
   today?: string,
-) {
-  const file = memoryFile(athleteId);
-  return withLock(file, async () => {
-    const current = await load(file);
-    if (!current) throw new Error("The coach's memory file can't be read, so nothing was saved.");
-    const now = new Date();
+): Promise<T> {
+  const id = cleanAthleteId(athleteId);
+  const db = await getDb();
+  return db.transaction(async (tx) => {
+    // Locks the athlete's row, so concurrent writes (from any process) apply one after the other.
+    await insertMemory(tx, id, EMPTY_MEMORY);
+    const { rows } = await tx.query<{ data: unknown }>(
+      "SELECT data FROM athlete_memory WHERE athlete_id = $1 FOR UPDATE",
+      [id],
+    );
+    const current = normalizeMemory(rows[0].data);
     const facts = today ? current.facts.filter((f) => !isExpired(f, today)) : current.facts;
-    const { memory, result } = fn({ ...current, facts }, now);
-    await writeJsonAtomic(file, memory, 2);
-    cache.set(file, memory);
+    const { memory, result } = fn({ ...current, facts }, new Date());
+    await tx.query("UPDATE athlete_memory SET data = $2::jsonb, updated_at = now() WHERE athlete_id = $1", [
+      id,
+      toJsonParam(memory),
+    ]);
     return result;
   });
 }

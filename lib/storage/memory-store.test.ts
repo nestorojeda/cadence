@@ -1,43 +1,41 @@
-import fs from "fs/promises";
-import os from "os";
-import path from "path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MAX_FACTS } from "@/lib/coach/memory";
-
-let root: string;
-let store: typeof import("./memory-store");
-const file = (athleteId: string) => path.join(root, "data", "athletes", `${athleteId}.memory.json`);
+import { getDb, resetDb, setDbForTests } from "@/lib/db/client";
+import { createTestDb } from "@/lib/db/testing";
+import * as store from "./memory-store";
 
 beforeEach(async () => {
-  root = await fs.mkdtemp(path.join(os.tmpdir(), "cadence-memory-"));
-  vi.spyOn(process, "cwd").mockReturnValue(root);
-  vi.resetModules();
-  store = await import("./memory-store");
+  setDbForTests(await createTestDb());
 });
 
 afterEach(async () => {
   vi.useRealTimers();
-  vi.restoreAllMocks();
-  await fs.rm(root, { recursive: true, force: true });
+  await resetDb();
 });
 
+async function storedFacts(athleteId: string): Promise<string[] | undefined> {
+  const { rows } = await (
+    await getDb()
+  ).query<{ data: { facts: Array<{ text: string }> } }>("SELECT data FROM athlete_memory WHERE athlete_id = $1", [
+    athleteId,
+  ]);
+  return rows[0]?.data.facts.map((f) => f.text);
+}
+
 describe("memory store", () => {
-  it("starts empty without writing a file", async () => {
+  it("starts empty without saving anything", async () => {
     expect(await store.getMemory("i1")).toEqual({ facts: [], plan: null });
-    await expect(fs.access(file("i1"))).rejects.toThrow();
+    expect(await storedFacts("i1")).toBeUndefined();
   });
 
   it("adds, persists and removes facts", async () => {
     const { fact } = await store.addFact("i1", { text: "Left knee sore", category: "health", chatId: "c1" });
     expect(fact).toMatchObject({ text: "Left knee sore", category: "health", chatId: "c1" });
+    expect((await store.getMemory("i1")).facts.map((f) => f.id)).toEqual([fact.id]);
 
-    vi.resetModules();
-    const fresh = await import("./memory-store");
-    expect((await fresh.getMemory("i1")).facts.map((f) => f.id)).toEqual([fact.id]);
-
-    expect(await fresh.removeFact("i1", fact.id)).toMatchObject({ text: "Left knee sore" });
-    expect(await fresh.removeFact("i1", fact.id)).toBeNull();
-    expect((await fresh.getMemory("i1")).facts).toEqual([]);
+    expect(await store.removeFact("i1", fact.id)).toMatchObject({ text: "Left knee sore" });
+    expect(await store.removeFact("i1", fact.id)).toBeNull();
+    expect((await store.getMemory("i1")).facts).toEqual([]);
   });
 
   it("returns the existing fact for a duplicate", async () => {
@@ -48,7 +46,7 @@ describe("memory store", () => {
   });
 
   it("hides expired facts and prunes them on the next write", async () => {
-    vi.useFakeTimers();
+    vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date(2026, 9, 10, 12));
     await store.addFact("i1", { text: "Away in Lisbon", category: "availability", expiresOn: "2026-10-18" });
     expect((await store.getMemory("i1")).facts).toHaveLength(1);
@@ -59,8 +57,7 @@ describe("memory store", () => {
     expect((await store.getMemory("i1")).facts).toEqual([]);
 
     await store.addFact("i1", { text: "Back home", category: "availability" }, "2026-10-19");
-    const saved = JSON.parse(await fs.readFile(file("i1"), "utf-8")) as { facts: Array<{ text: string }> };
-    expect(saved.facts.map((f) => f.text)).toEqual(["Back home"]);
+    expect(await storedFacts("i1")).toEqual(["Back home"]);
   });
 
   it("uses the athlete's date, and keeps expired facts on writes that don't know it", async () => {
@@ -69,13 +66,20 @@ describe("memory store", () => {
     expect((await store.getMemory("i1", "2026-10-19")).facts).toEqual([]);
 
     await store.setPlan("i1", { phase: "Build", focus: "Threshold", text: "2x20 Tue" });
-    const saved = JSON.parse(await fs.readFile(file("i1"), "utf-8")) as { facts: Array<{ text: string }> };
-    expect(saved.facts.map((f) => f.text)).toEqual(["Away in Lisbon"]);
+    expect(await storedFacts("i1")).toEqual(["Away in Lisbon"]);
   });
 
-  it("refuses to add past the limit", async () => {
+  it("refuses to add past the limit without changing anything", async () => {
     for (let i = 0; i < MAX_FACTS; i++) await store.addFact("i1", { text: `fact ${i}`, category: "life" });
     await expect(store.addFact("i1", { text: "one more", category: "life" })).rejects.toThrow(/full/);
+    expect(await storedFacts("i1")).toHaveLength(MAX_FACTS);
+  });
+
+  it("applies concurrent writes one after the other", async () => {
+    await Promise.all(
+      Array.from({ length: 5 }, (_, i) => store.addFact("i1", { text: `fact ${i}`, category: "life" })),
+    );
+    expect((await storedFacts("i1"))?.sort()).toEqual(["fact 0", "fact 1", "fact 2", "fact 3", "fact 4"]);
   });
 
   it("sets and clears the plan note", async () => {
@@ -85,12 +89,8 @@ describe("memory store", () => {
     expect((await store.getMemory("i1")).plan).toBeNull();
   });
 
-  it("reads a corrupt file as empty and refuses to overwrite it", async () => {
-    vi.spyOn(console, "warn").mockImplementation(() => {});
-    await fs.mkdir(path.dirname(file("i1")), { recursive: true });
-    await fs.writeFile(file("i1"), "{ not json");
-    expect(await store.getMemory("i1")).toEqual({ facts: [], plan: null });
-    await expect(store.addFact("i1", { text: "x", category: "life" })).rejects.toThrow(/can't be read/);
-    expect(await fs.readFile(file("i1"), "utf-8")).toBe("{ not json");
+  it("keeps athletes apart", async () => {
+    await store.addFact("i1", { text: "Left knee sore", category: "health" });
+    expect((await store.getMemory("i2")).facts).toEqual([]);
   });
 });

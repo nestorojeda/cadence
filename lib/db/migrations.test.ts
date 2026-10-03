@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import type { Db } from "./client";
-import { migrate } from "./migrations";
+import { MIGRATIONS, migrate } from "./migrations";
 import { createTestDb } from "./testing";
 
 let db: Db | undefined;
@@ -13,10 +13,10 @@ afterEach(async () => {
 describe("migrate", () => {
   it("applies each migration once", async () => {
     db = await createTestDb({ migrated: false });
-    expect(await migrate(db)).toEqual(["001_chats_reports"]);
+    expect(await migrate(db)).toEqual(MIGRATIONS.map((m) => m.id));
     expect(await migrate(db)).toEqual([]);
     const { rows } = await db.query<{ n: number }>("SELECT count(*)::int AS n FROM schema_migrations");
-    expect(rows[0].n).toBe(1);
+    expect(rows[0].n).toBe(MIGRATIONS.length);
   });
 
   it("indexes only the text parts of a message for search", async () => {
