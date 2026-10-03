@@ -1,9 +1,7 @@
-import fs from "fs/promises";
-import os from "os";
-import path from "path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { resetDb, setDbForTests } from "@/lib/db/client";
+import { createTestDb } from "@/lib/db/testing";
 
-let root: string;
 let tools: ReturnType<typeof import("./tools").getCoachTools>;
 let memory: typeof import("@/lib/storage/memory-store");
 let preferences: typeof import("@/lib/storage/preferences-store");
@@ -13,8 +11,7 @@ function run<T>(t: { execute?: (input: T, options: never) => unknown }, input: T
 }
 
 beforeEach(async () => {
-  root = await fs.mkdtemp(path.join(os.tmpdir(), "cadence-coach-tools-"));
-  vi.spyOn(process, "cwd").mockReturnValue(root);
+  setDbForTests(await createTestDb());
   vi.resetModules();
   tools = (await import("./tools")).getCoachTools("i1", "c1");
   memory = await import("@/lib/storage/memory-store");
@@ -24,7 +21,7 @@ beforeEach(async () => {
 afterEach(async () => {
   vi.useRealTimers();
   vi.restoreAllMocks();
-  await fs.rm(root, { recursive: true, force: true });
+  await resetDb();
 });
 
 describe("coach_remember / coach_forget", () => {

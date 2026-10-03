@@ -62,6 +62,22 @@ export const MIGRATIONS: { id: string; sql: string }[] = [
       );
     `,
   },
+  {
+    // One document per athlete each: the stores read, change and write them whole under a row lock.
+    id: "002_athlete_preferences_memory",
+    sql: `
+      CREATE TABLE athlete_preferences (
+        athlete_id text PRIMARY KEY,
+        data jsonb NOT NULL,
+        updated_at timestamptz NOT NULL DEFAULT now()
+      );
+      CREATE TABLE athlete_memory (
+        athlete_id text PRIMARY KEY,
+        data jsonb NOT NULL,
+        updated_at timestamptz NOT NULL DEFAULT now()
+      );
+    `,
+  },
 ];
 
 export async function migrate(db: Db, migrations = MIGRATIONS): Promise<string[]> {
